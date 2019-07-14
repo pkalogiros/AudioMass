@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<title>AudioMass - Audio Editor</title>
+
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>  
+
+	<meta name="description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool"/>
+	<meta property="og:image" content="https://audiomass.co/icon.jpg"/>
+	<meta property="og:title" content="AudioMass">
+	<meta property="og:url" content="https://audiomass.co/">
+	<meta property="og:description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool">
+	<meta name="keywords" content="AudioMass, WebAudio, WaveForm, audio editing, free audio editing, audio tool, waveform editor, sound editor, open source">
+	<link href="/ico.ico" rel="shortcut icon">
+
+	<link rel="apple-touch-icon" href="https://audiomass.co/icon-app.png">
+	<meta name="apple-mobile-web-app-title" content="AudioMass">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+	<link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body>
+	<div id="app"></div>
+
+	<script src="dist/wavesurfer.js"></script>
+	<script src="dist/plugin/wavesurfer.regions.js"></script>
+	<script src="oneup.js"></script>
+
+	<script src="app.js"></script>
+	<script src="keys.js"></script>
+	<script src="contextmenu.js"></script>
+	<script src="ui-fx.js"></script>
+	<script src="ui.js"></script>
+	<script src="modal.js"></script>
+	<script src="state.js"></script>
+	<script src="engine.js"></script>
+	<script src="actions.js"></script>
+	<script src="drag.js"></script>
+	<script src="recorder.js"></script>
+
+	<script src="welcome.js"></script>
+
+	<script src="fx-pg-eq.js"></script>
+
+<!--
+	<script src="multitrack.js"></script>
+	<script src="multitrack-ui.js"></script>
+-->
+	<script>
+		var editor = PKAudioEditor.init ('app');
+	</script>
+</body>
+</html>

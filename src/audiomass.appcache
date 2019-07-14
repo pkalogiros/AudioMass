@@ -1,0 +1,33 @@
+CACHE MANIFEST
+# v1 - July 26, 2018
+
+/index-cache.html
+/main.css
+/dist/wavesurfer.js
+/dist/plugin/wavesurfer.regions.js
+/oneup.js
+/app.js
+/keys.js
+/contextmenu.js
+/ui-fx.js
+/ui.js
+/modal.js
+/state.js
+/engine.js
+/actions.js
+/drag.js
+/recorder.js
+/welcome.js
+/fx-pg-eq.js
+/lame.js
+/fonts/icomoon.ttf
+/fonts/icomoon.woff
+/test.mp3
+
+
+NETWORK:
+/index-cache.html
+
+# Fallback content
+FALLBACK:
+. /index-cache.html
