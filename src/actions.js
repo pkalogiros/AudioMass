@@ -486,7 +486,7 @@
 					// audio_destination.fftSize = 512;
 					audio_destination.getByteFrequencyData( wavesurfer.backend.FreqArr );
 					//wavesurfer.backend.peak_frequency = Math.max.apply( null, wavesurfer.backend.FreqArr );
-					master.fireEvent ('DidAudioProcess',[-1, loudness], wavesurfer.backend.FreqArr);
+					master.fireEvent ('DidAudioProcess',[-1, loudness, e.timeStamp], wavesurfer.backend.FreqArr);
 					// wavesurfer.backend.peak_frequency = [0, 0];
 					skipp = 2;
 				}

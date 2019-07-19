@@ -5,7 +5,12 @@
 
 	<meta charset="utf-8" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-	<meta name="viewport" content="width=device-width, initial-scale=1"/>  
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"/>
+<!--
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0"/>
+-->
 
 	<meta name="description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool"/>
 	<meta property="og:image" content="https://audiomass.co/icon.jpg"/>
@@ -16,6 +21,7 @@
 	<link href="/ico.ico" rel="shortcut icon">
 
 	<link rel="apple-touch-icon" href="https://audiomass.co/icon-app.png">
+	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-title" content="AudioMass">
 	<meta name="apple-mobile-web-app-capable" content="yes">
 	<meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -42,15 +48,13 @@
 	<script src="recorder.js"></script>
 
 	<script src="welcome.js"></script>
-
 	<script src="fx-pg-eq.js"></script>
 
 <!--
 	<script src="multitrack.js"></script>
 	<script src="multitrack-ui.js"></script>
 -->
-	<script>
-		var editor = PKAudioEditor.init ('app');
-	</script>
+	<script> var editor = PKAudioEditor.init ('app'); </script>
+
 </body>
 </html>

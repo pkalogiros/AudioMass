@@ -153,8 +153,8 @@
 			}, 180);
 		}
 
-		app.listenFor ('RequestResize', function() {
-			wavesurfer.fireEvent('resize');
+		app.listenFor ('RequestResize', function () {
+			wavesurfer.fireEvent ('resize');
 
 			var h = window.innerHeight;
 			var bottom = 0;
@@ -163,7 +163,7 @@
 				bottom = (app.ui.BarBtm.on ? app.ui.BarBtm.height : 0);
 			}
 
-			wavesurfer.setHeight( (h < 300 ? 300 : h) - 168 - bottom);
+			wavesurfer.setHeight( (h < 280 ? 280 : h) - 168 - bottom);
 			// app.fireEvent ('DidResize');
 		});
 
@@ -223,11 +223,11 @@
 		wavesurfer.on ('play', function() {
 			app.fireEvent ('DidPlay');
 		});
-		wavesurfer.on ('seek', function() {
+		wavesurfer.on ('seek', function ( where, stamp ) {
 			var time = wavesurfer.getCurrentTime();
 			var loudness = wavesurfer.getLoudness();
 
-			app.fireEvent ('DidAudioProcess', [time, loudness]);
+			app.fireEvent ('DidAudioProcess', [time, loudness, stamp]);
 		});
 
 		app.listenFor ('RequestStop', function( val ) {
@@ -474,9 +474,20 @@
 			}
 
 			dbncr = setTimeout(function(){
-				app.fireEvent ('RequestResize');
-			},82);
+
+				//requestAnimationFrame(function (){
+					app.fireEvent ('RequestResize');
+
+					if (app.isMobile) {
+						window.scrollTo (0, 200);
+					}
+				//});
+			},84);
 		}, false);
+
+//		w.addEventListener ('orientationchange', function () {
+//  			app.fireEvent ('RequestResize');
+//		});
 
 		w.addEventListener('beforeunload', function (e) {
 		  app.fireEvent ('WillUnload');
@@ -496,11 +507,11 @@
 			app.fireEvent ('ShowError', error_msg);
 		});
 
-		wavesurfer.on('audioprocess', function ( e ) {
-			var time = wavesurfer.getCurrentTime();
+		wavesurfer.on('audioprocess', function ( time, stamp ) {
+			// var time = wavesurfer.getCurrentTime();
 			var loudness = wavesurfer.getLoudness();
 		
-			app.fireEvent ('DidAudioProcess', [time, loudness], wavesurfer.backend.FreqArr);
+			app.fireEvent ('DidAudioProcess', [time, loudness, stamp], wavesurfer.backend.FreqArr);
 		});
 		wavesurfer.on('DidZoom', function ( e ) {
 			app.fireEvent ('DidZoom', [wavesurfer.ZoomFactor, (wavesurfer.LeftProgress/wavesurfer.getDuration()) * 100, wavesurfer.params.verticalZoom], e);

@@ -17,9 +17,14 @@
 		q.el = el;
 
 		// backdrop
-		var el_back = d.createElement('div');
+		var el_back = d.createElement ('div');
 		el_back.className = 'pk_modal_back';
 		this.el_back = el_back;
+
+		// var centerer
+		var el_cont = d.createElement ('div');
+		el_cont.className = 'pk_modal_cnt';
+		this.el_cont = el_cont;
 		
 		// title
 		var el_title = d.createElement ('div');
@@ -103,7 +108,10 @@
 	};
 	
 	PKSimpleModal.prototype.Show = function () {
-		this.el_back.appendChild ( this.el );
+
+		this.el_back.appendChild ( this.el_cont );
+		this.el_cont.appendChild ( this.el );
+
 		d.body.appendChild ( this.el_back );
 
 		return (this);
@@ -161,6 +169,10 @@
 				app.stopListeningFor ('RequestSetPresetActive',  q._updpreset);
 
 				app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+
+				// if preview remove callback
+				app.ui.KeyHandler.removeCallback ('ksp' + q.id);
+
 				
 				config.ondestroy && config.ondestroy ( q );
 			},
@@ -170,6 +182,23 @@
 			onpreset: config.onpreset,
 			setup:function( q ) {
 				app.fireEvent ('RequestActionFX_TOGGLE', 1);
+
+				var slf = this;
+				app.ui.KeyHandler.addCallback ('ksp' + q.id, function ( key, map ) {
+					if (!app.ui.InteractionHandler.check ('modalfx')) return ;
+
+					var tb = slf.toolbar;
+					if (tb && tb.length > 0)
+					{
+						var k = tb.length;
+						while (k-- > 0) {
+							if (tb[k].title === 'Preview') {
+								tb[k].callback ( q );
+								break;
+							}
+						}
+					}
+				}, [32]);
 
 			  q._evstart = function () {
 				  q.els.toolbar[0].classList.remove ('pk_inact');

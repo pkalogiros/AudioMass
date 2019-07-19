@@ -26,6 +26,11 @@
 		
 		d.addEventListener ('keydown', function ( e ) {
 			var keyCode = e.keyCode;
+
+			q.keyDown (keyCode, e);
+		});
+
+		q.keyDown = function (keyCode, e ) {
 			q.keyMap[keyCode] = 1;
 
 			for (var key in q.callbacks) {
@@ -43,17 +48,14 @@
 				}
 
 				all_ok && group.callback && group.callback ( keyCode, q.keyMap, e );
-			}
-		});
+			}			
+		};
 
-		d.addEventListener ('keyup', function ( e ) {
-			var keyCode = e.keyCode;
-			q.keyMap[keyCode] = 0;			
-		});
+		q.keyUp = function ( keyCode ) {
+			q.keyMap[keyCode] = 0;
+		};
 
-		d.addEventListener ('keypress', function ( e ) {
-			var keyCode = e.keyCode;
-
+		q.keyPress = function ( keyCode, e ) {
 			for (var key in q.singleCallbacks) {
 				var group = q.singleCallbacks[key];
 				if (!group) continue;
@@ -61,6 +63,17 @@
 				if (group.key === keyCode)
 					group.callback && group.callback ( e );
 			}
+		};
+
+		d.addEventListener ('keyup', function ( e ) {
+			var keyCode = e.keyCode;
+			q.keyUp (keyCode);
+		});
+
+		d.addEventListener ('keypress', function ( e ) {
+			var keyCode = e.keyCode;
+
+			q.keyPress (keyCode, e);
 		});
 
 		w.addEventListener ('blur', function ( e ) {

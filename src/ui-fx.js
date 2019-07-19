@@ -1267,6 +1267,93 @@
 				eq_win.destroy && eq_win.destroy ();
 			}
 		});
+
+		app.listenFor ('RequestDragI', function () {
+			if (app.isMobile) {
+				alert ("unsupported on mobile");
+				return ;
+			}
+
+			if (!eq_win || !eq_win.el) return ;
+
+			eq_win.el.style.pointerEvents = 'none';
+			eq_win.el.style.zIndex = '9';
+
+			eq_win.win.document.body.classList.add ('c');
+
+			var el_back = document.createElement ('div');
+			el_back.className = 'pk_modal_back';
+			document.body.appendChild (el_back);
+
+			var is_drag = true;
+			var x = 0;
+			var y = 0;
+			var moved = 2;
+
+			var top = parseInt (eq_win.el.style.top) || 0;
+			var left = parseInt (eq_win.el.style.left) || 0;
+
+			app.ui.InteractionHandler.on = true;
+
+			el_back.onmousemove = function ( e ) {
+				if (!is_drag) return ;
+
+				if (x === 0 && y === 0)
+				{
+					x = e.pageX;
+					y = e.pageY;
+
+					return ;
+				}
+
+				var dist_x = e.pageX - x;
+				var dist_y = e.pageY - y;
+
+				top  += dist_y;
+				left += dist_x;
+
+				eq_win.el.style.top  = top + 'px';
+				eq_win.el.style.left = left + 'px';
+
+				x = e.pageX;
+				y = e.pageY;
+
+				--moved;
+			};
+
+			el_back.onmouseup = function ( e ) {
+				is_drag = false;
+
+				eq_win.win.document.body.classList.remove ('c');
+				eq_win.el.style.pointerEvents = '';
+				eq_win.el.style.zIndex = '7';
+
+				app.ui.InteractionHandler.on = false;
+
+				document.body.removeChild (el_back);
+
+				if (e.type === 'mouseup')
+				{
+					if (moved > 0)
+					{
+						eq_win.el.style.top  = '0px';
+						eq_win.el.style.left = '0px';
+					}
+					// check if we didn't move - in that return 
+				}
+
+				el_back.onmousemove = null;
+				el_back.onmouseleave = null;
+				el_back.onmouseup = null;
+				el_back = null;
+			};
+
+			el_back.onmouseleave = function ( e ) {
+				el_back.onmouseup ( e );
+				app.fireEvent ('RequestShowFreqAn', [(window.screenLeft + e.pageX)||0, (window.screenTop + e.pageY)||0], 0);
+			};
+		});
+
 		app.listenFor ('RequestShowFreqAn', function ( toggle, type ) {
 
 			if (app.isMobile) {
@@ -1308,12 +1395,21 @@
 			if (!type)
 			{
 
-				var makePopup = function () {
-					var wnd = window.open('/eq.html', "Frequency Analysis", "directories=no,titlebar=no,toolbar=no,"+
-							"location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=600,height=188");
+				var makePopup = function ( dat ) {
+					var extra = '';
+					if (dat && dat[0]) {
+						dat[0] = Math.max (0, dat[0] - 200) >> 0;
+						dat[1] = Math.max (0, dat[1]) >> 0;
+
+						extra = ',left=' + dat[0] + ',top=' + dat[1];
+					}
+
+					var wnd = window.open ('/eq.html', "Frequency Analysis", "directories=no,titlebar=no,toolbar=no,"+
+							"location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=600,height=188" + extra);
 
 					eq_win = {
 						type : type,
+						el   : null,
 						win  : wnd,
 						destroy : function () {
 							wnd && wnd.close && wnd.close ();
@@ -1324,8 +1420,8 @@
 					setEvents ();
 				};
 
-				if (!toggled) makePopup ();
-				else setTimeout(function(){makePopup ()}, 128);
+				if (!toggled) makePopup (toggle);
+				else setTimeout(function(){makePopup (toggle)}, 130);
 			}
 			else if (type === 1)
 			{
@@ -1337,6 +1433,7 @@
 
 				eq_win = {
 					type : type,
+					el   : iframe,
 					win  : null,
 					destroy : function () {
 						iframe.parentNode.removeChild ( iframe );

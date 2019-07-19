@@ -70,6 +70,18 @@
 			}
 		};
 
+		if (app.isMobile)
+		{
+			d.body.className = 'pk_stndln';
+			var fxd = d.createElement ('div');
+			fxd.className = 'pk_fxd';
+			fxd.appendChild (this.el);
+
+			d.body.appendChild (fxd);
+
+			_makeMobileScroll (this);
+		}
+
 		this.KeyHandler = new app._deps.keyhandler ( this ); // initializing keyhandler
 		this.TopHeader  = new _makeUITopHeader ( _topbarConfig ( app ), this ); // topmost menu
 		this.Toolbar    = new _makeUIToolbar ( this ); // main toolbar and controls
@@ -101,6 +113,11 @@
 					}, [27]);
 				}
 			}).Show ();
+		});
+
+		app.listenFor ('RequestKeyDown', function ( key ) {
+			q.KeyHandler.keyDown ( key, null );
+			q.KeyHandler.keyUp ( key );
 		});
 	};
 
@@ -656,9 +673,16 @@
 					},
 
 					{
-						name   : 'View Dev Diary',
+						name   : 'About',
 						action : function () {
-							window.open ('/changelog.html');
+							window.open ('/about.html');
+						}
+					},
+
+					{
+						name   : 'See Welcome Message',
+						action : function () {
+							PKAudioEditor._deps.Wlc ();
 						}
 					},
 					// {
@@ -689,8 +713,7 @@
 	function _makeUITopHeader ( menu_tree, UI ) {
 		var header = d.createElement ( 'div' );
 		header.className = 'pk_hdr pk_noselect';
-		UI.el.appendChild( header );
-		
+
 		var _name = 'TopHeader',
 			_default_class = 'pk_btn pk_noselect';
 
@@ -768,7 +791,7 @@
 
 			target_el.parentNode.className = _default_class;
 			target_el = target_el_old = null;
-			
+
 			if (target_option)
 			{
 				target_option.classList.remove ('pk_act');
@@ -792,8 +815,28 @@
 				target_el.parentNode.className = _default_class;
 			}
 
-			top_els[ index ].parentNode.className += ' pk_act';
-			target_el = top_els[ index ];
+			var curr_target = top_els[ index ];
+			target_el = curr_target;
+
+			var parent = curr_target.parentNode;
+			var left = parent.getBoundingClientRect ().left;
+			var max = window.innerWidth;
+			var offset = 0;
+
+			if ( max - left < 200 )
+			{
+				offset = (264 - (max - left)) >> 0;
+
+				if (offset > 1)
+					parent.getElementsByClassName ('pk_menu')[0].style.left = (-offset / 2) + 'px';
+			}
+
+			parent.className += ' pk_vis';
+			setTimeout(function() {
+				if (target_el === curr_target)
+					parent.className += ' pk_act';
+			},0);
+
 			target_index = index;
 			
 			UI.InteractionHandler.checkAndSet (_name);
@@ -822,7 +865,7 @@
 			UI.KeyHandler.addCallback (_name + 4, function ( key, m, e ) {
 				if (!target_option)
 				{
-					var els = target_el.parentNode.getElementsByClassName('pk_opt');
+					var els = target_el.parentNode.getElementsByClassName ('pk_opt');
 					if (els[0]) {
 						target_option = els[0];
 						target_option.classList.add ('pk_act');
@@ -830,10 +873,10 @@
 				}
 				else
 				{
-					var ind = target_option.getAttribute('data-index')/1;
+					var ind = target_option.getAttribute ('data-index')/1;
 					target_option.classList.remove ('pk_act');
 					
-					target_option = target_el.parentNode.getElementsByClassName('pk_opt');
+					target_option = target_el.parentNode.getElementsByClassName ('pk_opt');
 					if (ind - 1 < 0)
 					{
 						target_option = target_option[target_option.length - 1];
@@ -848,7 +891,7 @@
 			UI.KeyHandler.addCallback (_name + 5, function ( key, m, e ) {
 				if (!target_option)
 				{
-					var els = target_el.parentNode.getElementsByClassName('pk_opt');
+					var els = target_el.parentNode.getElementsByClassName ('pk_opt');
 					if (els[0]) {
 						target_option = els[0];
 						target_option.classList.add ('pk_act');
@@ -856,10 +899,10 @@
 				}
 				else
 				{
-					var ind = target_option.getAttribute('data-index')/1;
+					var ind = target_option.getAttribute ('data-index')/1;
 					target_option.classList.remove ('pk_act');
 					
-					target_option = target_el.parentNode.getElementsByClassName('pk_opt');
+					target_option = target_el.parentNode.getElementsByClassName ('pk_opt');
 					if (target_option.length <= ind + 1)
 					{
 						target_option = target_option[0];
@@ -990,6 +1033,9 @@
 			}
 			// -
 		}, false);
+
+		UI.el.appendChild ( header );
+		// -
 	};
 
 
@@ -1064,11 +1110,11 @@
 
 
 		btn_panner_left.onclick = function () {
-			app.fireEvent ('RequestChanToggle', 1);
+			app.fireEvent ('RequestChanToggle', 0);
 			this.blur();
 		};
 		btn_panner_right.onclick = function () {
-			app.fireEvent ('RequestChanToggle', 0);
+			app.fireEvent ('RequestChanToggle', 1);
 			this.blur();
 		};
 		app.listenFor ('DidChanToggle', function ( chan, val ) {
@@ -1262,9 +1308,17 @@
 		var drag_mode = 0;
 		var startingX = 0;
 		var waveScrollMouseMove = function( e ) {
-			e.stopPropagation();e.preventDefault();
+			e.stopPropagation(); e.preventDefault();
 
-			var diff = -startingX + e.clientX;
+			var clx = e.clientX;
+
+			if (e.touches) {
+				if (e.touches.length > 1) return ;
+
+				clx = e.touches[0].clientX;
+			}
+
+			var diff = -startingX + clx;
 			if (drag_mode === 0)
 				UI.fireEvent ('RequestPan', diff, 1);
 			else if (drag_mode === -1)
@@ -1276,9 +1330,11 @@
 				UI.fireEvent ('RequestZoom', diff, 1);
 			}
 			
-			startingX = e.clientX;
+			startingX = clx;
 		},
-		waveScrollMouseUp = function( e ) {
+		waveScrollMouseUp = function ( e ) {
+			if (e.touches && e.touches.length > 1) return ;
+
 			PKAudioEditor.engine.wavesurfer.Interacting &= ~(1 << 1);
 			e.stopPropagation();e.preventDefault();
 			drag_mode = 0;
@@ -1287,10 +1343,15 @@
 			wavedrag.classList.remove ('pk_drag');
 			
 			document.removeEventListener('mousemove', waveScrollMouseMove);
-			document.removeEventListener('mouseup', waveScrollMouseUp);	
+			document.removeEventListener('mouseup', waveScrollMouseUp);
+
+			document.removeEventListener('touchmove', waveScrollMouseMove, {passive:false});
+			document.removeEventListener('touchend', waveScrollMouseUp);
 		};
-		wavedrag.addEventListener('mousedown', function( e ) {
-			
+
+		var mdown = function ( e ) {
+			if (!PKAudioEditor.engine.is_ready) return ;
+
 			if (e.target === wavedrag) {
 				drag_mode = 0;
 			} else if ( e.target === wavedrag_left) {
@@ -1303,12 +1364,38 @@
 
 			startingX = e.clientX;
 			PKAudioEditor.engine.wavesurfer.Interacting |= (1 << 1);
-					
-			document.addEventListener('mousemove', waveScrollMouseMove, false);
-			document.addEventListener('mouseup', waveScrollMouseUp, false);		
-		}, false);
-		
-		
+
+			if (e.is_touch)
+			{
+				document.addEventListener ('touchmove', waveScrollMouseMove, {passive:false});
+				document.addEventListener ('touchend', waveScrollMouseUp, false);
+			}
+			else
+			{		
+				document.addEventListener ('mousemove', waveScrollMouseMove, false);
+				document.addEventListener ('mouseup', waveScrollMouseUp, false);	
+			}
+		};
+
+		wavedrag.addEventListener ('mousedown', mdown, false);
+
+		if ('ontouchstart' in window) {
+			wavedrag.addEventListener ('touchstart', function ( e ) {
+				e.preventDefault ();
+				e.stopPropagation ();
+
+				if (e.touches.length > 1) {
+					return ;
+				}
+
+				var ev = {
+					is_touch : true,
+					target : wavedrag,
+					clientX: e.touches[0].clientX
+				};
+				mdown ( ev );
+			}, false);
+		}
 		
 		
 		this.volumeGauge = d.createElement( 'div' );
@@ -1386,10 +1473,12 @@
 
 	
 	function _makeUIToolbar (UI) {
+		var container = d.createElement ( 'div' );
+		container.className = 'pk_tbc';
+
 		var toolbar = d.createElement ( 'div' );
 		toolbar.className = 'pk_tb pk_noselect';
-		UI.el.appendChild( toolbar );		
-		
+
 		var btn_groups = d.createElement( 'div' );
 		btn_groups.className = 'pk_btngroup';
 		
@@ -1810,13 +1899,13 @@
 			var old_refresh = 0;
 
 			var avv = d.getElementsByClassName('pk_av')[0]; 
-			avv.addEventListener ('mousemove', function(e) {
+			avv.addEventListener ('mousemove', function ( e ) {
 				// re-run the mousemove fam on zoom based on the pointer position)
 
 				// throttle this as well ####  violation
-				var new_refresh =  w.performance.now ();
+				var new_refresh = e.timeStamp;
 
-				if (new_refresh - old_refresh < 50) {
+				if (new_refresh - old_refresh < 58) {
 					return ;
 				}
 
@@ -1877,6 +1966,8 @@
 				var divs = div.childNodes;
 				if (!copable) divs[4].className += ' pk_inact';
 
+				UI.fireEvent ('RequestPause');
+
 				var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
 				if (region) return ;
 
@@ -1891,6 +1982,8 @@
 		});
 		
 		function formatTime( time ) {
+			if (time === 0) return '00:00:000';
+
 			var time_s = time >> 0;
 			var miliseconds = time - time_s;
 			
@@ -1906,7 +1999,7 @@
 				time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
 			}
 			
-			return time_s + ':' + (miliseconds.toFixed(3)+'').substr(2);
+			return time_s + ':' + (miliseconds+'').substr(2, 3);
 		}
 		
 		var volume1 = 0;
@@ -1919,7 +2012,7 @@
 			var time = val[0];
 			var loudness = val[1];
 
-			var new_refresh =  w.performance.now ();
+			var new_refresh =  val[2] || w.performance.now ();
 
 			if (new_refresh - old_refresh < 50) {
 				return ;
@@ -2003,7 +2096,7 @@
 		
 		
 		var actions = d.createElement( 'div' );
-		actions.className = 'pk_actions';
+		actions.className = 'pk_ctns';
 		
 		var copy_btn = d.createElement ('button');
 		copy_btn.setAttribute('tabIndex', -1);
@@ -2141,12 +2234,132 @@
 		btn_groups.appendChild ( actions );
 		toolbar.appendChild ( selection );
 
+		container.appendChild ( toolbar );
+
+		UI.el.appendChild ( container );
+
 		dragNDrop( d.getElementById('app'), 'pk_overlay', function( e ) {
 			PKAudioEditor.engine.LoadArrayBuffer( new Blob([e]) );
 		}, 'arrayBuffer' );
 
 		// -
 	};
+
+	function _makeMobileScroll (UI) {
+
+		var getFactor = function () {
+			var screen_h = window.screen.height;
+			var screen_w = window.screen.width;
+
+			var iw = window.innerWidth;
+			var ih = window.innerHeight;
+
+			var bars_visible = false;
+			var ratio = 0;
+
+			if (window.orientation === 0) {
+				ratio = ih / screen_h;
+			}
+			else if (window.orientation === 90 || window.orientation === -90) {
+				ratio = ih / screen_w;
+			}
+			if (ratio < 0.8) bars_visible = true;
+
+			return (bars_visible);
+		};
+
+		var ex = -1;
+		var ey = -1;
+
+		var allow = false;
+		// var first = false;
+		d.body.addEventListener ('touchstart', function( e ) {
+			ex = e.touches[0].pageX;
+			ey = e.touches[0].pageY;
+
+			// first = true;
+			allow = false;
+		});
+
+		d.body.addEventListener ('touchend', function( e ) {
+			ex = -1;
+			ey = -1;
+
+			// first = false;
+			allow = false;
+		});
+
+		d.body.addEventListener ('touchmove', function( e ) {
+			if (e.target.tagName === 'INPUT') return ;
+			if (allow) return ;
+
+			var ny = e.touches[0].pageY;
+			var nx = e.touches[0].pageX;
+			var direction = ey - ny;
+			var direction2 = ex - nx;
+
+			// if (first) {
+			//	first = false;
+			// }
+
+			if ( direction === 0 || (Math.abs (direction) < 3 && Math.abs (direction2) > 3 ) || (Math.abs (direction) < 6 && Math.abs (direction2) > 10 ) ) {
+				ey = ny;
+				ex = nx;
+				allow = true;
+
+				return ;
+			}
+
+			ey = ny;
+			ex = nx;
+
+			var xx = document.getElementsByClassName ('pk_modal_back');
+
+			if (xx[0])
+			{
+				xx = xx[0];
+				if ( xx.scrollHeight > window.innerHeight )
+				{
+					var scrolled = xx.scrollTop;
+
+					if (direction > 0)
+					{
+						var modal_h = document.getElementsByClassName ('pk_modal')[0].clientHeight;
+
+						if ((modal_h - scrolled) < (window.innerHeight - 80))
+						{
+							e.preventDefault ();
+						}
+					}
+					else
+					{
+						if (scrolled <= 0)
+						{
+							e.preventDefault ();
+						}
+					}
+
+					allow = true;
+					return ;
+				}
+				else
+				{
+					e.preventDefault ();
+
+					allow = true;
+					return ;
+				}
+			}
+
+
+			if (!getFactor ()) {
+				e.preventDefault ();
+				allow = true;
+			}
+
+		}, {passive:false});
+	};
+	// ---
 
 	PKAE._deps.ui = PKUI;
 	

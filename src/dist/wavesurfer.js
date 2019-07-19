@@ -770,8 +770,10 @@ function _inherits(subClass, superClass) { if (typeof superClass !== "function" 
                 time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
             }
 
-            if (format === 1)
-                return time_s + ':' + (miliseconds.toFixed(2)+'').substr(2);
+            if (format === 1) {
+                return time_s + ':' + (miliseconds+'').substr(2, 2);
+                // return time_s + ':' + (miliseconds.toFixed(2)+'').substr(2);
+            }
 
             return time_s; // + ':' + (miliseconds.toFixed(2)+'').substr(2);
         }
@@ -1641,7 +1643,8 @@ var MultiCanvas = function (_Drawer) {
     }, {
         key: 'updateProgress',
         value: function updateProgress(position) {
-            this.progressWave.style.left = position + 'px';
+            // this.progressWave.style.left = position + 'px';
+            this.progressWave.style.transform = 'translate(' + position + 'px,0)';
             // this.style(this.progressWave, { left: position + 'px' });
         }
     }]);
@@ -1769,6 +1772,8 @@ var MediaElement = function (_WebAudio) {
                     return;
                 }
 
+                debugger;
+
 
                 _this2.fireEvent('audioprocess', _this2.getCurrentTime());
 
@@ -1781,6 +1786,8 @@ var MediaElement = function (_WebAudio) {
 
             // Update the progress one more time to prevent it from being stuck in case of lower framerates
             this.on('pause', function () {
+
+                debugger;
                 _this2.fireEvent('audioprocess', _this2.getCurrentTime());
             });
         }
@@ -3638,10 +3645,12 @@ var WaveSurfer = function (_util$Observer) {
             }
 
             this.drawer.on('click', function (e, progress) {
+                var stamp = e.timeStamp;
+
                 setTimeout(function () {
                     var new_progress = (progress * _this5.VisibleDuration + _this5.LeftProgress) / _this5.getDuration();
                     if (new_progress >= 0 && new_progress <= 1)
-                        _this5.seekTo (new_progress);
+                        _this5.seekTo (new_progress, stamp);
                 }, 36);
             });
 
@@ -3795,11 +3804,17 @@ var WaveSurfer = function (_util$Observer) {
             var dur = this.getDuration();
             var left_offset = this.LeftProgress / dur;
 
-            var lleft = (this.ActiveMarker - left_offset) * this.ZoomFactor * 100;
-            var sleft = lleft + '%';
-            if (lleft === 0) sleft = '1px';
+            //var lleft = (this.ActiveMarker - left_offset) * this.ZoomFactor * 100;
+            //var sleft = lleft + '%';
+            //if (lleft === 0) sleft = '1px';
 
-            this.drawer.CursorMarker.style.left =  sleft;
+            var ppp = (this.ActiveMarker - left_offset) * this.ZoomFactor;
+            var minPxDelta = 1 / this.drawer.params.pixelRatio;
+            var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
+            this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+
+
+            // this.drawer.CursorMarker.style.left =  sleft;
             this.drawer.progress(percent, left_offset, this.ZoomFactor);
         }
     },
@@ -3813,11 +3828,16 @@ var WaveSurfer = function (_util$Observer) {
             var dur = this.getDuration();
             var left_offset = this.LeftProgress / dur;
 
-            var lleft = (this.ActiveMarker - left_offset) * this.ZoomFactor * 100;
-            var sleft = lleft + '%';
-            if (lleft === 0) sleft = '1px';
+            // var lleft = (this.ActiveMarker - left_offset) * this.ZoomFactor * 100;
+            // var sleft = lleft + '%';
+            // if (lleft === 0) sleft = '1px';
+            // this.drawer.CursorMarker.style.left =  sleft;
 
-            this.drawer.CursorMarker.style.left =  sleft;
+            var ppp = (this.ActiveMarker - left_offset) * this.ZoomFactor;
+            var minPxDelta = 1 / this.drawer.params.pixelRatio;
+            var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
+            this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+
            // this.drawer.ZMarker.style.left = (this.ActiveMarker  * 100) + '%';
             this.drawer.progress(percent, left_offset, this.ZoomFactor);
         }
@@ -3899,7 +3919,7 @@ var WaveSurfer = function (_util$Observer) {
 
             var db = 0;
             var timing_gap = 50;
-            q.backend.on('audioprocess', function (time) {
+            q.backend.on('audioprocess', function (time, stamp) {
                 var percentage = q.backend.getPlayedPercents();
 
                 if (q.ZoomFactor > 1 && q.FollowCursor && !q.Interacting)
@@ -3946,7 +3966,7 @@ var WaveSurfer = function (_util$Observer) {
                     q.drawer.progress(percentage, q.LeftProgress / q.getDuration(), q.ZoomFactor);
                 }
 
-                q.fireEvent ('audioprocess', time);
+                q.fireEvent ('audioprocess', time, stamp);
             });
         }
 
@@ -4148,7 +4168,7 @@ var WaveSurfer = function (_util$Observer) {
 
     }, {
         key: 'seekTo',
-        value: function seekTo(progress) {
+        value: function seekTo(progress, stamp) {
             var _this8 = this;
 
             // return an error if progress is not a number between 0 and 1
@@ -4173,10 +4193,15 @@ var WaveSurfer = function (_util$Observer) {
             var duration = this.getDuration();
             if (this.VisibleDuration / duration + this.LeftProgress / duration > progress && progress > this.LeftProgress / duration) {
                 var left_offset = this.LeftProgress / duration;
-                var rend_progress = (progress - left_offset) * (duration / this.VisibleDuration);
-                this.drawer.CursorMarker.style.left = rend_progress * 100 + '%';
+                // var rend_progress = (progress - left_offset) * (duration / this.VisibleDuration);
 
-                //debugger;
+                // this.drawer.CursorMarker.style.left = rend_progress * 100 + '%';
+
+                var ppp = (progress - left_offset) * this.ZoomFactor;
+                var minPxDelta = 1 / this.drawer.params.pixelRatio;
+                var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
+                this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+
 
                 //var rend_progress2 = (progress - left_offset);
                 //this.drawer.ZMarker.style.left = progress * 100 + '%';
@@ -4188,14 +4213,17 @@ var WaveSurfer = function (_util$Observer) {
 
                 if (rend_progress == 0)
                 {
-                    this.drawer.CursorMarker.style.left = '1px';
-                    //this.drawer.ZMarker.style.left = '1px';
+                    this.drawer.CursorMarker.style.transform = 'translate(1px,0)';
+                    // this.drawer.CursorMarker.style.left = '1px';                    
                 }
                 else
                 {
-                    //var rend_progress2 = (progress - left_offset);
-                    this.drawer.CursorMarker.style.left = rend_progress * 100 + '%';
-                    //this.drawer.ZMarker.style.left = progress * 100 + '%';
+                    var ppp = (progress - left_offset) * this.ZoomFactor;
+                    var minPxDelta = 1 / this.drawer.params.pixelRatio;
+                    var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
+                    this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+
+                    // this.drawer.CursorMarker.style.left = rend_progress * 100 + '%';
                 }
 
                 this.drawer.progress(0);
@@ -4207,7 +4235,8 @@ var WaveSurfer = function (_util$Observer) {
                 this.backend.play();
             }
             //this.params.scrollParent = oldScrollParent;
-            this.fireEvent('seek', progress);
+
+            this.fireEvent('seek', progress, stamp);
         }
 
         /**
@@ -4472,21 +4501,8 @@ var WaveSurfer = function (_util$Observer) {
          * @return {string} A CSS color string.
          */
 
-    }, {
-        key: 'getCursorColor',
-        value: function getCursorColor() {
-            return this.params.cursorColor;
-        }
-
-        /**
-         * Set the fill color of the cursor indicating the playhead
-         * position.
-         *
-         * @param {string} color A CSS color string.
-         * @example wavesurfer.setCursorColor('#222');
-         */
-
-    }, {
+    },
+    {
         key: 'setCursorColor',
         value: function setCursorColor(color) {
             this.params.cursorColor = color;
@@ -5420,7 +5436,7 @@ var WebAudio = function (_util$Observer) {
         value: function addOnAudioProcess() {
             var _this2 = this;
 
-            this.scriptNode.onaudioprocess = function () {
+            this.scriptNode.onaudioprocess = function ( ee ) {
                 // if not active remove...
                 if (!_this2.states[PLAYING])
                     return ;
@@ -5490,7 +5506,7 @@ var WebAudio = function (_util$Observer) {
                 } else if (time >= _this2.scheduledPause) {
                     _this2.pause();
                 } else if (_this2.state === _this2.states[PLAYING]) {
-                    _this2.fireEvent('audioprocess', time);
+                    _this2.fireEvent('audioprocess', time, ee.timeStamp);
                 }
 
                 _this2.peak_frequency = null;

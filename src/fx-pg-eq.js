@@ -666,12 +666,25 @@
 			var _move = function ( e ) {
 				if (!is_dragging || !q.act) return ;
 
-				var bounds = canvas.getBoundingClientRect();
+				var ex = 0;
+				var ey = 0;
+
+				if (e.touches) {
+					if (e.touches.length > 1) { return ; }
+
+					ex = e.touches[0].clientX;
+					ey = e.touches[0].clientY;
+				} else {
+					ex = e.clientX;
+					ey = e.clientY;
+				}
+
+				var bounds = canvas.getBoundingClientRect ();
 				var cw = canvas.width;
 				var ch = canvas.height;
 
-				var posx = e.clientX - bounds.left;
-				var posy = e.clientY - bounds.top;
+				var posx = ex - bounds.left;
+				var posy = ey - bounds.top;
 
 				var rel_x = posx / cw;
 				var rel_y = posy / ch;
@@ -689,7 +702,7 @@
 				}
 
 //				var freq = (rel_x * (total_freq) + 0) >> 0; // + 16 (min freq)
-				var gain = (((rel_y - 0.5) * -2) * max_db_val).toFixed(2) / 1;
+				var gain = (((rel_y - 0.5) * -2) * max_db_val).toFixed (2) / 1;
 
 				_range_update (q, q.act, {
 					'freq': freq,
@@ -700,68 +713,108 @@
 
 			var _end = function ( e ) {
 				is_dragging = false;
+
 				canvas.removeEventListener ('mousemove', _move);
 				canvas.removeEventListener ('mouseup', _end);
+
+				canvas.removeEventListener ('touchmove', _move);
+				canvas.removeEventListener ('touchup', _end);
 			};
 
-			canvas.addEventListener ('mousedown', function ( e ) {
-				var unchecked = !!q.act;
+			var mdown = function ( e ) {
+					var unchecked = !!q.act;
 
-				if (q.ranges.length === 0)
-				{
-					if (unchecked) q.Render ();
+					if (q.ranges.length === 0)
+					{
+						if (unchecked) q.Render ();
+						return ;
+					}
+
+					var bounds = canvas.getBoundingClientRect ();
+					var cw = canvas.width;
+					var ch = canvas.height;
+
+					var posx = e.clientX - bounds.left;
+					var posy = e.clientY - bounds.top;
+
+					var dist_x = e.is_touch ? 20 : 10;
+					var dist_y = e.is_touch ? 20 : 9;
+
+					for (var o = 0; o < q.ranges.length; ++o)
+					{
+						var curr = q.ranges[ o ];
+
+						if ( Math.abs (curr._coords.x - posx) < dist_x && Math.abs (curr._coords.y - posy) < dist_y)
+						{
+							if (unchecked) {
+								q.act.el.classList.remove ('pk_act');
+							}
+
+							q.act = curr;
+							q.act.el.classList.add ('pk_act');
+
+							is_dragging = true;
+
+							q.Render ();
+
+							// check if we are targetting a circle
+
+							if (!e.is_touch)
+							{
+								canvas.addEventListener ('mousemove', _move, false);
+								canvas.addEventListener ('mouseup', _end, false);
+							}
+							else
+							{
+								e.ev.preventDefault  ();
+								e.ev.stopPropagation ();
+
+								canvas.addEventListener ('touchmove', _move, false);
+								canvas.addEventListener ('touchup', _end, false);	
+							}
+
+							return ;
+						}
+						// ---
+					}
+
+					if (unchecked) {
+						q.act.el.classList.remove ('pk_act');
+						// un-highlight
+						q.act = null;
+
+						q.Render ();
+					}
+
+					// ----
+			};
+
+			canvas.addEventListener ('mousedown', mdown, false);
+
+
+			canvas.addEventListener ('touchstart', function ( e ) {
+				if (e.touches.length > 1) {
+					e.preventDefault ();
+					e.stopPropagation ();
+
 					return ;
 				}
 
-				var bounds = canvas.getBoundingClientRect();
-				var cw = canvas.width;
-				var ch = canvas.height;
+				var ev = {
+					clientX  : e.touches[0].clientX,
+					clientY  : e.touches[0].clientY,
+					is_touch : true,
+					ev       : e
+				};
 
-				var posx = e.clientX - bounds.left;
-				var posy = e.clientY - bounds.top;
-
-				for (var o = 0; o < q.ranges.length; ++o)
-				{
-					var curr = q.ranges[ o ];
-
-					if ( Math.abs (curr._coords.x - posx) < 10 && Math.abs (curr._coords.y - posy) < 9)
-					{
-						if (unchecked) {
-							q.act.el.classList.remove ('pk_act');
-						}
-
-						q.act = curr;
-						q.act.el.classList.add ('pk_act');
-
-						is_dragging = true;
-
-						q.Render ();
-
-						// check if we are targetting a circle
-						canvas.addEventListener ('mousemove', _move, false);
-						canvas.addEventListener ('mouseup', _end, false);
-
-						return ;
-					}
-					// ---
-				}
-
-				if (unchecked) {
-					q.act.el.classList.remove ('pk_act');
-					// un-highlight
-					q.act = null;
-
-					q.Render ();
-				}
-
-				// ----
-			}, false);
+				mdown ( ev );
+			});
 
 
 			canvas.addEventListener ('click', function ( e ) {
-				if (e.timeStamp - click_time < 250)
+				if (e.timeStamp - click_time < 260)
 				{
-						var bounds = canvas.getBoundingClientRect();
+						var bounds = canvas.getBoundingClientRect ();
 						var cw = canvas.width;
 						var ch = canvas.height;
 						var posx = e.clientX - bounds.left;

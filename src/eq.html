@@ -6,7 +6,7 @@
 	body{padding:0;margin:0;background:#111;position:relative;z-index:2;overflow:hidden;}
 	div{position:absolute;top:50%;left:0;right:0;z-index:1;margin-top:-25px;text-align:center;user-select:none;
 		font-size:28px;color:#191919;pointer-events:none;font-family:Arial}
-	#e, #d{
+	#e, #d, #f{
 		cursor:pointer;
 		position: absolute;
 	    top: 7px;
@@ -26,6 +26,14 @@
 	    opacity:0.9;
 	}
 
+	.b #e, .b #d{
+		top:12px;
+	}
+
+	.b #e, .b #f{
+		display:block;
+	}
+
 	#e{
 		right: 106px;
 	    width: 10px;
@@ -35,6 +43,26 @@
 	    opacity: 0.9;
 	    display:none;
 	}
+
+	#f{
+		left: 0;
+	    right: 0;
+	    top: 0;
+	    padding: 0;
+	    width: 100%;
+	    line-height: 0;
+	    border-radius: 0;
+	    height: 4px;
+	    background: #333;
+	    display:none;
+	    user-select:none;
+	    -moz-user-select:none;
+	}
+
+	.c #f, #f:hover{
+		background:#3C3C3C;
+	}
+
 	</style>
 	<meta charset="utf-8" />
 </head>
@@ -44,6 +72,7 @@
 
 	<a id="d" onclick="dock()">DOCK INTERFACE</a>
 	<a id="e" onclick="remove()">X</a>
+	<a id="f" onmousedown="drag(event)"></a>
 
 	<script>
 		var d = document;
@@ -54,11 +83,18 @@
 
 		w.remove = function (){};
 		if (iframe) {
-			d.getElementById('e').style.display = 'block';
+			d.body.className = 'b';
 			w.remove = function () {
 				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 1, 1);
 			};
-		}
+		};
+
+		w.drag = function ( e ) {
+			e.preventDefault ();
+			e.stopPropagation ();
+
+			w.parent.PKAudioEditor.ui.Dock ('RequestDragI');
+		};
 
 		w.dock = function () {
 			if (!iframe)
@@ -74,7 +110,7 @@
 			{
 				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 1, 0);
 			}
-		}
+		};
 
 		w.update = function(){};
 
@@ -145,6 +181,27 @@
 					});
 				}
 			};
+
+			var last_press = 0;
+			document.addEventListener ('keypress', function ( e ) {
+				if (e.keyCode !== 32) return ;
+
+				e.preventDefault ();
+				e.stopPropagation ();
+
+				if (e.timeStamp - last_press < 100) {
+					return ;
+				}
+
+				last_press = e.timeStamp;
+
+				if (!iframe) {
+					w.opener && w.opener.PKAudioEditor.ui.Dock ('RequestKeyDown', 32);
+				}
+				else {
+					w.parent && w.parent.PKAudioEditor.ui.Dock ('RequestKeyDown', 32);
+				}
+			});
 
 		}, 60);
 	</script>
