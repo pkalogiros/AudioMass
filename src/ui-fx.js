@@ -1295,6 +1295,17 @@
 
 			app.ui.InteractionHandler.on = true;
 
+			setTimeout (function() {
+				if (eq_win && eq_win.el)
+				{
+					eq_win.el.style.display = 'none';
+					setTimeout(function() {
+						eq_win.el.style.display = 'block';					
+					},0);
+					el_back.focus ();
+				}
+			}, 60);
+
 			el_back.onmousemove = function ( e ) {
 				if (!is_drag) return ;
 
