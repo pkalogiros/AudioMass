@@ -896,6 +896,7 @@
 				return {
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var gain = audio_ctx.createGain ();
+						gain.gain.setValueAtTime (1, audio_ctx.currentTime);
 						gain.gain.linearRampToValueAtTime (0, audio_ctx.currentTime + duration/1);
 						gain.connect (destination);			
 						source.connect (gain);
