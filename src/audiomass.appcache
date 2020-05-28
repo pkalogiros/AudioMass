@@ -1,5 +1,6 @@
 CACHE MANIFEST
 # v1 - July 26, 2018
+# v2 - May 25, 2020
 
 /index-cache.html
 /main.css
@@ -19,6 +20,10 @@ CACHE MANIFEST
 /recorder.js
 /welcome.js
 /fx-pg-eq.js
+/fx-auto.js
+/local.js
+/id3.js
+/lzma.js
 /lame.js
 /fonts/icomoon.ttf
 /fonts/icomoon.woff
