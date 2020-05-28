@@ -35,52 +35,187 @@
 		}
 
 		this.LoadArrayBuffer = function ( e ) {
+			var func = function () {
+				app.listenFor ('RequestCancelModal', function() {
+					wavesurfer.cancelBufferLoad ();
+					if (wavesurfer.arraybuffer) q.is_ready = true;
 
-			app.listenFor ('RequestCancelModal', function() {
-				wavesurfer.cancelBufferLoad ();
-				if (wavesurfer.arraybuffer) q.is_ready = true;
+					app.fireEvent ('RequestResize');
+					setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
+					app.stopListeningForName ('RequestCancelModal');
 
-				app.fireEvent ('RequestResize');
-				setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
-				app.stopListeningForName ('RequestCancelModal');
+					OneUp ('Canceled Loading', 1350);
+				});
 
-				OneUp ('Canceled Loading', 1350);
-			});
+				app.fireEvent ('RequestZoomUI', 0);
 
-			app.fireEvent ('RequestZoomUI', 0);
+				app.fireEvent ('WillDownloadFile');
+				q.is_ready = false;
+				wavesurfer.loadBlob( e );
+				app.fireEvent ('DidUnloadFile');
+			};
 
-			app.fireEvent ('WillDownloadFile');
-			q.is_ready = false;
-			wavesurfer.loadBlob( e );
-			app.fireEvent ('DidUnloadFile');
+			if ( q.is_ready )
+			{
+					//  ----------------
+					new PKSimpleModal ({
+						title : 'Open or append',
+						clss  : 'pk_modal_anim pk_fnt10',
+						ondestroy : function ( q ) {
+							app.ui.InteractionHandler.on = false;
+							app.ui.KeyHandler.removeCallback ('modalTempErr');
+						},
+						buttons:[
+							{
+								title:'OPEN NEW',
+								callback: function( q ) {
+									wavesurfer.backend._add = 0;
+									func ();
+									q.Destroy ();
+								}
+							},
+							{
+								title:'ADD IN EXISTING',
+								callback: function( q ) {
+									wavesurfer.backend._add = 1;
+									func ();
+									q.Destroy ();
+								}
+							}
+						],
+						body    : '<p>Append file to existing track?</p>',
+						setup   : function( q ) {
+							app.ui.InteractionHandler.checkAndSet ('modal');
+							app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+								q.Destroy ();
+							}, [27]);
+						}
+					}).Show ();
+
+					return ;
+			}
+
+			wavesurfer.backend._add = 0;
+			func ();
+			// --- 
 		};
+
+		this.LoadDB = function ( e ) {
+			var new_buffer = wavesurfer.backend.ac.createBuffer (
+					e.data.length,
+					e.data[0].byteLength / 4,
+					e.samplerate
+			);
+
+			for (var i = 0; i < e.data.length; ++i) {
+
+				var arr = new Float32Array (e.data[i]);
+
+				if (new_buffer.copyToChannel)
+				{
+					new_buffer.copyToChannel (arr, i, 0);
+				}
+				else
+				{
+					var chan = new_buffer.getChannelData (i);
+					chan.set (arr);
+				}
+			}
+
+			var append = wavesurfer.backend._add;
+			var old_durr = wavesurfer.getDuration ();
+
+			PKAudioEditor.engine.wavesurfer.loadDecodedBuffer (new_buffer);
+			_compute_channels ();
+			var new_durr = wavesurfer.getDuration ();
+			app.fireEvent ('DidUpdateLen', new_durr);
+
+			if (!append) app.fireEvent ('RequestSeekTo', 0);
+			else {
+					wavesurfer.regions.clear();
+					wavesurfer.regions.add({
+						start:old_durr,
+						end:new_durr,
+						id:'t'
+					});
+			}
+			// --------
+		};
+
 		this.LoadFile = function ( e ) {
 			if (e.files.length > 0) {
 				if (e.files[0].type == "audio/mp3" || e.files[0].type == "audio/wave"
 					|| e.files[0].type == "audio/ogg")
 				{
 
-					app.listenFor ('RequestCancelModal', function() {
-						wavesurfer.cancelBufferLoad ();
-						AudioUtils.DownloadFileCancel ();
-						if (wavesurfer.arraybuffer) q.is_ready = true;
+							var func = function () {
+									app.listenFor ('RequestCancelModal', function() {
+										wavesurfer.cancelBufferLoad ();
+										AudioUtils.DownloadFileCancel ();
+										if (wavesurfer.arraybuffer) q.is_ready = true;
 
-						app.fireEvent ('RequestResize');
-						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
-						app.stopListeningForName ('RequestCancelModal');
+										app.fireEvent ('RequestResize');
+										setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
+										app.stopListeningForName ('RequestCancelModal');
 
-						OneUp ('Canceled Loading', 1350);
-					});
+										OneUp ('Canceled Loading', 1350);
+									});
 
-					app.fireEvent ('WillDownloadFile');
-					q.is_ready = false;
-					wavesurfer.loadBlob( e.files[0] );
-					app.fireEvent ('DidUnloadFile');
+									app.fireEvent ('WillDownloadFile');
+									q.is_ready = false;
+									wavesurfer.loadBlob( e.files[0] );
+									app.fireEvent ('DidUnloadFile');
+							};
+
+							if ( q.is_ready )
+							{
+									//  ----------------
+									new PKSimpleModal ({
+										title : 'Open or append',
+										clss  : 'pk_modal_anim pk_fnt10',
+										ondestroy : function ( q ) {
+											app.ui.InteractionHandler.on = false;
+											app.ui.KeyHandler.removeCallback ('modalTempErr');
+										},
+										buttons:[
+											{
+												title:'OPEN NEW',
+												callback: function( q ) {
+													wavesurfer.backend._add = 0;
+													func ();
+													q.Destroy ();
+												}
+											},
+											{
+												title:'ADD IN EXISTING',
+												callback: function( q ) {
+													wavesurfer.backend._add = 1;
+													func ();
+													q.Destroy ();
+												}
+											}
+										],
+										body    : '<p>Append file to existing track?</p>',
+										setup   : function( q ) {
+											app.ui.InteractionHandler.checkAndSet ('modal');
+											app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+												q.Destroy ();
+											}, [27]);
+										}
+									}).Show ();
+
+									return ;
+							}
+
+							wavesurfer.backend._add = 0;
+							func ();
+
+							// ----					
 				}
 			}
 		};
-		
-		this.DownloadFile = function ( name, kbps, selection ) {
+
+		this.DownloadFile = function ( name, kbps, selection, stereo ) {
 			if (!q.is_ready) return ;
 
 			app.fireEvent ('WillDownloadFile');
@@ -95,7 +230,7 @@
 			});
 
 			setTimeout(function() {
-				AudioUtils.DownloadFile ( name, kbps, selection, function ( val ) {
+				AudioUtils.DownloadFile ( name, kbps, selection, stereo, function ( val ) {
 					if (val === 'done')
 					{
 						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
@@ -121,7 +256,7 @@
 						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
 						app.stopListeningForName ('RequestCancelModal');
 
-						OneUp ('Canceled Loading', 1350);
+						OneUp ('Canceled Loading', 1380);
 					}
 				});
 
@@ -130,11 +265,97 @@
 			}, 180);
 		}
 		this.LoadURL = function ( url ) {
-
 			app.fireEvent ('WillDownloadFile');
 
-			setTimeout(function () {
+			/*
+			var context =  new AudioContext (); // wavesurfer.backend.ac;
+			var audio_el = d.createElement ('audio');
+			audio_el.autoplay = true;
+			audio_el.controls = true;
+			audio_el.preload = true;
+//			audio_el.playbackRate = 0.5;
+			d.body.appendChild( audio_el );
+			audio_el.src = url;
 
+			setTimeout(function() {
+				var source = context.createMediaElementSource (audio_el);
+				// source.connect(context.destination);
+
+				var time_duration = audio_el.duration / 1;
+				var first = true;
+				var audio_buffer = null;
+				var sample_rate = 0;
+				var chans = 0;
+
+				var scriptNode = context.createScriptProcessor (4096, 1, 1);
+				window.sss = scriptNode;
+				window.eee = source;
+				window.ccc = context;
+
+				var prev_time = 0;
+
+				scriptNode.onaudioprocess = function( ev ) {
+					if (audio_el.paused) return ;
+
+					var ctime = audio_el.currentTime / 1;
+
+					if ((ctime + 0.0001) >= time_duration)
+					{
+						//if (!first) {
+						//	console.log ("done");
+						//	first = 100;
+						//}
+						return ;
+					}
+
+					var inputBuffer = ev.inputBuffer;
+					// var outputBuffer = ev.outputBuffer;
+
+					if (first) {
+						first = false;
+
+						sample_rate = inputBuffer.sampleRate;
+						chans      = inputBuffer.numberOfChannels;
+						audio_buffer = context.createBuffer (
+							inputBuffer.numberOfChannels,
+							time_duration * inputBuffer.sampleRate,
+							inputBuffer.sampleRate
+						);
+
+						window.audio_buffer = audio_buffer;
+					}
+
+					var curr_time = (ctime * sample_rate) >> 0;
+
+					 // console.log( curr_time, "   ", (curr_time - prev_time), "  ", ((curr_time - prev_time) > (4096*2))?true:false  );
+					 // prev_time = curr_time;
+
+					  for (var channel = 0; channel < inputBuffer.numberOfChannels; ++channel) {
+					    var inputData = inputBuffer.getChannelData(channel);
+					    // var outputData = outputBuffer.getChannelData(channel);
+					    var final_data = audio_buffer.getChannelData(channel);
+
+					    // console.log( inputData );
+
+					    // Loop through the 4096 samples
+					    for (var sample = 0; sample < inputBuffer.length; ++sample) {
+					      // make output equal to the same as the input
+					      // outputData[sample] = inputData[sample];
+
+					      final_data[curr_time + sample] = inputData[sample];
+
+					      // add noise to each output sample
+					      // outputData[sample] += ((Math.random() * 2) - 1) * 0.2;         
+					    }
+					  }
+				};
+
+				source.connect(scriptNode);
+				scriptNode.connect(context.destination);
+			},2000);
+			*/
+
+			setTimeout(function () {
 				app.listenFor ('RequestCancelModal', function() {
 					if (wavesurfer.cancelAjax())
 					{
@@ -167,8 +388,12 @@
 			// app.fireEvent ('DidResize');
 		});
 
-		wavesurfer.on ('ready', function() {
+		wavesurfer.on ('ready', function () {
 			app.fireEvent ('DidReadyFire');
+
+			if (wavesurfer.backend._add) {
+				wavesurfer.backend._add = 0;
+			}
 
 			if (q.is_ready) return ;
 			q.is_ready = true;
@@ -238,6 +463,7 @@
 
 			var region = wavesurfer.regions.list[0];
 			if (region) wavesurfer.ActiveMarker = region.start / wavesurfer.getDuration ();
+
 			wavesurfer.stop ( val );
 		});
 		app.listenFor ('RequestPlay', function ( x ) { // unique listener
@@ -291,6 +517,7 @@
 			wavesurfer.skipForward ( val );
 		});
 		app.listenFor ('RequestSeekTo', function( val ) {
+			if (val > 1.0) return ;
 			wavesurfer.seekTo( val );
 		});
 		app.ui.KeyHandler.addCallback ('zkA', function ( key, m, e ) {
@@ -544,6 +771,140 @@
 
 		var copy_buffer = null;
 
+		this.GetCopyBuff = function () {
+			return (copy_buffer);
+		};
+
+		this.GetSel = function () {
+			var region = wavesurfer.regions.list[0];
+			if (!region) return (false);
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+			
+			var copybuffer = AudioUtils.Copy (
+				start,
+				end
+			);
+
+			return (copybuffer);
+		};
+
+		this.PlayBuff = function ( buff_arr, chans, sample_rate, aud_cont ) {
+			var audio_ctx;
+
+			if (aud_cont) audio_ctx = aud_cont;
+			else audio_ctx = new (w.AudioContext || w.webkitAudioContext)();
+
+			if (!audio_ctx) return ;
+
+			var bytes = buff_arr[0].byteLength / 4;
+
+			var buffer = audio_ctx.createBuffer (
+				chans,
+				bytes,
+				sample_rate
+			);
+
+			for (var i = 0; i < chans; ++i) {
+				buffer.getChannelData ( i ).set (
+					new Float32Array (buff_arr[ i ])
+				);
+			}
+
+			var source = audio_ctx.createBufferSource ();
+			source.buffer = buffer;
+
+			source.connect ( audio_ctx.destination );
+			source.start ( 0 );
+
+			return (source);
+		};
+
+		this.GetFX = function ( fx, val ) {
+			return AudioUtils.FXBank[fx]( val );
+		};
+
+		this.GetWave = function ( buffer, ww, hh, offset, llen, cnv, cx ) {
+			var chan_data = buffer.getChannelData ( 0 );
+			var sample_rate = buffer.sampleRate;
+
+			var peaks = [];
+			var curr_time = 0;
+			var width = ww || 200;
+			var height = hh || 80;
+			var half_height = (height / 2);
+			var new_width = width;
+			var pixels = 0;
+			var raw_pixels = 0;
+
+			var start_offset = offset || 0;
+			var end_offset   = llen || ((buffer.duration * sample_rate) >> 0);
+			var length       = end_offset - start_offset;
+			var mod          = (length / width) >> 0;
+
+			var max   = 0;
+			var min   = 0;
+
+			for (var i = 0; i < new_width; ++i) {
+				var new_offset = start_offset + (mod * i);
+
+				max = 0;
+				min = 0;
+
+				if (new_offset >= 0)
+				{
+					for (var j = 0; j < mod; j += 3) {
+						if ( chan_data[ new_offset + j] > max ) {
+							max = chan_data[ new_offset + j];
+						}
+						else if ( chan_data[ new_offset + j] < min ) {
+							min = chan_data[ new_offset + j];
+						}
+					}
+				}
+
+				peaks[2 * i] = max;
+				peaks[2 * i + 1 ] = min;
+			}
+
+			var canvas = cnv;
+			var ctx = cx;
+
+			if (!canvas) {
+				canvas = document.createElement('canvas');
+				canvas.width = width;
+				canvas.height = height;
+
+				ctx = canvas.getContext ('2d', {alpha:false,antialias:false});
+			}
+
+			ctx.fillStyle = "#000";
+			ctx.fillRect ( 0, 0, width, height );
+			ctx.fillStyle = '#99c2c6';
+			
+			ctx.beginPath ();
+	        ctx.moveTo ( 0, half_height );
+
+			for (var i = 0; i < width; ++i) {
+				var peak = peaks[i * 2];
+				var _h = Math.round (peak * half_height);
+				ctx.lineTo ( i, half_height - _h);
+			}
+
+			for (var i = width - 1; i >= 0; --i) {
+				var peak = peaks[ (i * 2) + 1];
+				var _h = Math.round (peak * half_height);
+				ctx.lineTo ( i, half_height - _h);
+			}
+
+			ctx.closePath();
+			ctx.fill();
+
+			return (canvas.toDataURL('image/jpeg', 0.56));
+			// ---
+		};
+
 		app.listenFor ('RequestActionCut', function () {
 			if (!q.is_ready) return ;
 			
@@ -573,6 +934,15 @@
 			app.fireEvent ('RequestSeekTo', tmp / wavesurfer.getDuration ());
 			
 			copy_buffer = cutbuffer;
+
+			/*
+			var image = app.engine.GetWave (copy_buffer);
+			var eel = document.getElementsByClassName('pk_tb')[0];
+			var imm = new Image();
+			imm.src = image;
+			eel.appendChild( imm );
+			*/
+
 			app.fireEvent ('DidSetClipboard', 1);
 			app.fireEvent ('DidCut', cutbuffer);
 			
@@ -584,7 +954,7 @@
 			
 			var region = wavesurfer.regions.list[0];
 			if (!region) return (false);
-			
+
 			app.fireEvent('RequestPause');
 
 			var start = q.TrimTo (region.start, 3);
@@ -686,7 +1056,11 @@
 				id:'t'
 			});
 
-			app.fireEvent ('RequestSeekTo', (dims[0]/wavesurfer.getDuration () ));
+			var new_seek = 0;
+			if (wavesurfer.getDuration () > 0.0001) {
+				new_seek = dims[0]/wavesurfer.getDuration ();
+			}
+			app.fireEvent ('RequestSeekTo', new_seek);
 
 			OneUp ('Paste to ' + dims[0].toFixed(2), 982);
 		});
@@ -865,7 +1239,7 @@
 			OneUp ('Applied Parametric EQ (fx)');
 		});
 		app.listenFor ('RequestActionFX_PREVIEW_PARAMEQ', function ( val ) {
-			if (!q.is_ready) return ;
+			if (!q.is_ready || !val) return ;
 			if (AudioUtils.previewing) {
 				AudioUtils.FXPreviewStop ();
 				app.fireEvent ('DidStopPreview');
@@ -1198,6 +1572,281 @@
 			
 			OneUp ('Applied Invert');
 		});
+
+		app.listenFor ('RequestActionFX_RemSil', function ( val ) {
+			if (!q.is_ready) return ;
+			
+			app.fireEvent('RequestPause');
+
+			var region = wavesurfer.regions.list[0];
+			var dims = [ 0, 0 ];
+
+			function handleStateInline ( start, end ) {
+				app.fireEvent ('StateRequestPush', {
+					desc : 'Remove Silence ',
+					meta : [ start, end ],
+					data : wavesurfer.backend.buffer
+				});
+			}
+			
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.0,
+					end:wavesurfer.getDuration() - 0.001,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+			
+			var start = q.TrimTo (region.start, 3)
+			var end = q.TrimTo ((region.end - region.start), 3);
+
+			handleStateInline ( start, end );
+
+
+						var originalBuffer = wavesurfer.backend.buffer;
+						var sil_arr = [];
+						var sil_offset = 210;
+						var vol_offset = 56;
+						var count = 0;
+						var inv_count = 0;
+						var start = 0;
+						var end   = 0;
+						var found = false;
+						var jump = 500;
+
+						for (var i = 0; i < 1; ++i)
+						{
+							var channel = originalBuffer.getChannelData (i);
+
+							for (var j = 0; j < channel.length; ++j)
+							{
+								if (Math.abs (channel[j]) < 0.000368)
+								{
+									if (count === 0) {
+
+										if (j > jump)
+											start = j - jump;
+										else
+											start = j;
+									}
+									if (++count > sil_offset)
+									{
+										inv_count = 0;
+										end = j;
+										found = true;
+									}
+								}
+								else
+								{
+									if (found)
+									{
+										if (++inv_count > vol_offset)
+										{
+											sil_arr.push([start, end]);
+											j += jump;
+
+											count = 0;
+											start = 0;
+											end =   0;
+											found = false;
+											inv_count = 0;
+										}
+										else
+										{
+											end = j;
+										}
+									}
+									else
+									{
+										count = 0;
+										start = 0;
+										end =   0;
+										found = false;
+										inv_count = 0;
+									}
+								}
+							}
+
+							if (found) {
+								sil_arr.push([start, end]);
+							}
+						}
+
+						if (sil_arr.length > 0)
+						{
+								var reduce = 0;
+								for (var i = 0; i < sil_arr.length; ++i)
+								{
+									reduce += (sil_arr[i][1] - sil_arr[i][0]);
+								}
+
+								var emptySegment   = wavesurfer.backend.ac.createBuffer (
+									originalBuffer.numberOfChannels,
+									originalBuffer.length - reduce,
+									originalBuffer.sampleRate
+								);
+
+								for (var i = 0; i < originalBuffer.numberOfChannels; ++i)
+								{
+									var channel = originalBuffer.getChannelData ( i );
+									var new_channel = emptySegment.getChannelData ( i );
+
+									var sil_offset = 0;
+									var o = 0;
+									var sil_curr = sil_arr[o];
+									var sil_curr_start = sil_curr[0];
+									var sil_curr_end   = sil_curr[1];
+									var h = 0;
+									var use_old = false;
+									var old_h = 0;
+
+									for (var j = 0; j < new_channel.length; ++j)
+									{
+										h = j + sil_offset;
+										if (h > sil_curr_start && h < sil_curr_end)
+										{
+											if (h < sil_curr_start + jump)
+											{
+												var perc = (jump - (h - sil_curr_start)) / jump;
+												new_channel[ j ] = (channel[ h ] * perc) ; // / (h - sil_curr_start));
+												new_channel[ j ] += (1 - perc) * channel[ j + (sil_offset + (sil_curr_end - sil_curr_start)) ];
+
+												continue;
+											}
+											else
+											{
+												sil_offset = sil_offset + (sil_curr_end - sil_curr_start);
+												sil_curr = sil_arr[++o];
+												if (sil_curr)
+												{
+													sil_curr_start = sil_curr[0];
+													sil_curr_end   = sil_curr[1];
+												}
+												h = j + sil_offset;
+											}
+										}
+
+										new_channel[ j ] = channel[ h ];
+									}
+								}
+
+								AudioUtils.FullReplace (
+									emptySegment
+								);
+						}
+
+			setTimeout (function() {
+				wavesurfer.drawBuffer();
+			},40);
+
+			OneUp ('Applied :: Remove Silence');
+		});
+
+
+		var _compute_channels = function () {
+			var buff = wavesurfer.backend.buffer;
+			var chans = buff.numberOfChannels;
+
+			if (chans === 1) {
+				wavesurfer.ActiveChannels = [1];
+				app.el.classList.add ('pk_mono');
+			}
+			else {
+				wavesurfer.ActiveChannels = [1, 1];
+				app.el.classList.remove ('pk_mono');
+			}
+
+			wavesurfer.drawer.params.ActiveChannels = wavesurfer.ActiveChannels;
+			wavesurfer.SelectedChannelsLen = chans;
+		};
+
+		app.listenFor ('RequestActionFX_Flip', function ( val, val2 ) {
+			if (!q.is_ready) return ;
+			
+			app.fireEvent('RequestPause');
+
+			var start = 0;
+			var end   = wavesurfer.getDuration();
+
+			function handleStateInline ( start, end, title, cb ) {
+				app.fireEvent ('StateRequestPush', {
+					desc : title,
+					meta : [ start, end ],
+					data : wavesurfer.backend.buffer,
+					cb   : cb
+				});
+			}
+
+			if (val === 'flip')
+			{
+				handleStateInline ( start, end, 'Flip Channels' );
+				AudioUtils.FX ( start, end, AudioUtils.FXBank.Flip ( val ) );
+			}
+			else if (val === 'stereo')
+			{
+				handleStateInline ( start, end, 'Make Stereo', function(){_compute_channels ()});
+
+				var originalBuffer = wavesurfer.backend.buffer;
+				var emptySegment   = wavesurfer.backend.ac.createBuffer (
+					2,
+					originalBuffer.length,
+					originalBuffer.sampleRate
+				);
+				emptySegment.getChannelData ( 0 ).set (
+					originalBuffer.getChannelData ( 0 )
+				);
+				emptySegment.getChannelData ( 1 ).set (
+					originalBuffer.getChannelData ( 0 )
+				);
+
+				AudioUtils.FullReplace (
+					emptySegment
+				);
+
+				wavesurfer.regions.clear();
+				wavesurfer.regions.add({
+					start:start,
+					end:end,
+					id:'t'
+				});
+
+				_compute_channels ();
+
+				app.fireEvent ('RequestSeekTo', 0.001);
+			}
+			else if (val === 'mono')
+			{
+				handleStateInline ( start, end, 'Make Mono', function(){_compute_channels()} );
+
+				var originalBuffer = wavesurfer.backend.buffer;
+				var emptySegment   = wavesurfer.backend.ac.createBuffer (
+					1,
+					originalBuffer.length,
+					originalBuffer.sampleRate
+				);
+				emptySegment.getChannelData ( 0 ).set (
+					originalBuffer.getChannelData ( val2 )
+				);
+				AudioUtils.FullReplace (
+					emptySegment
+				);
+
+				wavesurfer.regions.clear();
+				wavesurfer.regions.add({
+					start:start,
+					end:end,
+					id:'t'
+				});
+
+				_compute_channels ();
+
+				app.fireEvent ('RequestSeekTo', 0.001);
+			}
+
+			OneUp ('Applied Channel Change: ' + val);
+		});
+
 		app.listenFor ('RequestActionFX_Reverse', function ( val ) {
 			if (!q.is_ready) return ;
 			
@@ -1380,7 +2029,7 @@
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Gain( val ) );
-			
+
 			OneUp ('Applied Gain (fx)');
 		});
 
@@ -1564,6 +2213,11 @@
 			wavesurfer.regions.clear();
 			wavesurfer.loadDecodedBuffer (state.data);
 
+			if (state.cb) state.cb ();
+
+			var new_durr = wavesurfer.getDuration ();
+			app.fireEvent ('DidUpdateLen', new_durr);
+
 			if (state.meta && state.meta.length > 0)
 			{
 				if (state.meta[1])
@@ -1576,7 +2230,8 @@
 				}
 				else
 				{
-					app.fireEvent ('RequestSeekTo', (state.meta[0]/wavesurfer.getDuration()));
+					if (!new_durr) new_durr = 0.0001;
+					app.fireEvent ('RequestSeekTo', (state.meta[0]/new_durr));
 				}
 			}
 			
@@ -1869,6 +2524,38 @@
 			}
 		});
 		// -
+
+
+		this.ID3 = function ( arraybuffer ) {
+			var tags = null;
+			// var ttt = window.performance.now();
+
+            var bytes = new Uint8Array( arraybuffer );
+            if (bytes.length < 64) {
+            	app.fireEvent ('RequestActionID3', 1, tags);
+            	return tags;
+            }
+
+            if (bytes[0] === 73 && bytes[1] === 68 && bytes[2] === 51) {
+				tags = ID3v2.ReadTags ( arraybuffer );
+
+				//console.log( window.performance.now() - ttt );
+				// console.log( tags );
+            }
+            else if (bytes[4] === 102 && bytes[5] === 116 && bytes[6] === 121 && 
+            	bytes[7] === 112 && bytes[8] === 77 && bytes[9] === 52) {
+
+            	tags = ID4.ReadTags ( arraybuffer );
+				// console.log( window.performance.now() - ttt );
+				// console.log( tags );
+            }
+            bytes = null;
+
+            app.fireEvent ('RequestActionID3', 1, tags);
+
+            return (tags);
+		};
+		// ---
 	};
 
 	PKAE._deps.engine = PKEng;

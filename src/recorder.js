@@ -76,6 +76,17 @@
 			curr_offset = starting_offset;
 
 			audio_context = app.engine.wavesurfer.backend.getAudioContext ();
+			if (!audio_context)
+			{
+				app.fireEvent ('ErrorRec');
+				app.fireEvent ('ShowError', 'No recording device found');
+				return (false);
+			}
+
+			if (audio_context.currentTime === 0) {
+				app.engine.wavesurfer.backend.source.start (0);
+				app.engine.wavesurfer.backend.source.stop (0);
+			}
 
 			if (!_sample_rate)
 			{

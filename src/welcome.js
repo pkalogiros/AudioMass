@@ -25,7 +25,7 @@ setTimeout(function () {
 					PKAE.ui.InteractionHandler.on = false;
 					PKAE.ui.KeyHandler.removeCallback ('modalTemp');
 			},
-			body:'<div style="overflow:auto;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
+			body:'<div style="overflow:scroll;-webkit-overflow-scrolling:touch;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
 				'AudioMass is a free, open source, web-based Audio and Waveform Editor.<br />It runs entirely in the browser with no backend and no plugins required!'+
 				'<br/><br/><br/>'+
 				body_str+
@@ -38,6 +38,17 @@ setTimeout(function () {
 					PKAE.ui.KeyHandler.addCallback ('modalTemp', function ( e ) {
 						q.Destroy ();
 					}, [27]);
+
+					// ------
+					var scroll = q.el_body.getElementsByTagName('div')[0];
+					scroll.addEventListener ('touchstart', function(e){
+						e.stopPropagation ();
+					}, false);
+					scroll.addEventListener ('touchmove', function(e){
+						e.stopPropagation ();
+					}, false);
+
+					// ------
 				}
 			});
 			md.Show ();

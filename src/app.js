@@ -63,6 +63,20 @@
 			q.engine = new q._deps.engine ( q );
 			q.state  = new q._deps.state ( 4, q );
 			q.rec    = new q._deps.rec ( q );
+			q.fls    = new q._deps.fls ( q );
+
+			if (w.location.href.split('local=')[1]) {
+				var sess = w.location.href.split('local=')[1];
+
+				q.fls.Init (function () {
+					q.fls.GetSession (sess, function ( e ) {
+						if(e && e.id === sess )
+						{
+							q.engine.LoadDB ( e );
+						}
+					});
+				});
+			}
 
 			return (q);
 		};

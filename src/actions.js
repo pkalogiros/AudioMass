@@ -24,6 +24,13 @@
 
 			return (ret);
 		}
+
+		function OverwriteBuffer ( withBuffer ) {
+			loadDecoded ( withBuffer );
+			setTimeout (function() {
+				wavesurfer.drawBuffer();
+			},40);
+		}
 		
 		function MakeSilenceBuffer ( _duration ) {
 			var originalBuffer = wavesurfer.backend.buffer;
@@ -216,12 +223,17 @@
 			var arr_samples = arrays[0].length;
 
 			var new_len = (arr_samples * arr_len);
+			var buff_len = originalBuffer.length;
 
 			_offset = ((_offset / 1) * originalBuffer.sampleRate) >> 0;
 
-			var uberSegment = wavesurfer.backend.ac.createBuffer(
+			if (buff_len < (_offset + new_len)) {
+				buff_len = (_offset + new_len);
+			}
+
+			var uberSegment = wavesurfer.backend.ac.createBuffer (
 				originalBuffer.numberOfChannels,
-				originalBuffer.length,
+				buff_len,
 				originalBuffer.sampleRate
 			);
 
@@ -372,6 +384,11 @@
 //					else
 //						this.PreviewFilter.disconnect ();
 //				}
+
+				if (this.PreviewTog) {
+					this.PreviewTog (false, this.PreviewSource);
+				}
+
 				this.PreviewSource.disconnect ();
 				this.PreviewSource.connect (this.PreviewDestination);
 				this.previewing = 1;
@@ -403,12 +420,18 @@
 						this.PreviewFilter.connect (this.PreviewDestination);
 					}
 				}
+
+				if (this.PreviewTog) {
+					this.PreviewTog (true, this.PreviewSource);
+				}
+
 				this.previewing = 2;
 				this.previewVal = true;
 
 				return (true);
 			}
 		}
+
 
 		function previewEffect ( _offset, _duration, _fx ) {
 			if (this.previewing) stopPreview ();
@@ -428,11 +451,12 @@
 			source.buffer = fx_buffer;
 			source.loop = true;
 
-			this.PreviewFilter = null;
+			this.PreviewFilter = this.PreviewTog = null;
 			if (!_fx)
 				source.connect (audio_destination);
 			else
 			{
+				this.PreviewTog    = _fx.preview;
 				this.PreviewUpdate = _fx.update;
 				this.PreviewFilter = _fx.filter ( audio_ctx, audio_destination, source, _duration/1 );
 			}
@@ -442,6 +466,9 @@
 			script_node.connect( audio_ctx.destination );
 
 			var skipp = 1;
+			var prev_fft = 0;
+			var dataArray = null;
+
 			script_node.onaudioprocess = ( e ) => {
 
 				var loudness = [0, 0];
@@ -453,7 +480,11 @@
 				{
 					if (audio_destination.getFloatTimeDomainData)
 					{
-		                var dataArray = new Float32Array(audio_destination.fftSize); // Float32Array needs to be the same length as the fftSize 
+						if (prev_fft !== audio_destination.fftSize)
+						{
+		                	dataArray = new Float32Array(audio_destination.fftSize); // Float32Array needs to be the same length as the fftSize 
+		                	prev_fft = audio_destination.fftSize;
+		                }
 		                audio_destination.getFloatTimeDomainData (dataArray); // fill the Float32Array with data returned from getFloatTimeDomainData()
 
 		                for (var j = 0; j < audio_destination.fftSize; j += 1) {
@@ -467,7 +498,11 @@
 					}
 					else
 					{
-		                var dataArray = new Uint8Array(audio_destination.fftSize); // Float32Array needs to be the same length as the fftSize 
+						if (prev_fft !== audio_destination.fftSize)
+						{
+		                	dataArray = new Uint8Array(audio_destination.fftSize); // Float32Array needs to be the same length as the fftSize 
+		                	prev_fft = audio_destination.fftSize;
+		                }
 		                audio_destination.getByteTimeDomainData (dataArray); // fill the Float32Array with data returned from getFloatTimeDomainData()
 
 		                var total_float = 0;
@@ -485,6 +520,7 @@
 
 					// audio_destination.fftSize = 512;
 					audio_destination.getByteFrequencyData( wavesurfer.backend.FreqArr );
+
 					//wavesurfer.backend.peak_frequency = Math.max.apply( null, wavesurfer.backend.FreqArr );
 					master.fireEvent ('DidAudioProcess',[-1, loudness, e.timeStamp], wavesurfer.backend.FreqArr);
 					// wavesurfer.backend.peak_frequency = [0, 0];
@@ -762,7 +798,7 @@
 			}
 		}
 
-		function DownloadFile( with_name, kbps, selection, callback ) {
+		function DownloadFile( with_name, kbps, selection, stereo, callback ) {
 			if (wavesurfer && wavesurfer.backend && wavesurfer.backend.buffer){}
 			else {
 				return false;
@@ -779,6 +815,27 @@
 			var data_right = null;
 			if (channels === 2)
 				data_right = originalBuffer.getChannelData ( 1 );
+
+			if (!stereo && channels === 2)
+			{
+				if (!wavesurfer.ActiveChannels[0] && wavesurfer.ActiveChannels[1])
+				{
+					data_left  = originalBuffer.getChannelData ( 1 );
+					data_right = null;
+					channels   = 1;
+				}
+			}
+
+			if (stereo && !data_right)
+			{
+				data_right = data_left;
+				channels   = 2;
+			}
+			else if (!stereo && data_right)
+			{
+				data_right = null;
+				channels   = 1;
+			}
 
 			var len = data_left.length, i = 0;
 			var offset = 0;
@@ -865,15 +922,43 @@
 				return {
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var gain = audio_ctx.createGain ();
-						gain.gain.setValueAtTime ( val, audio_ctx.currentTime );
+
+						for (var k = 0; k < val.length; ++k)
+						{
+							var curr = val[k];
+							if (curr.length)
+							{
+								for (var i = 0; i < curr.length; ++i) {
+									gain.gain.linearRampToValueAtTime (curr[i].val, audio_ctx.currentTime + curr[i].time);
+								}
+							}
+							else
+							{
+								gain.gain.setValueAtTime ( curr.val, audio_ctx.currentTime );
+							}
+						}
 
 						gain.connect (destination);
 						source.connect (gain);
 
 						return (gain);
 					},
-					update : function ( gain, audio_ctx, value ) {
-						gain.gain.setValueAtTime ( value, audio_ctx.currentTime );
+					update : function ( gain, audio_ctx, val ) {
+						for (var k = 0; k < val.length; ++k)
+						{
+							var curr = val[k];
+							if (curr.length)
+							{
+								for (var i = 0; i < curr.length; ++i) {
+									gain.gain.linearRampToValueAtTime (curr[i].val, audio_ctx.currentTime + curr[i].time);
+								}
+							}
+							else
+							{
+								gain.gain.setValueAtTime ( curr.val, audio_ctx.currentTime );
+							}
+						}
+						// ----
 					}
 				};
 			},
@@ -910,11 +995,22 @@
 				return {
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var compressor = audio_ctx.createDynamicsCompressor ();
-						compressor.threshold.setValueAtTime ( val.threshold, 0 );
-						compressor.knee.setValueAtTime      ( val.knee,      0 );
-						compressor.ratio.setValueAtTime     ( val.ratio,     0 );
-						compressor.attack.setValueAtTime    ( val.attack,    0 );
-						compressor.release.setValueAtTime   ( val.release,   0 );
+
+						for (var k in val)
+						{
+							if (val[k].length)
+							{
+								for (var i = 0; i < val[k].length; ++i)
+								{
+									var curr = val[k][i];
+									compressor[k].linearRampToValueAtTime (curr.val, audio_ctx.currentTime + curr.time);
+								}
+							}
+							else
+							{
+								compressor[k].setValueAtTime ( val[k].val, audio_ctx.currentTime );
+							}
+						}
 
 						compressor.connect (destination);
 						source.connect (compressor);
@@ -922,11 +1018,22 @@
 						return (compressor);
 					},
 					update : function ( compressor, audio_ctx, val ) {
-						compressor.threshold.setValueAtTime ( val.threshold, 0 );
-						compressor.knee.setValueAtTime      ( val.knee,      0 );
-						compressor.ratio.setValueAtTime     ( val.ratio,     0 );
-						compressor.attack.setValueAtTime    ( val.attack,    0 );
-						compressor.release.setValueAtTime   ( val.release,   0 );
+						for (var k in val)
+						{
+							if (val[k].length)
+							{
+								for (var i = 0; i < val[k].length; ++i)
+								{
+									var curr = val[k][i];
+									compressor[k].linearRampToValueAtTime (curr.val, audio_ctx.currentTime + curr.time);
+								}
+							}
+							else
+							{
+								compressor[k].setValueAtTime ( val[k].val, audio_ctx.currentTime );
+							}
+						}
+						// ---
 					}
 				};
 			},
@@ -940,7 +1047,7 @@
 						}
 
 						source.connect (destination);
-						return (null);
+						return (source);
 					},
 					update : function () {}
 				};
@@ -958,7 +1065,32 @@
 						}
 
 						source.connect (destination);
-						return (null);
+						return (source);
+					},
+					update : function () {}
+				};
+			},
+
+			Flip : function ( val, val2 ) {
+				return {
+					filter : function ( audio_ctx, destination, source, duration ) {
+
+						if (val === 'flip')
+						{
+							var chan0 = source.buffer.getChannelData (0);
+							var chan1 = source.buffer.getChannelData (1);
+							var tmp   = 0;
+
+							for (var j = 0; j < chan0.length; ++j)
+							{
+								tmp = chan0[j];
+								chan0[j] = chan1[j];
+								chan1[j] = tmp;
+							}
+						}
+
+						source.connect (destination);
+						return (source);
 					},
 					update : function () {}
 				};
@@ -1004,7 +1136,7 @@
 						}
 
 						source.connect (destination);
-						return (null);
+						return (source);
 					},
 					update : function () {}
 				};
@@ -1089,14 +1221,25 @@
 
 						var makeEQ = function ( band ) {
 							var eq = audio_ctx.createBiquadFilter ();
+
+							if (band.length)
+							{
+								for (var i = 0; i < band.length; ++i)
+								{
+									eq.gain.linearRampToValueAtTime (~~band[i].val, audio_ctx.currentTime + band[i].time);
+								}
+
+								band = band[0];
+							}
+							else eq.gain.value = ~~band.val;
+
 							eq.type = band.type;
-							eq.gain.value = ~~band.val;
 							eq.Q.value = band.q || 1.0;
 							eq.frequency.value = band.freq;
 
 							return (eq);
 						};
-						
+
 						if (!val[0])
 						{
 							val[0] = {
@@ -1107,7 +1250,7 @@
 							};
 						}
 
-						var eq = makeEQ ( val [0] );
+						var eq = makeEQ ( val[0] );
 						bands.push ( eq );
 						source.connect (eq);
 
@@ -1123,7 +1266,7 @@
 							bands [ i - 1 ].connect ( eq );
 							bands.push ( eq );
 						}
-						eq = makeEQ ( val [ len - 1 ] );
+						eq = makeEQ ( val[ len - 1 ] );
 						bands [ bands.length - 1 ].connect ( eq );
 						bands.push ( eq );
 						eq.connect (destination);
@@ -1195,6 +1338,8 @@
 			},
 
 			Speed : function ( val ) {
+				var prev_val = 1.0;
+
 				return {
 					filter : function ( audio_ctx, destination, source, duration ) {
 
@@ -1211,7 +1356,13 @@
 						return (filter_chain);
 					},
 
+					preview: function (state, source) {
+						if (!state) source.playbackRate.value = 1.0;
+						else source.playbackRate.value = prev_val;
+					},
+
 					update : function ( filter_chain, audio_ctx, val, source ) {
+						prev_val = val;
 						source.playbackRate.value = val;
 					}
 				};
@@ -1251,10 +1402,32 @@
 						var filter_chain = [ inputNode, outputNode, dryGainNode,
 							wetGainNode, feedbackGainNode, delayNode ];
 
-						delayNode.delayTime.value = val.delay;
-						feedbackGainNode.gain.value = val.feedback;
-						dryGainNode.gain.value = 1 - ((val.mix - 0.5) * 2);
-						wetGainNode.gain.value = 1 - ((0.5 - val.mix) * 2);
+						if (!val.delay.length)
+							delayNode.delayTime.value = val.delay.val;
+						else {
+							for (var i = 0; i < val.delay.length; ++i) {
+								delayNode.delayTime.linearRampToValueAtTime (val.delay[i].val, val.delay[i].time + audio_ctx.currentTime );
+							}
+						}
+
+						if (!val.feedback.length)
+							feedbackGainNode.gain.value = val.feedback.val;
+						else {
+							for (var i = 0; i < val.feedback.length; ++i) {
+								feedbackGainNode.gain.linearRampToValueAtTime (val.feedback[i].val, val.feedback[i].time + audio_ctx.currentTime );
+							}
+						}
+
+						if (!val.mix.length) {
+							dryGainNode.gain.value = 1 - ((val.mix.val - 0.5) * 2);
+							wetGainNode.gain.value = 1 - ((0.5 - val.mix.val) * 2);
+						}
+						else {
+							for (var i = 0; i < val.mix.length; ++i) {
+								dryGainNode.gain.linearRampToValueAtTime (1 - ((val.mix[i].val - 0.5) * 2), val.mix[i].time + audio_ctx.currentTime );
+								wetGainNode.gain.linearRampToValueAtTime (1 - ((0.5 - val.mix[i].val) * 2), val.mix[i].time + audio_ctx.currentTime );
+							}
+						}
 
 						return (filter_chain);
 					},
@@ -1268,10 +1441,33 @@
 						var feedbackGainNode = filter_chain[4];
 						var delayNode = filter_chain[5];
 
-						delayNode.delayTime.value = val.delay;
-						feedbackGainNode.gain.value = val.feedback;
-						dryGainNode.gain.value = 1 - ((val.mix - 0.5) * 2);
-						wetGainNode.gain.value = 1 - ((0.5 - val.mix) * 2);
+						if (!val.delay.length)
+							delayNode.delayTime.value = val.delay.val;
+						else {
+							for (var i = 0; i < val.delay.length; ++i) {
+								delayNode.delayTime.linearRampToValueAtTime (val.delay[i].val, val.delay[i].time + audio_ctx.currentTime );
+							}
+						}
+
+						if (!val.feedback.length)
+							feedbackGainNode.gain.value = val.feedback.val;
+						else {
+							for (var i = 0; i < val.feedback.length; ++i) {
+								feedbackGainNode.gain.linearRampToValueAtTime (val.feedback[i].val, val.feedback[i].time + audio_ctx.currentTime );
+							}
+						}
+
+						if (!val.mix.length) {
+							dryGainNode.gain.value = 1 - ((val.mix.val - 0.5) * 2);
+							wetGainNode.gain.value = 1 - ((0.5 - val.mix.val) * 2);
+						}
+						else {
+							for (var i = 0; i < val.mix.length; ++i) {
+								dryGainNode.gain.linearRampToValueAtTime (1 - ((val.mix[i].val - 0.5) * 2), val.mix[i].time + audio_ctx.currentTime );
+								wetGainNode.gain.linearRampToValueAtTime (1 - ((0.5 - val.mix[i].val) * 2), val.mix[i].time + audio_ctx.currentTime );
+							}
+						}
+						// ---
 					}
 				};
 			},
@@ -1281,18 +1477,37 @@
 					filter : function ( audio_ctx, destination, source, duration ) {
 
 						var wave_shaper = audio_ctx.createWaveShaper ();
-						var gain = parseInt (0.5 * 100, 10);
-						var n_samples = 44100;
-						var curve = new Float32Array (n_samples);
-						var deg = Math.PI / 180;
-						var x;
+						// var gain = parseInt (0.5 * 100, 10);
+						var compute_dist = function ( val ) {
+							var gain = parseInt ( (val / 1) * 100, 10);
+							var n_samples = 44100;
+							var curve = new Float32Array (n_samples);
+							var deg = Math.PI / 180;
+							var x;
 
-						for (var i = 0; i < n_samples; ++i ) {
-							x = i * 2 / n_samples - 1;
-							curve[i] = (3 + gain) * x * 20 * deg / (Math.PI + gain * Math.abs(x));
+							for (var i = 0; i < n_samples; ++i ) {
+								x = i * 2 / n_samples - 1;
+								curve[i] = (3 + gain) * x * 20 * deg / (Math.PI + gain * Math.abs(x));
+							}
+
+							return (curve);
+						};
+
+
+						for (var k = 0; k < val.length; ++k)
+						{
+							var curr = val[k];
+							if (curr.length)
+							{
+								for (var i = 0; i < curr.length; ++i) {
+									wave_shaper.curve.linearRampToValueAtTime (compute_dist(curr[i].val), audio_ctx.currentTime + curr[i].time);
+								}
+							}
+							else
+							{
+								wave_shaper.curve = compute_dist (curr.val);
+							}
 						}
-
-						wave_shaper.curve = curve;
 
 						source.connect (wave_shaper);
 						wave_shaper.connect (destination);
@@ -1301,19 +1516,38 @@
 					},
 
 					update : function ( filter, audio_ctx, val ) {
-						// update filter chain...
-						var gain = parseInt ( (val / 1) * 100, 10);
-						var n_samples = 44100;
-						var curve = new Float32Array (n_samples);
-						var deg = Math.PI / 180;
-						var x;
 
-						for (var i = 0; i < n_samples; ++i ) {
-							x = i * 2 / n_samples - 1;
-							curve[i] = (3 + gain) * x * 20 * deg / (Math.PI + gain * Math.abs(x));
+						var compute_dist = function ( val ) {
+							var gain = parseInt ( (val / 1) * 100, 10);
+							var n_samples = 44100;
+							var curve = new Float32Array (n_samples);
+							var deg = Math.PI / 180;
+							var x;
+
+							for (var i = 0; i < n_samples; ++i ) {
+								x = i * 2 / n_samples - 1;
+								curve[i] = (3 + gain) * x * 20 * deg / (Math.PI + gain * Math.abs(x));
+							}
+
+							return (curve);
+						};
+
+
+						for (var k = 0; k < val.length; ++k)
+						{
+							var curr = val[k];
+							if (curr.length)
+							{
+								for (var i = 0; i < curr.length; ++i) {
+									filter.curve.linearRampToValueAtTime (compute_dist(curr[i].val), audio_ctx.currentTime + curr[i].time);
+								}
+							}
+							else
+							{
+								filter.curve = compute_dist (curr.val);
+							}
 						}
-
-						filter.curve = curve;
+						// ----
 					}
 				};
 			},
@@ -1402,6 +1636,7 @@
 		this.InsertFloatArrays = InsertFloatArrays;
 		this.ReplaceFloatArrays = ReplaceFloatArrays;
 		this.Replace = OverwriteBufferWithSegment;
+		this.FullReplace = OverwriteBuffer;
 		this.MakeSilence = MakeSilenceBuffer;
 		this.DownloadFile = DownloadFile;
 		this.DownloadFileCancel = DownloadFileCancel;

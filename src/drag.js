@@ -88,7 +88,7 @@
 			*	and appended to the body. Else the default is used
 			**/
 			_overlayBuilder = function() {
-				if( typeof overlay_id === "string"  )
+				if( typeof overlay_id === "string" )
 				{
 					var tmp = document.createElement( 'div' );
 					overlay = document.createElement( 'div' );

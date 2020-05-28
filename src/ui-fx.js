@@ -107,11 +107,62 @@
 			curr_filter_ui = modal;
 		});
 
+		app.listenFor ('RequestFXUI_SELCUT', function () {
+			var eng  = app.engine;
+			var wv   = eng.wavesurfer;
+			var bk   = wv.backend;
+			var rate = bk.buffer.sampleRate;
+
+			var region = wv.regions.list[0];
+			if (!region) return (false);
+
+			app.fireEvent('RequestPause');
+
+			// mark the region as 
+			region.element.style.background = 'red';
+
+			var reg = {
+                    pos: {
+                        start: (region.start * rate) >> 0,
+                        end:   (region.end * rate) >> 0
+                    },
+                    initpos: {
+                        start: (region.start * rate) >> 0,
+                        end:   (region.end * rate) >> 0
+                    }
+			};
+
+			wv.backend.reg = reg;
+
+			var update_reg = function( region ) {
+				reg.pos.start = (region.start * rate) >> 0;
+				reg.pos.end = (region.end * rate) >> 0;
+
+				wv.drawBuffer (true);
+			};
+
+			wv.on ('region-updated', update_reg);
+			// -- now make sure we resize it if needed be
+		});
 
 		app.listenFor ('RequestFXUI_Gain', function () {
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'gain';
+			var auto = null;
+
+			var getvalue = function ( q ) {
+				var value;
+
+				if (auto) {
+					value = auto.GetValue ();
+				} else {
+					var input = q.el_body.getElementsByTagName('input')[0];
+					value = [{val: input.value / 1}];
+				}
+
+				return (value);
+			};
 
 			var x = new PKAudioFXModal({
 				id: filter_id,
@@ -131,20 +182,17 @@
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 			},
 			preview: function ( q ) {
-				var input = q.el_body.getElementsByTagName('input')[0];
-				var value = input.value.trim() / 1;
+				var value = getvalue ( q );
 				app.fireEvent ('RequestActionFX_PREVIEW_GAIN', value);
 			},
-
 			  buttons: [
 				{
 					title:'Apply Gain',
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {
-						var input = q.el_body.getElementsByTagName('input')[0];
-						var value = input.value.trim() / 1;
+						var value = getvalue ( q );
 
-						if (value != 1.0)
+						if (value[0].val != 1.0)
 							app.fireEvent ('RequestActionFX_GAIN', value);
 
 						q.Destroy ();
@@ -153,15 +201,23 @@
 			  ],
 			  body:'<div class="pk_row" style="border:none"><label>Gain percentage</label>' + 
 				'<input type="range" class="pk_horiz" min="0.0" max="2.5" step="0.01" value="1.0" />'+
-				'<span class="pk_val">100%</span></div>',
+				'<span class="pk_val">100%</span></div>' +
+				'<div class="pk_row" style="border:none;padding:0">',
+				// '<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
+
 			  setup:function( q ) {
 				  var range = q.el_body.getElementsByTagName ('input')[0];
 				  var span = q.el_body.getElementsByTagName  ('span')[0];
+				  var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
 
 				  range.oninput = function() {
 					span.innerHTML = ((range.value * 100) >> 0) + '%';
-					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', range.value/1);
+					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', [{val: range.value / 1}]);
 				  };
+
+				  //graph_btn.onclick = function () {
+				  //	auto = new PKAudioEditor._deps.FxAUT (app, q);
+				  //};
 
 				  app.fireEvent ('RequestPause');
 				  app.ui.InteractionHandler.checkAndSet (modal_name);
@@ -244,6 +300,141 @@
 		});
 
 
+		app.listenFor ('RequestActionFXUI_Flip', function () {
+			if (!PKAudioEditor.engine.is_ready) return ;
+
+			app.fireEvent ( 'RequestRegionClear');
+			app.fireEvent ('RequestSelect', 1);
+
+			var filter_id = 'flip';
+			var mode = 0;
+
+			var x = new PKAudioFXModal({
+				id: filter_id,
+			  	title:'Channel Info',
+			ondestroy: function ( q ) {
+				app.ui.InteractionHandler.on = false;
+				app.ui.KeyHandler.removeCallback (modal_esc_key);
+			},
+			buttons: [
+				{
+					title:'Apply Changes',
+					clss:'pk_modal_a_accpt',
+					callback: function( q ) {
+						if (mode === 1)
+						{
+							// check if we are doing force mono, or force flip
+							var mono  = q.el_body.getElementsByClassName('pk_c_mm')[0];
+							var flip  = q.el_body.getElementsByClassName('pk_c_fl')[0];
+
+							if (mono.checked)
+							{
+								var chans = q.el_body.getElementsByClassName('pk_c_c');
+								// check which channel we pick
+
+								if (chans[0].checked) {
+									app.fireEvent ('RequestActionFX_Flip', 'mono', 0);
+								}
+								else if (chans[1].checked) {
+									app.fireEvent ('RequestActionFX_Flip', 'mono', 1);
+								}
+							}
+							else if (flip.checked) {
+								app.fireEvent ('RequestActionFX_Flip', 'flip');
+							}
+						}
+
+						else if (mode === 2)
+						{
+							var stereo  = q.el_body.getElementsByClassName('pk_c_ms')[0];
+							if (stereo.checked) {
+								app.fireEvent ('RequestActionFX_Flip', 'stereo');
+							}
+						}
+
+						q.Destroy ();
+					}
+				}
+			  ],
+			  body:'<div class="pk_row pk_mm" style="border:none;display:none">'+
+
+					'<div class="pk_row">'+
+					'<input type="checkbox" class="pk_check pk_c_mm" id="xmm" name="makeMono">'+
+					'<label for="xmm">Make Mono</label></div>' + 
+			  		'<div class="pk_row" style="padding-left:30px">' +
+					'<input type="radio" class="pk_check pk_c_c" id="kf6" name="chnl" value="left">'+
+					'<label class="pk_dis" for="kf6">Left Channel</label>'+
+					'<input type="radio" class="pk_check pk_c_c" id="kf7" name="chnl" value="right">'+
+					'<label class="pk_dis" for="kf7">Right Channel</label>'+
+					'</div>'+ 
+
+					'<div class="pk_row"><input type="checkbox" class="pk_check pk_c_fl" id="xfc" name="flipChn">'+
+					'<label for="xfc">Flip Channels</label></div>' + 
+					'</div>' +
+
+					'<div class="pk_row pk_ms" style="border:none;display:none">'+
+						'<div class="pk_row"><input type="checkbox" class="pk_check pk_c_ms" id="xms" checked name="makeStereo">'+
+						'<label for="xms">Make Stereo</label></div>' + 
+					'</div>',
+			  setup:function( q ) {
+			  	  var main = null;
+				  var num = PKAudioEditor.engine.wavesurfer.backend.buffer.numberOfChannels;
+				  if (num === 2)
+				  {
+				  	mode = 1;
+				  	main = q.el_body.getElementsByClassName('pk_mm')[0];
+				  	
+				  	var mono  = main.getElementsByClassName('pk_c_mm')[0];
+				  	var flip  = main.getElementsByClassName('pk_c_fl')[0];
+				  	var chans = main.getElementsByClassName('pk_c_c');
+				  	var tmp   = main.getElementsByClassName('pk_dis');
+				  	var lbls  = [tmp[0], tmp[1]];
+
+				  	mono.onchange = function( e ) { 
+				  		if (mono.checked) {
+				  			flip.checked = false;
+				  			chans[0].checked = true;
+				  			lbls[0].className = '';
+				  			lbls[1].className = '';
+				  		}
+				  		else {
+				  			chans[0].checked = false;
+				  			chans[1].checked = false;
+				  			lbls[0].className = 'pk_dis';
+				  			lbls[1].className = 'pk_dis';
+				  		}
+				  	};
+
+				  	flip.onchange = function( e ) {
+				  		if (flip.checked) {
+				  			mono.checked = false;
+				  			mono.onchange ();
+				  		}
+				  	};
+
+				  }
+				  else
+				  {
+				  	mode = 2;
+				  	main = q.el_body.getElementsByClassName('pk_ms')[0];
+				  }
+
+				  main.style.display = 'block';
+
+				  // --
+
+				  app.fireEvent ('RequestPause');
+				  app.ui.InteractionHandler.checkAndSet (modal_name);
+				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
+				  	if (!app.ui.InteractionHandler.check (modal_name)) return ;
+				    q.Destroy ();
+				  }, [27]);
+			  }
+			}, app);
+			x.Show();
+		});
+
+
 
 		app.listenFor ('RequestFXUI_Silence', function () {
 			var x = new PKSimpleModal({
@@ -305,6 +496,32 @@
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'compressor';
+			var auto = null;
+			var getvalue = function ( q ) {
+				var ret;
+				var value = [];
+
+				if (auto) {
+					value = auto.GetValue ();
+				} else {
+					var inputs = q.el_body.getElementsByTagName('input');
+					value[0] = {val:inputs[0].value / 1};
+					value[1] = {val:inputs[1].value / 1};
+					value[2] = {val:inputs[2].value / 1};
+					value[3] = {val:inputs[3].value / 1};
+					value[4] = {val:inputs[4].value / 1};
+				}
+
+				ret = {
+					threshold: value[0],
+					knee:  value[1],
+					ratio:  value[2],
+					attack:  value[3],
+					release:  value[4]
+				};
+
+				return (ret);
+			};
 
 			var x = new PKAudioFXModal({
 			  id    : filter_id,
@@ -323,13 +540,7 @@
 				custom_pres:custom_presets.Get (filter_id),
 			preview: function ( q ) {
 				var inputs = q.el_body.getElementsByTagName('input');
-				var val = {
-					threshold: inputs[0].value/1,
-					knee:  inputs[1].value/1,
-					ratio:  inputs[2].value/1,
-					attack:  inputs[3].value/1,
-					release:  inputs[4].value/1
-				};
+				var val = getvalue (q);
 				app.fireEvent ('RequestActionFX_PREVIEW_COMPRESSOR', val);
 			},
 
@@ -339,13 +550,7 @@
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {		
 						var inputs = q.el_body.getElementsByTagName('input');
-						var val = {
-							threshold: inputs[0].value/1,
-							knee:  inputs[1].value/1,
-							ratio:  inputs[2].value/1,
-							attack:  inputs[3].value/1,
-							release:  inputs[4].value/1
-						};
+						var val = getvalue ( q );
 						
 						app.fireEvent ('RequestActionFX_Compressor', val);
 
@@ -372,6 +577,7 @@
 				'<div class="pk_row" style="border:none"><label class="pk_line">Release</label>' + 
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.001" value="0.25" />'+
 				'<span class="pk_val">0.25</span></div>',
+				//'<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
 			  setup:function( q ) {
 				var inputs = q.el_body.getElementsByTagName ('input');
 				for (var i = 0; i < inputs.length; ++i)
@@ -383,17 +589,14 @@
 					  updateFilter ();
 				  };
 				}
+
+				//var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
+				//graph_btn.onclick = function () {
+				//		auto = new PKAudioEditor._deps.FxAUT (PKAudioEditor, q);
+				//};
 				
 				function updateFilter() {
-					var inputs = q.el_body.getElementsByTagName('input');
-					var val = {
-						threshold: inputs[0].value/1,
-						knee:  inputs[1].value/1,
-						ratio:  inputs[2].value/1,
-						attack:  inputs[3].value/1,
-						release:  inputs[4].value/1
-					};
-					
+					var val = getvalue ( q );
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
 				}
 
@@ -461,13 +664,41 @@
 			PKAudioEditor._deps.FxEQ (app, custom_presets);
 		});
 
+		app.listenFor ('RequestActionTempo', function () {
+			PKAudioEditor._deps.FxTMP (app);
+		});
 
-
+		//app.listenFor ('RequestActionAUTO', function ( filter ) {
+		//	PKAudioEditor._deps.FxAUT (app, filter);
+		//});
 
 		app.listenFor ('RequestActionFXUI_GraphicEQ', function ( num_of_bands ) {
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'graph_eq';
+			var auto = null;
+			var getvalue = function ( ranges ) {
+				var val = {};
+
+				if (auto) {
+					val = auto.GetValue ();
+				} else {
+					val = [];
+					var len = ranges.length;
+					for (var i = 0; i < len; ++i)
+					{
+						var range = ranges [ i ];
+						val.push ({
+							'type' : range.getAttribute ('data-type'),
+							'freq' : range.getAttribute ('data-freq')/1,
+							'val'  : range.value / 1,
+							'q'    : band_q
+						});
+					}
+				}
+
+				return (val);
+			};
 
 			var bands_str = '<div class="pk_col"><span class="pk_val">0 db</span>'+
 				'<input class="pk_vert" data-freq="32" data-type="lowshelf" '+
@@ -514,13 +745,13 @@
 				{name:'Old Radio', val:'-25,-22,-20,-18,-9,0,8,10,-8,-25'},
 				{name:'Lo Fi', val:'-18,-12,0,2,0,4,4,-1,-6,-8'}
 			];
-			var band_q = 1.1;
+			var band_q = 4.6;
 
 			if (num_of_bands === 20)
 			{
 				filter_id += '_2';
 				presets = null; // maybe add presets?
-				band_q = 4.0;
+				band_q = 10.2;
 				bands_str = '<div class="pk_col"><span class="pk_val">0 db</span>'+
 					'<input class="pk_vert" data-freq="31" data-type="lowshelf" '+
 					'type="range" min="-25.0" max="25.0" step="0.01" value="0.0" />'+
@@ -613,25 +844,10 @@
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 			},
 			preview: function ( q ) {
-						var ranges = q.el_body.getElementsByTagName('input');
-						var len = ranges.length;
+				var ranges = q.el_body.getElementsByTagName('input');
+				var len = ranges.length;
 
-						var updateFilter = function () {
-							var val = [];
-							  
-							for (var i = 0; i < len; ++i)
-							{
-								var range = ranges [ i ];
-								val.push ({
-									'type' : range.getAttribute ('data-type'),
-									'freq' : range.getAttribute ('data-freq')/1,
-									'val'  : range.value / 1,
-									'q'    : band_q
-								});
-							}
-							return (val);
-						};
-				app.fireEvent ('RequestActionFX_PREVIEW_PARAMEQ', updateFilter ());
+				app.fireEvent ('RequestActionFX_PREVIEW_PARAMEQ', getvalue (ranges));
 			},
 
 			  buttons: [
@@ -640,24 +856,7 @@
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {
 						var ranges = q.el_body.getElementsByTagName('input');
-						var len = ranges.length;
-
-						var updateFilter = function () {
-							var val = [];
-							  
-							for (var i = 0; i < len; ++i)
-							{
-								var range = ranges [ i ];
-								val.push ({
-									'type' : range.getAttribute ('data-type'),
-									'freq' : range.getAttribute ('data-freq')/1,
-									'val'  : range.value / 1,
-									'q'    : band_q
-								});
-							}
-							return (val);
-						};
-						app.fireEvent ('RequestActionFX_PARAMEQ', updateFilter ());
+						app.fireEvent ('RequestActionFX_PARAMEQ', getvalue (ranges));
 
 						q.Destroy ();
 					}
@@ -667,25 +866,19 @@
 			  body:'<div class="pk_h200">' +
 			  	bands_str+
 				'<div style="clear:both;"></div></div>',
+				//'<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
 			  setup:function( q ) {
 					var ranges = q.el_body.getElementsByTagName('input');
 					var len = ranges.length;
 
-					var updateFilter = function () {
-						var val = [];
-						  
-						for (var i = 0; i < len; ++i)
-						{
-							var range = ranges [ i ];
-							val.push ({
-								'type' : range.getAttribute ('data-type'),
-								'freq' : range.getAttribute ('data-freq')/1,
-								'val'  : range.value / 1,
-								'q'    : band_q
-							});
-						}
-						return (val);
-					};
+					  //var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
+					  //graph_btn.onclick = function () {
+					  //		auto = new PKAudioEditor._deps.FxAUT (PKAudioEditor, q, function ( obj, range ) {
+					  //			obj.type = range.getAttribute ('data-type');
+					  //			obj.freq = range.getAttribute ('data-freq')/1;
+					  //			obj.q    = band_q;
+					  //		});
+					  //};
 
 					for (var i = 0; i < len; ++i) {
 						var range = ranges[i];
@@ -693,7 +886,7 @@
 						range.oninput = function() {
 						  var span = this.parentNode.getElementsByTagName('span')[0];
 						  span.innerHTML = ((this.value) >> 0) + ' db';
-						  app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', updateFilter ());
+						  app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue (ranges));
 						};
 					}
 
@@ -792,6 +985,28 @@
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'delay';
+			var auto = null;
+			var getvalue = function ( q ) {
+				var ret;
+				var value = [];
+
+				if (auto) {
+					value = auto.GetValue ();
+				} else {
+					var inputs = q.el_body.getElementsByTagName('input');
+					value[0] = {val:inputs[0].value / 1};
+					value[1] = {val:inputs[1].value / 1};
+					value[2] = {val:inputs[2].value / 1};
+				}
+
+				ret = {
+					delay: value[0],
+					feedback:  value[1],
+					mix:  value[2]
+				};
+
+				return (ret);
+			};
 
 			var x = new PKAudioFXModal({
 			  id    : filter_id,
@@ -807,12 +1022,8 @@
 				],
 				custom_pres:custom_presets.Get (filter_id),
 			preview: function ( q ) {
-				var inputs = q.el_body.getElementsByTagName('input');
-				var val = {
-					delay:     inputs[0].value/1,
-					feedback:  inputs[1].value/1,
-					mix:       inputs[2].value/1
-				};
+				var val = getvalue (q);
+
 				app.fireEvent ('RequestActionFX_PREVIEW_DELAY', val);
 			},
 
@@ -821,12 +1032,7 @@
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {		
-						var inputs = q.el_body.getElementsByTagName('input');
-						var val = {
-							delay:     inputs[0].value/1,
-							feedback:  inputs[1].value/1,
-							mix:       inputs[2].value/1
-						};
+						var val = getvalue (q);
 						
 						app.fireEvent ('RequestActionFX_DELAY', val);
 
@@ -845,6 +1051,7 @@
 				'<div class="pk_row"><label class="pk_line">Wet</label>' + 
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.01" value="0.4" />'+
 				'<span class="pk_val">0.4</span></div>',
+				//'<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
 			  setup:function( q ) {
 				var inputs = q.el_body.getElementsByTagName ('input');
 				for (var i = 0; i < inputs.length; ++i)
@@ -856,15 +1063,14 @@
 					  updateFilter ();
 				  };
 				}
-				
+
+				//var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
+				//graph_btn.onclick = function () {
+				//	auto = new PKAudioEditor._deps.FxAUT (app, q);
+				//};
+
 				function updateFilter() {
-					var inputs = q.el_body.getElementsByTagName('input');
-					var val = {
-						delay:     inputs[0].value/1,
-						feedback:  inputs[1].value/1,
-						mix:       inputs[2].value/1
-					};
-					
+					var val = getvalue (q);					
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
 				}
 
@@ -885,6 +1091,19 @@
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'dist';
+			var auto = null;
+			var getvalue = function ( q ) {
+				var value;
+
+				if (auto) {
+					value = auto.GetValue ();
+				} else {
+					var input = q.el_body.getElementsByTagName('input')[0];
+					value = [{val: input.value / 1}];
+				}
+
+				return (value);
+			};
 
 			var x = new PKAudioFXModal({
 			  id    : filter_id,
@@ -895,8 +1114,7 @@
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 			},
 			preview: function ( q ) {
-				var inputs = q.el_body.getElementsByTagName('input');
-				var val = inputs[0].value/1;
+				var val = getvalue (q);
 				app.fireEvent ('RequestActionFX_PREVIEW_DISTORT', val);
 			},
 
@@ -905,9 +1123,7 @@
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {		
-						var inputs = q.el_body.getElementsByTagName('input');
-						var val = inputs[0].value/1;
-						
+						var val = getvalue (q);
 						app.fireEvent ('RequestActionFX_DISTORT', val);
 
 						q.Destroy ();
@@ -917,6 +1133,7 @@
 			  body:'<div class="pk_row"><label class="pk_line">Gain</label>' + 
 				'<input class="pk_horiz" type="range" min="0.0" max="2.0" step="0.01" value="0.5" />'+
 				'<span class="pk_val">0.5</span></div>',
+				// '<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
 
 			  setup:function( q ) {
 				var inputs = q.el_body.getElementsByTagName ('input');
@@ -929,11 +1146,14 @@
 					  updateFilter ();
 				  };
 				}
-				
+
+				//var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
+				//graph_btn.onclick = function () {
+				//	auto = new PKAudioEditor._deps.FxAUT (app, q);
+				//};
+
 				function updateFilter() {
-					var inputs = q.el_body.getElementsByTagName('input');
-					var val =  inputs[0].value/1;
-					
+					var val = getvalue (q);
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
 				}
 
@@ -1040,6 +1260,91 @@
 			  }
 			}, app);
 			x.Show();
+		});
+
+		// -----
+
+		var current_tags = null;
+		app.listenFor ('RequestActionID3', function (flag, new_tags) {
+				if (flag) {
+					current_tags = new_tags;
+					return ;
+				}
+
+				var modal_id = '_id3';
+
+				var render_tags = function ( el, tags ) {
+					var str = '<div style="margin-top:18px">';
+
+					str += '<div><span class="pk_id3ttl">Artist</span><span>' + (tags.artist || '-') + '</span></div>';
+					str += '<div><span class="pk_id3ttl">Title</span><span>' + (tags.title || '-') + '</span></div>';
+					str += '<div><span class="pk_id3ttl">Album</span><span>' + (tags.album || '-') + '</span></div>';
+					str += '<div><span class="pk_id3ttl">Year</span><span>' + (tags.year || '-') + '</span></div>';
+					str += '<div><span class="pk_id3ttl">Genre</span><span>' + (tags.genre || '-') + '</span></div>';
+					str += '<div style="max-width:700px"><span class="pk_id3ttl">Comment</span><span>' + ((tags.comment||{}).text || '-') + '</span></div>';
+					str += '<div><span class="pk_id3ttl">Track</span><span>' + (tags.track || '-') + '</span></div>';
+					str += '<div style="max-width:700px"><span class="pk_id3ttl">Lyrics</span><span>' + ((tags.lyrics||{}).lyrics || '-') + '</span></div>';
+
+					if ('picture' in tags)
+					{
+						var image = tags.picture;
+						var base64str = '';
+						for (var i = 0; i < image.data.length; ++i) {
+							base64str += String.fromCharCode (image.data[i]);
+						}
+
+						str += '<div><span style="float:left" class="pk_id3ttl">Cover</span>' +
+								'<span><img style="max-width:340px" src="data:' + 
+								image.format + ';base64,' + window.btoa(base64str) + '"/></span></div>';
+					}
+
+					el.innerHTML = str + '</div>';
+				};
+
+				new PKSimpleModal({
+				  title:'ID3 Metatags Explorer',
+
+				  ondestroy: function( q ) {
+				  	app.ui.InteractionHandler.forceUnset (modal_id);
+					app.ui.KeyHandler.removeCallback (modal_id + 'esc');
+				  },
+
+				  buttons:[
+				  ],
+				  body:'<input type="file" accept="audio/*" />'+
+				  	'<div class="pk_row pk_ttx">Choose file to view audio metatags!</div>',
+				  setup:function( q ) {
+				  		var input  = q.el_body.getElementsByTagName ('input')[0];
+				  		var txt_el = q.el_body.getElementsByClassName ('pk_ttx')[0];
+
+				  		input.onchange = function ( e ) {
+							var reader = new FileReader();
+							
+							reader.onload = function() {
+								var tags = PKAudioEditor.engine.ID3 (this.result);
+
+								if (!tags) {
+									txt_el.innerHTML = '<div style="padding:30px 0">No audio metadata found...</div>';
+								} else {
+									render_tags (txt_el, tags);
+								}
+							};
+
+							reader.readAsArrayBuffer(this.files[0]);
+				  		};
+
+				  		if (current_tags) {
+				  			render_tags (txt_el, current_tags);
+				  		}
+
+					  	app.ui.InteractionHandler.forceSet (modal_id);
+						app.ui.KeyHandler.addCallback (modal_id + 'esc', function ( e ) {
+							if (!app.ui.InteractionHandler.check (modal_id)) return ;
+							q.Destroy ();
+						}, [27]);
+				  }
+				}).Show();
+
 		});
 
 
@@ -1260,26 +1565,35 @@
 
 		// ---- windows ----
 
-		var eq_win = null;
+		var eq_win = {};
 
 		app.listenFor ('WillUnload', function () {
-			if (eq_win && !eq_win.type) {
-				eq_win.destroy && eq_win.destroy ();
+			var cur;
+
+			for (var k in eq_win) {
+				cur = eq_win[k];
+				if (cur && !cur.type) {
+					cur.destroy && cur.destroy ();
+				}
 			}
+
+			eq_win = {};
 		});
 
-		app.listenFor ('RequestDragI', function () {
+		app.listenFor ('RequestDragI', function ( url ) {
 			if (app.isMobile) {
-				alert ("unsupported on mobile");
+				alert ('unsupported on mobile');
 				return ;
 			}
 
-			if (!eq_win || !eq_win.el) return ;
+			var cur_win = eq_win[url];
 
-			eq_win.el.style.pointerEvents = 'none';
-			eq_win.el.style.zIndex = '9';
+			if (!cur_win || !cur_win.el) return ;
 
-			eq_win.win.document.body.classList.add ('c');
+			cur_win.el.style.pointerEvents = 'none';
+			cur_win.el.style.zIndex = '9';
+
+			cur_win.win.document.body.classList.add ('c');
 
 			var el_back = document.createElement ('div');
 			el_back.className = 'pk_modal_back';
@@ -1290,17 +1604,17 @@
 			var y = 0;
 			var moved = 2;
 
-			var top = parseInt (eq_win.el.style.top) || 0;
-			var left = parseInt (eq_win.el.style.left) || 0;
+			var top = parseInt (cur_win.el.style.top) || 0;
+			var left = parseInt (cur_win.el.style.left) || 0;
 
 			app.ui.InteractionHandler.on = true;
 
 			setTimeout (function() {
-				if (eq_win && eq_win.el)
+				if (cur_win && cur_win.el)
 				{
-					eq_win.el.style.display = 'none';
+					cur_win.el.style.display = 'none';
 					setTimeout(function() {
-						eq_win.el.style.display = 'block';					
+						cur_win.el.style.display = 'block';					
 					},0);
 					el_back.focus ();
 				}
@@ -1323,8 +1637,8 @@
 				top  += dist_y;
 				left += dist_x;
 
-				eq_win.el.style.top  = top + 'px';
-				eq_win.el.style.left = left + 'px';
+				cur_win.el.style.top  = top + 'px';
+				cur_win.el.style.left = left + 'px';
 
 				x = e.pageX;
 				y = e.pageY;
@@ -1335,9 +1649,9 @@
 			el_back.onmouseup = function ( e ) {
 				is_drag = false;
 
-				eq_win.win.document.body.classList.remove ('c');
-				eq_win.el.style.pointerEvents = '';
-				eq_win.el.style.zIndex = '7';
+				cur_win.win.document.body.classList.remove ('c');
+				cur_win.el.style.pointerEvents = '';
+				cur_win.el.style.zIndex = '7';
 
 				app.ui.InteractionHandler.on = false;
 
@@ -1347,8 +1661,18 @@
 				{
 					if (moved > 0)
 					{
-						eq_win.el.style.top  = '0px';
-						eq_win.el.style.left = '0px';
+						cur_win.el.style.top  = '0px';
+
+						var ch = app.ui.BarBtm.el.childNodes;
+
+						var lw = 0;
+						for (var ji = 0; ji < ch.length; ++ji) {
+							if (cur_win.el === ch[ji]) break;
+							lw += ch[ji].clientWidth + 18;
+						}
+
+						cur_win.el.style.left = lw + 'px';
+						// ----
 					}
 					// check if we didn't move - in that return 
 				}
@@ -1361,51 +1685,71 @@
 
 			el_back.onmouseleave = function ( e ) {
 				el_back.onmouseup ( e );
-				app.fireEvent ('RequestShowFreqAn', [(window.screenLeft + e.pageX)||0, (window.screenTop + e.pageY)||0], 0);
+				app.fireEvent ('RequestShowFreqAn', url, [ [(window.screenLeft + e.pageX)||0, (window.screenTop + e.pageY)||0], 0]);
 			};
 		});
 
-		app.listenFor ('RequestShowFreqAn', function ( toggle, type ) {
+		app.listenFor ('RequestShowFreqAn', function ( url, args_arr ) {
 
 			if (app.isMobile) {
-				alert ("unsupported on mobile");
+				alert ('Currently unsupported on mobile');
 				return ;
 			}
 
+			var toggle = args_arr[ 0 ];
+			var type   = args_arr[ 1 ];
+			var title = 'Frequency Analysis';
+			var curr_win = eq_win[ url ];
+
+			if (url === 'sp') title = 'Spectrum Analysis';
+
 			var toggled = false;
-			if (eq_win && toggle)
+			if (curr_win && toggle)
 			{
 				var ext = false;
-				if (eq_win.type === type) ext = true;
+				if (curr_win.type === type) ext = true;
 
-				eq_win.destroy ();
-				eq_win = null;
+				curr_win.destroy ();
+				curr_win = null;
+
+				eq_win[url] = null;
 
 				if (ext) return ;
 				toggled = true;
 			}
 
 			var freq_cb = function (_, freq) {
-				eq_win && eq_win.win && eq_win.win.update && eq_win.win.update (freq);
+				curr_win && curr_win.win.update && curr_win.win.update (freq);
 			};
 
-			var setEvents = function ( type ) {
-				eq_win.win.destroy = function () {
-					app.engine.wavesurfer.backend.logFrequencies = false;
+			var setEvents = function ( obj, _url ) {
+				obj.win.destroy = function () {
 					app.stopListeningFor ('DidAudioProcess', freq_cb);
-					app.fireEvent ('DidToggleFreqAn', null);
+					app.fireEvent ('DidToggleFreqAn', _url, null);
 
-					if (eq_win && eq_win.type === type) eq_win = null;
+					// if (obj && obj.type === undefined) {
+					if (obj && obj === eq_win[url]) {
+						eq_win[url] = null;
+					}
+
+					var stop = true;
+					for (var k in eq_win) {
+						if (eq_win[k]) {
+							stop = false;
+							break;
+						}
+					}
+
+					if (stop) app.engine.wavesurfer.backend.logFrequencies = false;
 				};
 
 				app.listenFor ('DidAudioProcess', freq_cb);
-				app.fireEvent ('DidToggleFreqAn', eq_win);
+				app.fireEvent ('DidToggleFreqAn', _url, curr_win);
 				app.engine.wavesurfer.backend.logFrequencies = true;
 			};
 
 			if (!type)
 			{
-
 				var makePopup = function ( dat ) {
 					var extra = '';
 					if (dat && dat[0]) {
@@ -1415,10 +1759,15 @@
 						extra = ',left=' + dat[0] + ',top=' + dat[1];
 					}
 
-					var wnd = window.open ('/eq.html', "Frequency Analysis", "directories=no,titlebar=no,toolbar=no,"+
+					var wnd = window.open ('/' + url + '.html', title, "directories=no,titlebar=no,toolbar=no,"+
 							"location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=600,height=188" + extra);
 
-					eq_win = {
+					if (!wnd) {
+						OneUp ('Please allow pop-ups for AudioMass!', 3600, 'pk_r');
+						return ;
+					}
+
+					eq_win[url] = {
 						type : type,
 						el   : null,
 						win  : wnd,
@@ -1426,9 +1775,12 @@
 							wnd && wnd.close && wnd.close ();
 						}
 					};
+
+					curr_win = eq_win[url];
+
 					// wnd.moveTo(500, 100);
 
-					setEvents ();
+					setEvents ( curr_win, url );
 				};
 
 				if (!toggled) makePopup (toggle);
@@ -1436,13 +1788,24 @@
 			}
 			else if (type === 1)
 			{
-				var iframe = document.createElement('iframe');
-				iframe.id = 'pk_frqan';
+				var iframe = document.createElement ('iframe');
+				iframe.className = 'pk_frqan';
+				iframe.id = 'pk_fr' + url;
+
+				if (app.ui.BarBtm.on) {
+					var ch = app.ui.BarBtm.el.childNodes;
+					var lw = 0;
+					for (var ji = 0; ji < ch.length; ++ji) {
+						lw += ch[ji].clientWidth + 18;
+					}
+
+					iframe.style.left = lw + 'px';
+				}
 
 				app.ui.BarBtm.el.appendChild( iframe );
 				app.ui.BarBtm.Show ();
 
-				eq_win = {
+				eq_win[url] = {
 					type : type,
 					el   : iframe,
 					win  : null,
@@ -1450,18 +1813,39 @@
 						iframe.parentNode.removeChild ( iframe );
 						iframe = null;
 
-						app.ui.BarBtm.Hide ();
+						var ch = app.ui.BarBtm.el.childNodes; 
+						if (ch.length === 0) {
+							app.ui.BarBtm.Hide ();
+							return ;
+						}
+
+						setTimeout(function () {
+							var lw = 0;
+							for (var ji = 0; ji < ch.length; ++ji) {
+								if (!ch[ji] || !ch[ji].parentNode) continue;
+
+								if (ch[ji].offsetTop > -20) {
+									ch[ji].style.top = '0px';
+									ch[ji].style.left = lw + 'px';
+								}
+
+								lw += ch[ji].clientWidth + 18;
+							}
+						},198);
+						// --
 					}
 				};
 
+				curr_win = eq_win[url];
+
 				iframe.onload = function (e) {
-					if (eq_win && eq_win.type === type)
+					if (curr_win && curr_win.type === type)
 					{
-						eq_win.win = iframe.contentWindow;
-						setEvents ();
+						curr_win.win = iframe.contentWindow;
+						setEvents ( curr_win, url );
 					}
 				};
-				iframe.src = '/eq.html?iframe=1';
+				iframe.src = '/' + url + '.html?iframe=1';
 			}
 			// ---
 

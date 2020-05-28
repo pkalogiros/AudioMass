@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 	<script>window.update = function(){};</script>
-	<title>AudioMass - Frequency Analysis</title>
+
+	<title>AudioMass - Spectrum Analyzer</title>
 	<style>
 	html,body{height:100%}
 	body{padding:0;margin:0;background:#111;position:relative;z-index:2;overflow:hidden;}
 	div{position:absolute;top:50%;left:0;right:0;z-index:1;margin-top:-18px;text-align:center;user-select:none;
-		font-size:28px;color:#191919;pointer-events:none;font-family:Arial}
+		font-size:28px;color:#191919;pointer-events:none;opacity:.75;font-family:Arial}
 	#e, #d, #f{
 		cursor:pointer;
 		position: absolute;
@@ -71,7 +72,7 @@
 </head>
 <body>
 	<canvas id="fr" width="600" height="188" style="width:100%;height:100%;display:block"></canvas>
-	<div>FREQUENCY ANALYSER</div>
+	<div>SPECTRUM ANALYSER</div>
 
 	<a id="d" onclick="dock()">DOCK INTERFACE</a>
 	<a id="e" onclick="remove()">X</a>
@@ -88,7 +89,7 @@
 		if (iframe) {
 			d.body.className = 'b';
 			w.remove = function () {
-				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'eq', [1, 1]);
+				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'sp', [1, 1]);
 			};
 		};
 
@@ -96,7 +97,7 @@
 			e.preventDefault ();
 			e.stopPropagation ();
 
-			w.parent.PKAudioEditor.ui.Dock ('RequestDragI', 'eq');
+			w.parent.PKAudioEditor.ui.Dock ('RequestDragI', 'sp');
 		};
 
 		w.dock = function () {
@@ -106,22 +107,67 @@
 					return ;
 				}
 
-				w.opener.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'eq', [1, 1]);
+				w.opener.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'sp', [1, 1]);
 				w.close && w.close ();
 			}
 			else
 			{
-				var frm = w.parent.document.getElementById ('pk_fr' + 'eq');
+				var frm = w.parent.document.getElementById ('pk_fr' + 'sp');
 				var t = 1;
 
 				if (frm && frm.getBoundingClientRect) {
-					var rect = frm.getBoundingClientRect();
-
+					var rect = frm.getBoundingClientRect ();
 					t = [(w.parent.screenLeft + rect.left + 100)||0, (w.parent.screenTop + rect.top + 25)||0];
 				}
 
-				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'eq', [t, 0]);
+				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'sp', [t, 0]);
 			}
+		};
+
+		w.getGrayColor = function(value) {
+    		return 'rgb(V, V, V)'.replace(/V/g, 255 - value);
+  		};
+		
+		w.getFullColor = function(value) {
+			var colorPalette = {
+				0: [0,0,0],
+				10: [75, 0, 159],
+				20: [104,0,251],
+				30: [131,0,255],
+				40: [155,18,157],
+				50: [175, 37, 0],
+				60: [191, 59, 0],
+				70: [206, 88, 0],
+				80: [223, 132, 0],
+				90: [240, 188, 0],
+				100: [255, 252, 0]      
+			};
+
+			//floor to nearest 10:
+			var decimalised = 100 * value / 255
+			var percent = decimalised / 100;
+			var floored = 10* Math.floor(decimalised / 10);
+			var distFromFloor = decimalised - floored;
+			var distFromFloorPercentage = distFromFloor/10;
+			var rangeToNextColor;
+
+			if (decimalised < 100){
+				rangeToNextColor = [
+					colorPalette[floored + 10][0] - colorPalette[floored + 10][0],
+					colorPalette[floored + 10][1] - colorPalette[floored + 10][1],
+					colorPalette[floored + 10][2] - colorPalette[floored + 10][2]
+				];
+			} else {
+				rangeToNextColor = [0,0,0];
+			}
+
+			var color = [
+				colorPalette[floored][0] + distFromFloorPercentage * rangeToNextColor[0],
+				colorPalette[floored][1] + distFromFloorPercentage * rangeToNextColor[1],
+				colorPalette[floored][2] + distFromFloorPercentage * rangeToNextColor[2]
+			];
+
+			return "rgb(" + color[0] +", "+color[1] +"," + color[2]+")";
 		};
 
 		setTimeout(function () {
@@ -140,9 +186,18 @@
 
 			var bufferLength = 240;
 			var value_changed = false;
+			var speed = 3;
+
+			var tempCanvas = document.createElement('canvas');
+			tempCanvas.width = WIDTH;
+			tempCanvas.height = HEIGHT;
+
+			// console.log(this.canvas.height, this.tempCanvas.height);
+			var tempCtx = tempCanvas.getContext ('2d');
+
 			ctx.clearRect (0, 0, WIDTH, HEIGHT);
 
-			function draw( similarity ) {
+			function draw( data ) {
 
 				var WIDTH = window.innerWidth, HEIGHT = window.innerHeight;
 
@@ -150,27 +205,48 @@
 				{
 					canvas.width = WIDTH;
 					canvas.height = HEIGHT;
+					tempCanvas.width = WIDTH;
+					tempCanvas.height = HEIGHT;
 				}
 
-				  ctx.fillStyle = 'rgb(0, 0, 0)';
-				  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+				tempCtx.drawImage (canvas, 0, 0, WIDTH, HEIGHT);
 
-				  var barWidth = (WIDTH / bufferLength);
-				  var barHeight;
-				  var x = 0;
+				ctx.fillStyle = 'rgb(0, 0, 0)';
+				ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-				  for(var i = 0; i < bufferLength; i += 1) {
-					barHeight = similarity[i * 2]; // ? similarity[i] : 0;
+				// Iterate over the frequencies.
+				for (var i = 0; i < data.length; ++i)
+				{
+					var value;
+					// Draw each pixel with the specific color.
+				//	if (this.log) {
+				//		logIndex = this.logScale(i, data.length);
+				//		value = data[logIndex];
+				//	} else {
+						value = data[i];
+				//	}
 
-					// bar height normalize with 255
-					var newheight = ((barHeight / 256) * HEIGHT) >> 0;
+					ctx.fillStyle = window.getFullColor(value);
 
-					ctx.fillStyle = 'rgb(' + (barHeight + 100) + ',50,50)';
-					ctx.fillRect (x,HEIGHT - newheight, barWidth, newheight);
-					x += barWidth;// + 1;
-				  }
+					var percent = i / data.length;
+					var y = Math.round (percent * HEIGHT);
 
-				  value_changed = false;
+					// draw the line at the right side of the canvas
+					ctx.fillRect(WIDTH - speed, HEIGHT - y,
+					speed, speed);
+				}
+
+				// Translate the canvas.
+				ctx.translate(-speed, 0);
+				// Draw the copied image.
+				// console.log(this.width, this.height);
+				ctx.drawImage (tempCanvas, 0, 0, WIDTH, HEIGHT,
+				0, 0, WIDTH, HEIGHT);
+
+				// Reset the transformation matrix.
+				ctx.setTransform (1, 0, 0, 1, 0, 0);
+
+				value_changed = false;
 			};
 			w.draw = draw;
 

@@ -100,7 +100,6 @@
 					app.ui.InteractionHandler.on = false;
 					app.ui.KeyHandler.removeCallback ('modalTempErr');
 				},
-
 				buttons:[],
 				body:'<p>' + message + '</p>',
 				setup:function( q ) {
@@ -149,6 +148,7 @@
 											
 											var kbps = 128;
 											var export_sel = false;
+											var stereo     = false;
 											
 											var radios = q.el_body.getElementsByClassName ('pk_check');
 											var l = radios.length;
@@ -164,14 +164,21 @@
 															else export_sel = [region.start, region.end];
 														}
 													}
+													else if (radios[l].name == 'chnl')
+													{
+														if (radios[l].value === 'stereo')
+														{
+															stereo = true;
+														}
+													}
 													else
 													{
 														kbps = radios[l].value / 1;
 													}
 												}
 											}
-											
-											app.engine.DownloadFile( value, kbps, export_sel );
+
+											app.engine.DownloadFile ( value, kbps, export_sel, stereo );
 											q.Destroy ();
 											// -
 										}
@@ -187,6 +194,12 @@
 									'<label for="k2">192kbps</label>'+
 									'<input type="radio" class="pk_check"  id="k3" name="rdslnc" value="256">'+
 									'<label for="k3">256kbps</label></div>'+
+									'<div class="pk_row" style="padding-bottom:5px">' +
+									'<input type="radio" class="pk_check" id="k6" name="chnl" checked value="mono">'+
+									'<label for="k6">Mono</label>'+
+									'<input type="radio" class="pk_check pk_stereo" id="k7" name="chnl" value="stereo">'+
+									'<label for="k7">Stereo</label>'+
+									'</div>'+
 									'<div class="pk_row">' + 
 									'<input type="radio" class="pk_check" id="k4" name="xport" checked value="whole">'+
 									'<label for="k4">Export whole file</label>'+
@@ -194,12 +207,18 @@
 									'<label class="pk_lblmp3" for="k5">Export Selection Only</label></div>',
 									
 								  setup:function( q ) {
+								  		var wv = PKAudioEditor.engine.wavesurfer;
 
 								  		// if no region
-										var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
+										var region = wv.regions.list[0];
 										if (!region) {
 											var lbl = q.el_body.getElementsByClassName('pk_lblmp3')[0];
 											lbl.className = 'pk_dis';
+										}
+
+										var chan_num = wv.backend.buffer.numberOfChannels;
+										if (chan_num === 2) {
+											q.el_body.getElementsByClassName('pk_stereo')[0].checked = true;
 										}
 
 								  		app.fireEvent ('RequestPause');
@@ -236,7 +255,7 @@
 					{
 						name: 'Load Sample File',
 						action: function ( e ) {
-							app.engine.LoadSample();
+							app.engine.LoadSample ();
 						}	
 					},
 					
@@ -310,8 +329,463 @@
 								}).Show();
 						}
 						// ---
+					},
+
+					{
+						name: 'Save Draft Locally',
+						clss: 'pk_inact',
+						action: function ( e ) {
+							if (!app.engine.is_ready) return ;
+
+							var saving = function ( type, name ) {
+								var buff = app.engine.wavesurfer.backend.buffer;
+
+								if (type === 'copy') buff = app.engine.GetCopyBuff ();
+								else if (type === 'sel') buff = app.engine.GetSel ();
+
+								var func = function ( fls ) {								
+									var rr = Math.random().toString(36).substring(7);
+
+									fls.SaveSession (buff, rr, name);
+									app.stopListeningFor ('DidOpenDB', func);
+								};
+
+								app.listenFor ('DidOpenDB', func);
+
+								if (!app.fls.on) app.fls.Init (function(err){if(err){alert("db error")}});
+								else app.fireEvent ('DidOpenDB', app.fls);
+							};
+
+							// modal that asks for - full file, selection, copy buffer
+							new PKSimpleModal ({
+								title : 'Save Local Draft of...',
+
+								ondestroy : function( q ) {
+									app.ui.InteractionHandler.on = false;
+									app.ui.KeyHandler.removeCallback ('modalTempErr');
+								},
+
+								buttons:[
+									{
+										title:'Save',
+										clss:'pk_modal_a_accpt',
+										callback: function( q ) {
+											var type = 'whole';
+											var input = q.el_body.getElementsByTagName ('input');
+											var name = input[ input.length - 1 ].value;
+											if (name) {
+												name = name.trim ();
+												if (name.length >= 100) name = name.substr(0,99).trim();
+												if (name.length === 0) name = null;
+											}
+											else {
+												name = null;
+											}
+
+											for (var i = 0; i < input.length; ++i) {
+												if (input[i].checked)
+												{
+													type = input[i].value;
+													break;
+												}
+											}
+
+											saving (type, name);
+
+											q.Destroy ();
+										}
+									}
+								],
+
+								body:'<p>Please choose source...</p>' +
+									'<div class="pk_row"><input type="radio" class="pk_check" id="sl1" name="rdslnc" checked value="whole">'+ 
+									'<label style="vertical-align:top" for="sl1">Whole Track</label>' +
+									'<input type="radio" class="pk_check"  id="sl2" name="rdslnc" value="sel">'+
+									'<label style="vertical-align:top" class="pk_lblsel" for="sl2">Selection'+
+									'<i style="display:block;font-size:11px;margin-top:-5px"></i></label>'+
+									'<input type="radio" class="pk_check"  id="sl3" name="rdslnc" value="copy">'+
+									'<label style="vertical-align:top" class="pk_lblsel2" for="sl3">"Copy" clipboard/buffer</label></div>'+
+
+									'<div class="pk_row"><label for="slk0">Draft Name</label>' + 
+									'<input style="min-width:250px" placeholder="(optional) filename" maxlength="100" ' +
+									'class="pk_txt" type="text" id="slk0" /></div>',
+
+								setup:function( q ) {
+									// check if selection
+							  		var wv = app.engine.wavesurfer;
+
+							  		// if no region
+									var region = wv.regions.list[0];
+									var lblr = q.el_body.getElementsByClassName('pk_lblsel')[0];
+									if (!region) {
+										lblr.className = 'pk_dis';
+									} else {
+										q.el_body.getElementsByClassName('pk_check')[1].checked = true;
+										lblr.childNodes[1].innerText = app.ui.formatTime(region.start) + ' to ' + app.ui.formatTime(region.end);
+									}
+
+									// if no copy buffer
+									var copy = app.engine.GetCopyBuff ();
+									if (!copy) {
+										var lbl = q.el_body.getElementsByClassName('pk_lblsel2')[0];
+										lbl.className = 'pk_dis';
+									}
+
+									if (!app.isMobile)
+									{
+										setTimeout(function() {
+											q.el && q.el.getElementsByClassName('pk_txt')[0].focus ();
+										},20);
+									}
+
+									app.fireEvent ('RequestPause');
+
+									app.ui.InteractionHandler.checkAndSet ('modal');
+									app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+										q.Destroy ();
+									}, [27]);
+								}
+							}).Show ();
+
+							return ;
+						},
+
+						setup: function ( obj ) {
+							app.listenFor ('DidUnloadFile', function () {
+								obj.classList.add ('pk_inact');
+							});
+							app.listenFor ('DidLoadFile', function () {
+								obj.classList.remove ('pk_inact');
+							});
+
+							app.listenFor ('DidStoreDB', function ( obj, e ) {
+									var name = obj.id;
+									var txt = '<div style="padding:2px 0">id: ' + name + '</div>'+
+										'<div style="padding:2px 0"><span>durr: ' + obj.durr + 's</span>'+
+										'&nbsp;&nbsp;&nbsp;'+
+										'<span>chan: ' + (obj.chans === 1 ? 'mono' : 'stereo') + '</span></div>'+
+										'<div style="padding:2px 0"><img src="' + obj.thumb + '" /></div>';
+
+									new PKSimpleModal ({
+										title : 'Succesfully Stored',
+
+										ondestroy : function( q ) {
+											app.ui.InteractionHandler.on = false;
+											app.ui.KeyHandler.removeCallback ('modalTempErr');
+										},
+
+										buttons:[
+											{
+												title:'OPEN IN NEW WINDOW',
+												callback: function( q ) {
+													window.open ( window.location.pathname + '?local=' + name);
+
+													q.Destroy ();
+												}
+											}
+										],
+
+										body:'<p>Open in new window?</p>' + txt,
+										setup:function( q ) {
+											app.fireEvent ('RequestPause');
+											app.fireEvent( 'RequestRegionClear');
+
+											app.ui.InteractionHandler.checkAndSet ('modal');
+											app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+												q.Destroy ();
+											}, [27]);
+										}
+									}).Show ();
+							});
+						}	
+					},
+
+					{
+						name: 'Open Local Drafts',
+						action: function ( e ) {
+
+							var datenow = new Date ();
+							var time_ago = function ( arg ) {
+							    var a = (datenow - arg) / 1E3 >> 0;
+							    if (59 >= a) return datenow = 1 < a ? 's' : '', a + ' second' + datenow + ' ago';
+							    if (60 <= a && 3599 >= a) return a = Math.floor(a / 60), a + ' minute' + (1 < a ? 's' : '') + ' ago';
+							    if (3600 <= a && 86399 >= a) return a = Math.floor(a / 3600), a + ' hour' + (1 < a ? 's' : '') + ' ago';
+							    if (86400 <= a && 2592030 >= a) return a = Math.floor(a / 86400), a + ' day' + (1 < a ? 's' : '') + ' ago';
+							    if (2592031 <= a) return a = Math.floor(a / 2592E3), a + ' month' + (1 < a ? 's' : '') + ' ago';
+							};
+							var func = function ( fls ) {								
+								fls.ListSessions(function( ret ) {
+
+									var msg = '';
+									if (ret.length === 0) {
+										msg += 'No drafts found...';
+									}
+									else
+									{
+										for (var i = 0; i < ret.length; ++i)
+										{
+											var curr = ret[i];
+											var date = new Date(curr.created);
+											var datestr =  (date.getMonth()+1) + '/' + 
+															date.getDate() + '/' + 
+															date.getFullYear() + "  " + 
+															date.getHours() + ":" + 
+															date.getMinutes() + ":" + 
+															date.getSeconds();
+											var agostr = time_ago (date);
+											var filename = curr.name || '-';
+											var duration = curr.durr;
+											var thumb    = curr.thumb;
+											var chns     = (curr.chans === 1 ? 'mono' : 'stereo');
+
+											msg += '<div id="pk_' + curr.id + '" class="pk_lcldrf">'+
+											'<div style="padding-bottom:2px"><span><i class="pk_i">name:</i>' + filename + '</span></div>' +
+											'<div><span class="pk_lcls"><i class="pk_i">id:</i><strong>' + curr.id + '</strong><br/><i class="pk_i">chn:</i>'+ chns +'</span>' + 
+											'<span class="pk_lcls" style="width:50%;text-align:center"><i class="pk_i">date:</i><span>' + datestr + '<br/>'+ agostr +'</span></span>' +
+											'<span style="text-align:right;float:right" class="pk_lcls"><i class="pk_i">durr:</i>' + duration + 's</span></div><div>' +
+
+											'<img class="pk_lcli" src="' + thumb + '" />' +
+											'<a class="pk_lcla2" onclick="PKAudioEditor.fireEvent(\'LoadDraft\',\'' + curr.id + '\', 3);">PLAY</a>' +
+											'<a class="pk_lcla" onclick="PKAudioEditor.fireEvent(\'LoadDraft\',\'' + curr.id + '\');">Open</a>';
+
+											if (app.engine.is_ready) {
+												msg += '<a onclick="PKAudioEditor.fireEvent(\'LoadDraft\',\'' + curr.id +
+												 '\',1);" class="pk_lcla">Append to Current Track</a>';
+											}
+											msg += '<a class="pk_lcla" style="color:#ad2b2b" onclick="PKAudioEditor.fireEvent(\'LoadDraft\',\'' + curr.id + '\',2);">Del</a>';
+											msg += '</div></div>';
+										}
+									}
+
+									var modal;
+									var closeModal = function ( val, val2 ) {
+										if (val2 === 2 || val2 === 3) return ;
+
+										modal.Destroy ();
+										modal = null;
+									};
+
+									var set_act_btn = function ( name, state ) {
+										var act;
+										if (!state) {
+											act = modal.el_body.getElementsByClassName('pk_act')[0];
+											if (act) {
+												act.classList.remove ('pk_act');
+											}
+										}
+										else {
+											var el = document.getElementById ('pk_' + name);
+											if (el) {
+												act = el.getElementsByClassName ('pk_lcla2')[0];
+												act && act.classList.add ('pk_act');
+											}
+										}
+										// --
+									};
+
+									app.listenFor ('_lclStart', set_act_btn);
+
+									modal = new PKSimpleModal ({
+										title : 'Local Drafts',
+										clss  : 'pk_bigger',
+
+										ondestroy : function( q ) {
+
+											app.fireEvent ('_lclStop');
+
+											app.ui.InteractionHandler.on = false;
+											app.ui.KeyHandler.removeCallback ('modalTempErr');
+											app.stopListeningFor ('LoadDraft', closeModal);
+											app.stopListeningFor ('_lclStart', set_act_btn);
+										},
+
+										buttons:[],
+
+										body:'<div>' + msg + '</div>',
+										setup:function( q ) {
+											app.fireEvent ('RequestPause');
+											app.fireEvent( 'RequestRegionClear');
+
+											app.listenFor ('LoadDraft', closeModal);
+
+											app.ui.InteractionHandler.checkAndSet ('modal');
+											app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+												q.Destroy ();
+											}, [27]);
+										}
+									});
+
+									modal.Show ();
+								});
+
+								app.stopListeningFor ('DidOpenDB', func);
+							};
+
+							app.listenFor ('DidOpenDB', func);
+
+							if (!app.fls.on) app.fls.Init (function(err){if(err){alert("db error")}});
+							else app.fireEvent ('DidOpenDB', app.fls);
+						},
+						setup: function () {
+							var source = {};
+
+							app.listenFor ('_lclStop', function ( name, append ) {
+								if (source.src) {
+									source.src.stop ();
+									source.src.disconnect ();
+									source.src.onended = null;
+									source.aud.close && source.aud.close ();
+									source = {};
+								}
+							});
+
+							app.listenFor ('LoadDraft', function ( name, append ) {
+									app.fls.Init (function (err) {
+										if (err) return ;
+
+										if (append === 2)
+										{
+											if (source.id === name)
+											{
+												app.fireEvent ('_lclStart', source.id, 0);
+												source.src.stop ();
+												source.src.disconnect ();
+												source.src.onended = null;
+												source.aud.close && source.aud.close ();
+												source = {};
+											}
+
+											app.fls.DelSession (name, function (name) {
+												var id = 'pk_' + name;
+												var el = document.getElementById (id);
+
+												if (el)
+												{
+													if ( el.parentNode.children.length === 1 ) {
+														el.parentNode.innerHTML = 'No drafts found...';
+													}
+													else el.parentNode.removeChild(el);
+
+
+													el = null;
+												}
+											});
+											return ;
+										}
+
+										if (append === 3)
+										{
+											if (source.id) {
+												var xt = false;
+												if (source.id === name) xt = true;
+
+												app.fireEvent ('_lclStart', source.id, 0);
+												source.src.stop ();
+												source.src.disconnect ();
+												source.src.onended = null;
+												source.aud.close && source.aud.close ();
+
+												source = {};
+
+												if (xt) return ;
+											}
+
+											// generate audio context here...
+											var aud_cont = new (w.AudioContext || w.webkitAudioContext)();
+								            if (aud_cont && aud_cont.state == 'suspended') {
+								                aud_cont.resume && aud_cont.resume ();
+								            }
+
+											app.fls.GetSession (name, function ( e ) {
+												if(e && e.id === name )
+												{
+													source.id  = e.id;
+													source.aud = aud_cont;
+													source.src = app.engine.PlayBuff (e.data, e.chans, e.samplerate, aud_cont);
+													if (!source.src) {
+														source.aud && source.aud.close && source.aud.close ();
+														source = {};
+
+														return ;
+													}
+
+													source.src.onended = function ( e ) {
+														app.fireEvent ('_lclStart', source.id, 0);
+														source.src.stop ();
+														source.src.disconnect ();
+														source.src.onended = null;
+														source.aud.close && source.aud.close ();
+
+														source = {};
+													};
+
+													app.fireEvent ('_lclStart', e.id, 1);
+												}
+											});
+											return ;
+										}
+
+										var overwrite = (function ( app, name, append ) {
+											return function () {
+												app.fls.GetSession (name, function ( e ) {
+													if(e && e.id === name )
+													{
+														app.engine.wavesurfer.backend._add = append ? 1 : 0;
+														app.engine.LoadDB ( e );
+													}
+												});
+											};
+										})( app, name, append );
+
+										// --- ask if we want to click the first one
+										if (app.engine.is_ready && !append)
+										{
+											var mm = new PKSimpleModal ({
+												title : 'Open in Existing?',
+												body  : '<div>Open in new window, or in the current one?</div>',
+												buttons:[
+													{
+														title:'OPEN',
+														clss:'pk_modal_a_accpt',
+														callback: function( q ) {
+															overwrite ();
+
+															q.Destroy ();
+														}
+													},
+													{
+														title:'OPEN IN NEW',
+														clss:'pk_modal_a_accpt',
+														callback: function( q ) {
+															window.open (window.location.pathname + '?local=' + name);
+															q.Destroy ();
+														}
+													}
+												],
+												setup: function ( q ) {
+													app.ui.InteractionHandler.checkAndSet ('mm');
+													app.ui.KeyHandler.addCallback ('mmErr', function ( e ) {
+														q.Destroy ();
+													}, [27]);
+												},
+												ondestroy: function ( q ) {
+													overwrite = null;
+													app.ui.InteractionHandler.on = false;
+													app.ui.KeyHandler.removeCallback ('mmErr');
+												}
+											});
+
+											setTimeout(function() { mm.Show (); },0);
+											return ;
+										}
+
+										overwrite ();
+										// --
+									});
+							});
+							// ---
+						}
 					}
-					
 				]
 			},
 			{
@@ -332,7 +806,7 @@
 								}
 								else
 								{
-									obj.innerHTML = 'Undo <i>' + undo_states[undo_states.length - 1].desc + '</i><span class="pk_shrtct">Shft+Z</span>';
+									obj.innerHTML = 'Undo&nbsp;<i style="pointer-events:none">' + undo_states[undo_states.length - 1].desc + '</i><span class="pk_shrtct">Shft+Z</span>';
 									obj.classList.remove ('pk_inact');
 								}
 							});
@@ -354,7 +828,7 @@
 								}
 								else
 								{
-									obj.innerHTML = 'Redo <i>' + redo_states[redo_states.length - 1].desc  + '</i><span class="pk_shrtct">Shft+Y</span>';
+									obj.innerHTML = 'Redo&nbsp;<i style="pointer-events:none">' + redo_states[redo_states.length - 1].desc  + '</i><span class="pk_shrtct">Shft+Y</span>';
 									obj.classList.remove ('pk_inact');
 								}
 							});
@@ -386,6 +860,22 @@
 						name: 'Deselect All <span class="pk_shrtct">~</span>',
 						action: function () {
 							app.fireEvent ('RequestDeselect');
+						}
+					},
+
+					{
+						name   : 'Channel Info/Flip',
+						action : function () {
+							app.fireEvent ('RequestActionFXUI_Flip');
+						},
+						clss: 'pk_inact',
+						setup: function ( obj ) {
+							app.listenFor ('DidUnloadFile', function () {
+								obj.classList.add ('pk_inact');
+							});
+							app.listenFor ('DidLoadFile', function () {
+								obj.classList.remove ('pk_inact');
+							});
 						}
 					}
 				]
@@ -498,6 +988,13 @@
 						action : function () {
 							app.fireEvent ('RequestActionFX_Invert');
 						}
+					},
+
+					{
+						name   : 'Remove Silence',
+						action : function () {
+							app.fireEvent ('RequestActionFX_RemSil');
+						}
 					}
 					
 				]
@@ -566,10 +1063,12 @@
 					{
 						name:'Frequency Analyser',
 						action: function ( obj ) {
-							app.fireEvent ('RequestShowFreqAn', 1);
+							app.fireEvent ('RequestShowFreqAn', 'eq', [1]);
 						},
 						setup: function ( obj ) {
-							app.listenFor ('DidToggleFreqAn', function ( val ) {
+							app.listenFor ('DidToggleFreqAn', function ( url, val ) {
+								if (url !== 'eq') return ;
+
 								var txt = 'Frequency Analyser';
 								if (val) {
 									obj.innerHTML = txt + ' &#10004;';
@@ -581,9 +1080,41 @@
 					},
 
 					{
-						name:'---'
+						name:'Spectrum Analyser',
+						action: function ( obj ) {
+							app.fireEvent ('RequestShowFreqAn', 'sp', [1]);
+						},
+						setup: function ( obj ) {
+							app.listenFor ('DidToggleFreqAn', function ( url, val ) {
+								if (url !== 'sp') return ;
+
+								var txt = 'Spectrum Analyser';
+								if (val) {
+									obj.innerHTML = txt + ' &#10004;';
+								} else {
+									obj.textContent = txt;
+								}
+							});
+						}
 					},
 
+					{
+						name:'Tempo Tools',
+						action: function ( obj ) {
+							app.fireEvent ('RequestActionTempo');
+						}
+					},
+
+					{
+						name:'ID3 Tags',
+						action: function ( obj ) {
+							app.fireEvent ('RequestActionID3');
+						}
+					},
+
+					{
+						name:'---'
+					},
 
 					{
 						name:'Center to Cursor <span class="pk_shrtct">[Tab]</span>',
@@ -591,6 +1122,7 @@
 							app.fireEvent ('RequestViewCenterToCursor');
 						}
 					},
+
 					{
 						name:'Reset Zoom <span class="pk_shrtct">[0]</span>',
 						action: function ( obj ) {
@@ -1062,7 +1594,7 @@
 			bar_bottom_el.style.display = 'none';
 
 			app.fireEvent ('RequestResize');
-		}
+		};
 	};
 
 	function _makeUIMainView ( UI, app ) {
@@ -1445,7 +1977,9 @@
 		// change temp message, it's pretty ugly #### TODO
 		var ttmp = d.createElement('div');
 		ttmp.className = 'pk_tmpMsg';
-		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or click <a style="text-decoration:underline" onclick="PKAudioEditor.engine.LoadSample()">here to use a sample</a>';
+		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or click ' +
+		'<a style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
+		'onclick="PKAudioEditor.engine.LoadSample()">here to use a sample</a>';
 		main_audio_view.appendChild( ttmp );
 
 		var ttmp2 = d.createElement('div');
@@ -1982,25 +2516,30 @@
 		});
 		
 		function formatTime( time ) {
-			if (time === 0) return '00:00:000';
+			// if (time === 0) return '00:00:000';
 
 			var time_s = time >> 0;
 			var miliseconds = time - time_s;
 			
 			if (time_s < 10)
+			{
+				if (time === 0) return '00:00:000';
 				time_s = '00:0' + time_s;
+			}
 			else if (time_s < 60)
+			{
 				time_s = '00:' + time_s;
+			}
 			else
 			{
-				var m = time_s / 60;
-				m = m >> 0;
+				var m = (time_s / 60) >> 0;
 				var s = (time_s % 60);
 				time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
 			}
 			
-			return time_s + ':' + (miliseconds+'').substr(2, 3);
+			return time_s + ':' + ((miliseconds*1000)>>0); // (miliseconds+'').substr(2, 3);
 		}
+		UI.formatTime = formatTime;
 		
 		var volume1 = 0;
 		var volume2 = 0;
@@ -2238,8 +2777,8 @@
 
 		UI.el.appendChild ( container );
 
-		dragNDrop( d.getElementById('app'), 'pk_overlay', function( e ) {
-			PKAudioEditor.engine.LoadArrayBuffer( new Blob([e]) );
+		dragNDrop( d.getElementById('app'), 'pk_overlay', function ( e ) {
+			PKAudioEditor.engine.LoadArrayBuffer ( new Blob([e]) );
 		}, 'arrayBuffer' );
 
 		// -

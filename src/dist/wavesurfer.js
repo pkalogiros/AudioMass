@@ -1300,6 +1300,7 @@ var MultiCanvas = function (_Drawer) {
             // {
             //    temp_end = (peaks.length / 2) >> 0;
             // }
+
             for (j = temp_end - 1; j >= canvasStart; --j) {
                 var _peak = peaks[2 * j + 1];
                 var _h = Math.round (_peak / absmax * halfH);
@@ -1456,6 +1457,7 @@ var MultiCanvas = function (_Drawer) {
                     }
                 }
 
+                this.RCB && this.RCB();
                 ctx.fillStyle = this.params.waveColor;
 
                 // this.shiftClear = false;
@@ -1772,7 +1774,7 @@ var MediaElement = function (_WebAudio) {
                     return;
                 }
 
-                debugger;
+                // debugger;
 
 
                 _this2.fireEvent('audioprocess', _this2.getCurrentTime());
@@ -1787,7 +1789,7 @@ var MediaElement = function (_WebAudio) {
             // Update the progress one more time to prevent it from being stuck in case of lower framerates
             this.on('pause', function () {
 
-                debugger;
+                // debugger;
                 _this2.fireEvent('audioprocess', _this2.getCurrentTime());
             });
         }
@@ -2795,6 +2797,8 @@ var Observer = function () {
             for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
                 args[_key2 - 1] = arguments[_key2];
             }
+
+            // console.log( event, args );
 
             if (!this.handlers) {
                 return;
@@ -4249,7 +4253,7 @@ var WaveSurfer = function (_util$Observer) {
         key: 'stop',
         value: function stop() {
             this.pause();
-            this.seekTo(this.ActiveMarker);
+            this.seekTo(this.ActiveMarker, window.performance.now() + 100);
 
             this.drawer.progress(this.ActiveMarker, this.LeftProgress / this.getDuration(), this.ZoomFactor);
         }
@@ -4788,7 +4792,7 @@ var WaveSurfer = function (_util$Observer) {
         value: function loadMediaElement(urlOrElt, peaks, preload, duration) {
             var _this12 = this;
 
-            debugger;
+            // debugger;
 
             var url = urlOrElt;
 
@@ -4848,15 +4852,35 @@ var WaveSurfer = function (_util$Observer) {
             this.bid[_id] = 1;
             this.bid['curr'] = _id;
 
-            this.backend.decodeArrayBuffer(arraybuffer, function (data) {
+            var old_duration = this.getDuration ();
+
+            this.backend.decodeArrayBuffer (arraybuffer, function (data) {
                 // Only use the decoded data if we haven't been destroyed or
                 // another decode started in the meantime
                 if (!_this13.isDestroyed) // && _this13.arraybuffer == arraybuffer)
                 {
                     if (_this13.bid[_id])
                     {
+                        var go = false;
+                        if (_this13.backend.buffer && _this13.backend._add)
+                        {
+                            go = true;
+                        }
+
                         callback(data);
                         _this13.arraybuffer = arraybuffer;
+
+                        if (go) // add the main area // todo - put it somewhere else?
+                        {
+                            setTimeout(function () {
+                                _this13.regions.add({
+                                    start:old_duration,
+                                    end:_this13.getDuration () - 0.01,
+                                    id:'t'
+                                });
+                            },48);
+                        }
+                        // ---
                     }
                 }
             }, function () {
@@ -4894,6 +4918,9 @@ var WaveSurfer = function (_util$Observer) {
                 _this14.fireEvent('error', 'Could not load remote URL. Make sure the url exists, is a valid audio file,<br /> ' + 
                     ' or that is supports Cross Origin requests (Access-Control-Allow-Origin header) <br />' + e.target.statusText);
                 _this14.currentAjax = null;
+
+                // trigger resize
+                PKAudioEditor.fireEvent ('RequestResize');
             }));
 
             return ajax;
@@ -5206,7 +5233,9 @@ var WebAudio = function (_util$Observer) {
         key: 'getAudioContext',
         value: function getAudioContext() {
             if (!window.WaveSurferAudioContext) {
-                window.WaveSurferAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // try {
+                    window.WaveSurferAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+                // } catch (e) {}
             }
             return window.WaveSurferAudioContext;
         }
@@ -5609,7 +5638,7 @@ var WebAudio = function (_util$Observer) {
                 audio.autoplay = true;
                 var dest = this.ac.createMediaStreamDestination();
 
-                debugger; // ####
+                // debugger; // ####
                 this.gainNode1.disconnect();
                 this.gainNode1.connect(dest);
                 this.gainNode2.disconnect();
@@ -5662,8 +5691,11 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'decodeArrayBuffer',
         value: function decodeArrayBuffer(arraybuffer, callback, errback) {
+
+            PKAudioEditor.engine.ID3 (arraybuffer);
+
             if (!this.offlineAc) {
-                this.offlineAc = this.getOfflineAudioContext(this.ac ? this.ac.sampleRate : 44100);
+                this.offlineAc = this.getOfflineAudioContext(44100); // this.ac ? this.ac.sampleRate : 44100);
             }
 
             var promise = this.offlineAc.decodeAudioData(arraybuffer, function (data) {
@@ -5776,7 +5808,8 @@ var WebAudio = function (_util$Observer) {
 
             if (this.splitPeaks && !force) {
                 // check if there is an overlap in values...
-                if (last == this.peaksEnd) {
+                if (last == this.peaksEnd)
+                {
 
                    // console.log( (this.peaksStart - first) / sampleSize );
 
@@ -5854,9 +5887,21 @@ this.splitPeaks[c] = peaks.slice(-shift);
                     var max = 0;
                     var j = void 0;
 
-
                     for (j = start; j < end; j += sampleStep) {
                         var value = chan[j];
+
+
+                        if (this.reg) {
+                            if (j >= this.reg.pos.start && j <= this.reg.pos.end) {
+                                // take the value from the buffer
+                                var kk = j - this.reg.pos.start;
+                                value  = chan[ this.reg.initpos.start + kk ];
+                            }
+                            else if (j >= this.reg.initpos.start && j <= this.reg.initpos.end) {
+                                value = 0;
+                            }
+                            // ----
+                        }
 
                         if (value > max) {
                             max = value;
@@ -6025,19 +6070,91 @@ this.splitPeaks[c] = peaks.slice(-shift);
 
     }, {
         key: 'load',
-        value: function load(buffer) {
-            // this.startPosition = 0;
-            this.lastPlay = this.ac.currentTime;
-            this.buffer = buffer;
+        value: function load ( buffer ) {
 
-            this.peaks = null;
-            this.createSource();
+            if (!this.buffer || !this._add)
+            {
+                // this.startPosition = 0;
+                this.lastPlay = this.ac.currentTime;
+                this.buffer = buffer;
 
-            // --hack
-            this.source.start (0,0,0);
+                this.peaks = null;
+                this.createSource();
 
-            this.source.stop (0);
-            this.createSource();
+                // --hack
+                this.source.start (0,0,0);
+
+                this.source.stop (0);
+                this.createSource();
+            }
+            else
+            {
+                    // old buffer duratino + new buffer duration
+                    // new_offset = old buffer length
+
+                    var originalBuffer   = this.buffer;
+                    var originalDuration = this.buffer.duration;
+                    var originalOffset   = originalDuration;
+
+                    var newDuration = buffer.duration;
+                    var newLen      = (originalDuration + newDuration) * this.buffer.sampleRate;
+
+                    var uberSegment = this.ac.createBuffer (
+                        this.buffer.numberOfChannels,
+                        this.buffer.length + buffer.length,
+                        this.buffer.sampleRate
+                    );
+
+                    var offset = ((originalDuration / 1) * originalBuffer.sampleRate) >> 0;
+
+                    for (var i = 0; i < originalBuffer.numberOfChannels; ++i)
+                    {
+                        var chan_data     = originalBuffer.getChannelData ( i );
+                        var uberChanData  = uberSegment.getChannelData ( i );
+                        var segment_chan_data = null;
+
+                        if (buffer.numberOfChannels === 1)
+                            segment_chan_data = buffer.getChannelData ( 0 );
+                        else
+                            segment_chan_data = buffer.getChannelData ( i );
+
+                        // check if we have the selected channel
+                        if (offset > 0)
+                        {
+                            uberChanData.set (
+                                chan_data.slice ( 0, offset )
+                            );
+                        }
+
+                        uberChanData.set (
+                            segment_chan_data, offset
+                        );
+
+                        if (offset < (originalBuffer.length + buffer.length) )
+                        {
+                            uberChanData.set (
+                                chan_data.slice ( offset ), offset + segment_chan_data.length
+                            );
+                        }
+
+                        // --- 
+                    }
+                    // ----
+
+                    // this.startPosition = 0;
+                    this.lastPlay = this.ac.currentTime;
+                    this.buffer = uberSegment;
+
+                    this.peaks = null;
+                    this.createSource();
+
+                    // --hack
+                    this.source.start (0,0,0);
+
+                    this.source.stop (0);
+                    this.createSource();
+                    // this.buffer = uberSegment;
+            }
         }
 
         /** @private */

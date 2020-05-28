@@ -680,6 +680,33 @@ var Region = function () {
                 return;
             }
 
+            // ####
+            /*
+            var engine = PKAudioEditor.engine;
+            var wv = engine.wavesurfer;
+            var bk = wv.backend;
+            if (!this.buffer) {
+                this.buffer = engine.GetSel ();
+
+                bk.reg = {
+                    pos: {
+                        start: (this.start * bk.buffer.sampleRate) >> 0,
+                        end:   (this.end * bk.buffer.sampleRate) >> 0
+                    },
+                    initpos: {
+                        start: (this.start * bk.buffer.sampleRate) >> 0,
+                        end:   (this.end * bk.buffer.sampleRate) >>0
+                    }
+                };
+            }
+
+            bk.reg.pos.start = ((this.start + delta) * bk.buffer.sampleRate) >> 0;
+            bk.reg.pos.end = ((this.end + delta) * bk.buffer.sampleRate) >> 0;
+            wv.drawBuffer (true);
+            */
+
+            //--------
+
             this.update({
                 start: this.start + delta,
                 end: this.end + delta

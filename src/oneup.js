@@ -1,9 +1,13 @@
 (function ( w, d ) {
 	
-	function OneUp ( _text, _time, _location ) {
+	function OneUp ( _text, _time, _clss ) {
 		var el = d.createElement ('div');
+		var cl = 'pk_oneup pk_noselect';
+
 		el.style.cssText = 'margin-top:20px;opacity:0';
-		el.className = 'pk_oneup pk_noselect';
+		if (_clss) cl = cl + ' ' + _clss;
+
+		el.className = cl;
 		el.innerHTML = _text || '';
 
 		d.body.appendChild ( el );
