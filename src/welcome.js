@@ -29,7 +29,7 @@ setTimeout(function () {
 				'AudioMass is a free, open source, web-based Audio and Waveform Editor.<br />It runs entirely in the browser with no backend and no plugins required!'+
 				'<br/><br/><br/>'+
 				body_str+
-				'You can load any type of audio your browser supports and perform operations such asl fade in, cut, trim, change the volume, '+
+				'You can load any type of audio your browser supports and perform operations such as fade in, cut, trim, change the volume, '+
 				'and apply a plethora of audio effects.<br/><br/>'+
 				body_str2+
 				'</div>',
