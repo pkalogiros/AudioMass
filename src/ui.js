@@ -332,6 +332,13 @@
 					},
 
 					{
+						name: 'New Recording',
+						action: function ( e ) {
+							app.fireEvent('RequestActionNewRec');
+						}
+					},
+
+					{
 						name: 'Save Draft Locally',
 						clss: 'pk_inact',
 						action: function ( e ) {
