@@ -143,8 +143,12 @@
 		};
 
 		this.LoadFile = function ( e ) {
-			if (e.files.length > 0) {
-				if (e.files[0].type == "audio/mp3" || e.files[0].type == "audio/wave"
+			if (e.files.length > 0)
+			{
+				if (e.files[0].type == "audio/mp3"
+					|| e.files[0].type == "audio/wave"
+					|| e.files[0].type == "audio/mpeg"
+					|| e.files[0].type == "audio/flac"
 					|| e.files[0].type == "audio/ogg")
 				{
 
