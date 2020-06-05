@@ -367,7 +367,11 @@ var Region = function () {
             this.firedOut = false;
 
             var onProcess = function onProcess(time) {
-                if (!_this3.firedOut && _this3.firedIn && (_this3.start >= Math.round(time * 100) / 100 || _this3.end <= Math.round(time * 100) / 100)) {
+                // ####
+                // no real need to cut audio at 2 decimal points.
+                // if (!_this3.firedOut && _this3.firedIn && (_this3.start >= Math.round(time * 100) / 100 || _this3.end <= Math.round(time * 100) / 100)) {
+
+                    if (!_this3.firedOut && _this3.firedIn && (_this3.start >= time || _this3.end <= time)) {
                     _this3.firedOut = true;
                     _this3.firedIn = false;
                     _this3.fireEvent('out');
@@ -389,6 +393,7 @@ var Region = function () {
 
             /* Loop playback. */
             this.on('out', function () {
+                //debugger;
                 if (_this3.loop) {
                     _this3.wavesurfer.play(_this3.start);
                 } else {
