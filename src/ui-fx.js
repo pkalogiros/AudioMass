@@ -668,6 +668,10 @@
 			PKAudioEditor._deps.FxTMP (app);
 		});
 
+		app.listenFor ('RequestActionNewRec', function () {
+			PKAudioEditor._deps.FxREC (app);
+		});
+
 		//app.listenFor ('RequestActionAUTO', function ( filter ) {
 		//	PKAudioEditor._deps.FxAUT (app, filter);
 		//});

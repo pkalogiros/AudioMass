@@ -666,7 +666,7 @@
 					input.setAttribute ('type', 'file');
 					input.setAttribute ('accept', 'audio/*');
 					input.className = 'pk_inpfile';
-					input.onchange = function () { 
+					input.onchange = function () {
 						q.LoadFile ( input );
 
 						input.parentNode.removeChild( input );
@@ -1081,7 +1081,7 @@
 					setTimeout(function() {
 						_sk = false;
 					}, 50);
-				},40);
+				},26);
 			}
 		});
 
