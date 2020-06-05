@@ -271,6 +271,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
     height: 46px;
     color: #eee;
     border-radius: 3px;
+    contain:strict;
 }
 
 .pk_mob .pk_timecontainer{
