@@ -1646,7 +1646,7 @@ var MultiCanvas = function (_Drawer) {
         key: 'updateProgress',
         value: function updateProgress(position) {
             // this.progressWave.style.left = position + 'px';
-            this.progressWave.style.transform = 'translate(' + position + 'px,0)';
+            this.progressWave.style.transform = 'translate3d(' + position + 'px,0,0)';
             // this.style(this.progressWave, { left: position + 'px' });
         }
     }]);

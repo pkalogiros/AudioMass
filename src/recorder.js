@@ -29,7 +29,7 @@
 
 		// temp vars
 		var curr_offset = 0;
-		var first_skip = 14; // skip first samples to evade the button's click
+		var first_skip = 12; // skip first samples to evade the button's click
 		var fetchBufferFunction = function( ev ) {
 
 			if (first_skip > 0) {
@@ -59,7 +59,7 @@
 		};
 
 		this.setEndingOffset = function ( ending_offset_seconds ) {
-			ending_offset = ending_offset_seconds;
+			ending_offset = ending_offset_seconds; // ####  * 100
 		};
 
 		this.start = function ( _at_offset, _end_callback, _start_callback, _sample_rate ) {
@@ -99,7 +99,7 @@
 			end_record_func = _end_callback;
 			start_record_func = _start_callback;
 
-			navigator.mediaDevices.getUserMedia({ audio: true }).then(function( stream ) {
+			navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function( stream ) {
 				audio_stream = stream;
 				media_stream_source = audio_context.createMediaStreamSource ( stream );
 
@@ -147,7 +147,7 @@
 				end_record_func && end_record_func ( null, null );
 
 			sample_rate = 0;
-			first_skip = 16;
+			first_skip = 12;
 			temp_buffer_index = -1;
 			starting_offset = ending_offset = 0;
 			temp_buffers = [];
