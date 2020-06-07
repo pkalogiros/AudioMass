@@ -83,7 +83,7 @@
 
 			var uberSegment = null;
 
-			if (!force && wavesurfer.SelectedChannelsLen === 1)
+			if (!force && wavesurfer.SelectedChannelsLen < originalBuffer.numberOfChannels)
 			{
 				uberSegment = wavesurfer.backend.ac.createBuffer (
 					originalBuffer.numberOfChannels,
