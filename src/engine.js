@@ -219,7 +219,7 @@
 			}
 		};
 
-		this.DownloadFile = function ( name, kbps, selection, stereo ) {
+		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
 			if (!q.is_ready) return ;
 
 			app.fireEvent ('WillDownloadFile');
@@ -234,7 +234,7 @@
 			});
 
 			setTimeout(function() {
-				AudioUtils.DownloadFile ( name, kbps, selection, stereo, function ( val ) {
+				AudioUtils.DownloadFile ( name, format, kbps, selection, stereo, function ( val ) {
 					if (val === 'done')
 					{
 						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
@@ -1071,7 +1071,12 @@
 
 		var _sk = false;
 		app.listenFor ('RequestActionRecordToggle', function () {
-			if (!q.is_ready) return ;
+			if (!q.is_ready) {
+				// if not ready then bring up the new recording toggle!
+				app.fireEvent('RequestActionNewRec');
+
+				return ;
+			}
 			
 			if (app.rec.isActive ()) {
 				app.fireEvent('RequestActionRecordStop');
