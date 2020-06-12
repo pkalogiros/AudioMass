@@ -798,14 +798,20 @@
 			}
 		}
 
-		function DownloadFile( with_name, kbps, selection, stereo, callback ) {
+		function DownloadFile( with_name, format, kbps, selection, stereo, callback ) {
 			if (wavesurfer && wavesurfer.backend && wavesurfer.backend.buffer){}
 			else {
 				return false;
 			}
 			
-			worker = new Worker('lame.js');
-			
+
+			if (format === 'mp3') {
+				worker = new Worker('lame.js');
+			}
+			else {
+				worker = new Worker('wav.js');
+			}
+
 			var originalBuffer = wavesurfer.backend.buffer;
 			var sample_rate = originalBuffer.sampleRate;
 
@@ -895,8 +901,9 @@
 			else
 				worker.postMessage (null);
 
-			function forceDownload ( mp3Data ) {
-				var blob = new Blob (mp3Data, {type:'audio/mp3'});
+			// function forceDownload ( mp3Data ) {
+			// 	var blob = new Blob (mp3Data, {type:'audio/mp3'});
+			function forceDownload ( blob ) {			
 				var url = (window.URL || window.webkitURL).createObjectURL(blob);
 
 				var a = document.createElement( 'a' );
