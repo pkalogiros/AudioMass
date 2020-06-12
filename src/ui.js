@@ -128,10 +128,10 @@
 				name:'File',
 				children : [
 					{
-						name: 'Export as mp3',
+						name: 'Export / Download',
 						action: function () {
 								new PKSimpleModal({
-								  title:'Export mp3',
+								  title:'Export / Download',
 
 								  ondestroy: function( q ) {
 									app.ui.InteractionHandler.on = false;
@@ -146,6 +146,7 @@
 											var input = q.el_body.getElementsByTagName('input')[0];
 											var value = input.value.trim();
 											
+											var format = 'mp3';
 											var kbps = 128;
 											var export_sel = false;
 											var stereo     = false;
@@ -155,7 +156,11 @@
 											while (l-- > 0) {
 												if (radios[l].checked)
 												{
-													if (radios[l].name == 'xport')
+													if (radios[l].name == 'frmtex')
+													{
+														format = radios[l].value;
+													}
+													else if (radios[l].name == 'xport')
 													{
 														if (radios[l].value === 'sel')
 														{
@@ -178,7 +183,7 @@
 												}
 											}
 
-											app.engine.DownloadFile ( value, kbps, export_sel, stereo );
+											app.engine.DownloadFile ( value, format, kbps, export_sel, stereo );
 											q.Destroy ();
 											// -
 										}
@@ -188,7 +193,14 @@
 									'<input style="min-width:250px" placeholder="mp3 filename" value="audiomass-output.mp3" ' +
 									'class="pk_txt" type="text" id="k0" /></div>'+
 
-									'<div class="pk_row"><input type="radio" class="pk_check" id="k1" name="rdslnc" checked value="128">'+ 
+									'<div class="pk_row" id="frmtex" style="padding-bottom:4px"><label style="display:inline">Format</label>'+
+									'<input type="radio" class="pk_check" id="k01" name="frmtex" checked value="mp3">'+
+									'<label for="k01">mp3</label>' +
+									'<input type="radio" class="pk_check" id="k02" name="frmtex" value="wav">'+  
+									'<label for="k02">wav <i>(44100hz)</i></label>' +
+									'</div>' +
+
+									'<div class="pk_row" id="frmtex-mp3"><input type="radio" class="pk_check" id="k1" name="rdslnc" checked value="128">'+ 
 									'<label  for="k1">128kbps</label>' +
 									'<input type="radio" class="pk_check"  id="k2" name="rdslnc" value="192">'+
 									'<label for="k2">192kbps</label>'+
@@ -208,6 +220,7 @@
 									
 								  setup:function( q ) {
 								  		var wv = PKAudioEditor.engine.wavesurfer;
+								  		console.log( document.getElementById('frmtex') );
 
 								  		// if no region
 										var region = wv.regions.list[0];
@@ -228,7 +241,33 @@
 										}, [27]);
 
 										setTimeout(function() {
-											q.el && q.el.getElementsByTagName('input')[0].select ();
+											if (!q.el) return ;
+											var inputtxt = q.el.getElementsByTagName('input')[0];
+											inputtxt && inputtxt.select ();
+
+									  		var format = document.getElementById('frmtex');
+									  		var mp3conf = document.getElementById('frmtex-mp3');
+
+									  		format && format.addEventListener('change', function(e){
+												var inputs = this.getElementsByTagName('input');
+												for (var i = 0; i < inputs.length; ++i)
+												{
+													if (inputs[i].checked)
+													{
+														if (inputs[i].value === 'mp3')
+														{
+															mp3conf.style.display = 'block';
+															inputtxt.value = inputtxt.value.replace('.wav', '.mp3');
+														}
+														else
+														{
+															mp3conf.style.display = 'none';
+															inputtxt.value = inputtxt.value.replace('.mp3', '.wav');
+														}
+													}
+												}
+									  		}, false);
+
 										},20);
 								  }
 								}).Show();

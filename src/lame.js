@@ -15584,5 +15584,8 @@ onmessage = function( ev ) {
 		mp3Data.push ( mp3buf );
 	}
 
-	postMessage( mp3Data );
+
+    var blob = new Blob (mp3Data, {type:'audio/mp3'});
+    postMessage( blob );
+	// postMessage( mp3Data );
 }
