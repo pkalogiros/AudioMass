@@ -5948,7 +5948,7 @@ this.splitPeaks[c] = peaks.slice(-shift);
                     for (c = 0; c < channels; ++c)
                     {
                         var peaks = this.splitPeaks[c];
-                        var chan = this.buffer.getChannelData(c);
+                        // var chan = this.buffer.getChannelData(c);
                         var i = void 0;
 
                         var k = 0;
