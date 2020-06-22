@@ -422,10 +422,10 @@
 			app.fireEvent ('RequestResize');
 			wavesurfer.getWaveEl().style.opacity = '1';
 
-			// loaded succesfully
+			// loaded successfully
 			app.stopListeningForName ('RequestCancelModal');
 
-			setTimeout(function () {OneUp ('Loaded Succesfully')}, 180);
+			setTimeout(function () {OneUp ('Loaded Successfully')}, 180);
 
 			// check if the audio file is mono or stereo and rebuild both UI and audio engine accordingly...
 			if (wavesurfer.backend.buffer.numberOfChannels === 1) {
