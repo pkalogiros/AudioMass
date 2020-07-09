@@ -2565,7 +2565,7 @@
 			// if (time === 0) return '00:00:000';
 
 			var time_s = time >> 0;
-			var miliseconds = time - time_s;
+			var miliseconds = ((time - time_s) * 1000) >> 0;
 			
 			if (time_s < 10)
 			{
@@ -2583,7 +2583,7 @@
 				time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
 			}
 			
-			return time_s + ':' + ((miliseconds*1000)>>0); // (miliseconds+'').substr(2, 3);
+			return time_s + ':' + (miliseconds < 10 ? '00'+miliseconds : miliseconds < 100 ? '0'+miliseconds : miliseconds);
 		}
 		UI.formatTime = formatTime;
 		
