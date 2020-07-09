@@ -2949,6 +2949,7 @@
 						btn_add.style.display = 'none';
 
 						audio_context = new (window.AudioContext || window.webkitAudioContext)();
+						sample_rate = audio_context.sampleRate;
 
 						var audio_val = true;
 						if (has_devices) {
