@@ -1672,8 +1672,6 @@
 
 		var btn_panner_left = d.createElement ('button');
 		var btn_panner_right = d.createElement ('button');
-		btn_panner_left.setAttribute ('tabIndex', -1);
-		btn_panner_right.setAttribute ('tabIndex', -1);
 		btn_panner_left.className = 'pk_pan_btn';
 		btn_panner_right.className = 'pk_pan_btn';
 
@@ -1728,7 +1726,6 @@
 		var btn_zoom_in_h = d.createElement ('button');
 		btn_zoom_in_h.className = 'pk_btn pk_zoom_in_h';
 		btn_zoom_in_h.innerHTML = '+<span>Zoom In Horiz (+)</span>';
-		btn_zoom_in_h.setAttribute ('tabIndex', -1);
 		btn_zoom_in_h.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'h', -1);
 			this.blur();
@@ -1737,7 +1734,6 @@
 		var btn_zoom_out_h = d.createElement ('button');
 		btn_zoom_out_h.className = 'pk_btn pk_zoom_out_h pk_inact';
 		btn_zoom_out_h.innerHTML = '&ndash;<span>Zoom Out Horiz (-)</span>';
-		btn_zoom_out_h.setAttribute ('tabIndex', -1);
 		btn_zoom_out_h.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'h', 1);
 			this.blur();
@@ -1746,7 +1742,6 @@
 		var btn_zoom_reset = d.createElement ('button');
 		btn_zoom_reset.className = 'pk_btn pk_zoom_reset pk_inact';
 		btn_zoom_reset.innerHTML = '[R] <span>Reset Zoom (0)</span>';
-		btn_zoom_reset.setAttribute ('tabIndex', -1);
 		btn_zoom_reset.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 0);
 			this.blur();
@@ -1768,7 +1763,6 @@
 		var btn_zoom_in_v = d.createElement ('button');
 		btn_zoom_in_v.className = 'pk_btn pk_zoom_in_v';
 		btn_zoom_in_v.innerHTML = '&#x2195; +<span>Zoom In Vertically</span>';
-		btn_zoom_in_v.setAttribute ('tabIndex', -1);
 		btn_zoom_in_v.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'v', -1);
 			this.blur();
@@ -1777,7 +1771,6 @@
 		var btn_zoom_out_v = d.createElement ('button');
 		btn_zoom_out_v.className = 'pk_btn pk_zoom_out_v';
 		btn_zoom_out_v.innerHTML = '&#x2195; &ndash;<span>Zoom Out Vertically</span>';
-		btn_zoom_out_v.setAttribute ('tabIndex', -1);
 		btn_zoom_out_v.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'v', 1);
 			this.blur();
@@ -2067,7 +2060,6 @@
 
 		// play button
 		var btn_stop = d.createElement ('button');
-		btn_stop.setAttribute ('tabIndex', -1);
 		btn_stop.innerHTML = '<span>Stop Playback (Space)</span>';
 		btn_stop.className = 'pk_btn pk_stop icon-stop2';
 		btn_stop.onclick = function() {
@@ -2076,7 +2068,6 @@
 		transport.appendChild ( btn_stop );
 
 		var btn_play = d.createElement ('button');
-		btn_play.setAttribute ('tabIndex', -1);
 		btn_play.className = 'pk_btn pk_play icon-play3';
 		btn_play.innerHTML = '<span>Play (Space)</span>';
 		transport.appendChild ( btn_play );
@@ -2092,7 +2083,6 @@
 		});
 
 		var btn_pause = d.createElement ('button');
-		btn_pause.setAttribute('tabIndex', -1);
 		btn_pause.className = 'pk_btn pk_pause icon-pause2';
 		btn_pause.innerHTML = '<span>Pause (Shift+Space)</span>';
 		transport.appendChild ( btn_pause );
@@ -2102,7 +2092,6 @@
 		};
 
 		var btn_loop = d.createElement ('button');
-		btn_loop.setAttribute('tabIndex', -1);
 		btn_loop.className = 'pk_btn pk_loop icon-loop';
 		btn_loop.innerHTML = '<span>Toggle Loop (L)</span>';
 		transport.appendChild ( btn_loop );
@@ -2116,7 +2105,6 @@
 		});
 
 		var btn_back_jump = d.createElement ('button');
-		btn_back_jump.setAttribute('tabIndex', -1);
 		btn_back_jump.className = 'pk_btn pk_back_jump icon-backward2';
 		btn_back_jump.innerHTML = '<span>Seek (left arrow)</span>';
 		transport.appendChild ( btn_back_jump );
@@ -2196,7 +2184,6 @@
 		////////////////////////
 
 		var btn_front_jump = d.createElement ('button');
-		btn_front_jump.setAttribute('tabIndex', -1);
 		btn_front_jump.className = 'pk_btn pk_front_jump icon-forward3';
 		btn_front_jump.innerHTML = '<span>Seek (right arrow)</span>';
 		transport.appendChild ( btn_front_jump );
@@ -2388,7 +2375,6 @@
 		}, [27]);
 
 		var btn_back_total = d.createElement ('button');
-		btn_back_total.setAttribute('tabIndex', -1);
 		btn_back_total.className = 'pk_btn icon-previous2';
 		btn_back_total.innerHTML = '<span>Seek Start (Shift + left arrow)</span>';
 		transport.appendChild ( btn_back_total );
@@ -2399,7 +2385,6 @@
 		};
 
 		var btn_front_total = d.createElement ('button');
-		btn_front_total.setAttribute('tabIndex', -1);
 		btn_front_total.className = 'pk_btn icon-next2';
 		btn_front_total.innerHTML = '<span>Seek End (Shift + right arrow)</span>';
 		btn_front_total.onclick = function() {
@@ -2411,7 +2396,6 @@
 
 
 		var btn_rec = d.createElement ('button');
-		btn_rec.setAttribute('tabIndex', -1);
 		btn_rec.className = 'pk_btn icon-rec';
 		btn_rec.innerHTML = '<span>Record (R)</span>';
 		btn_rec.onclick = function() {
@@ -2684,7 +2668,6 @@
 		actions.className = 'pk_ctns';
 		
 		var copy_btn = d.createElement ('button');
-		copy_btn.setAttribute('tabIndex', -1);
 		copy_btn.className = 'pk_btn icon-files-empty pk_inact';
 		copy_btn.innerHTML = '<span>Copy Selection (Shift + C)</span>';
 		actions.appendChild ( copy_btn );
@@ -2713,7 +2696,6 @@
 		};
 
 		var cut_btn = d.createElement ('button');
-		cut_btn.setAttribute('tabIndex', -1);
 		cut_btn.className = 'pk_btn icon-scissors pk_inact';
 		cut_btn.innerHTML = '<span>Cut Selection (Shift + X)</span>';
 		actions.appendChild ( cut_btn );
@@ -2724,7 +2706,6 @@
 		};
 		
 		var silence_btn = d.createElement ('button');
-		silence_btn.setAttribute('tabIndex', -1);
 		silence_btn.className = 'pk_btn icon-silence';
 		silence_btn.innerHTML = '<span>Insert Silence (Shift + N)</span>';
 		actions.appendChild ( silence_btn );
@@ -2752,7 +2733,6 @@
 		'</div>';
 		
 		var btn_clear_selection = d.createElement ('button');
-		btn_clear_selection.setAttribute('tabIndex', -1);
 		btn_clear_selection.className = 'pk_btn icon-clearsel pk_inact';
 		btn_clear_selection.innerHTML = '<span>Clear Selection (~ tilda)</span>';
 
