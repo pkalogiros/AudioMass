@@ -1291,6 +1291,8 @@
 	function _makeUITopHeader ( menu_tree, UI ) {
 		var header = d.createElement ( 'div' );
 		header.className = 'pk_hdr pk_noselect';
+		header.setAttribute('role','region');
+		header.setAttribute('aria-label','Application menu');
 
 		var _name = 'TopHeader',
 			_default_class = 'pk_btn pk_noselect';
@@ -1648,6 +1650,8 @@
 
 		var audio_container = d.createElement ('div');
 		audio_container.className = 'pk_av_cont';
+		audio_container.setAttribute('role','region');
+		audio_container.setAttribute('aria-label','Audio waveform');
 		UI.el.appendChild( audio_container );
 
 
@@ -1659,6 +1663,8 @@
 		
 		var footer = d.createElement ( 'div' );
 		footer.className = 'pk_ftr pk_noselect';
+		footer.setAttribute('role','region');
+		footer.setAttribute('aria-label','Volume information');
 		UI.el.appendChild( footer );
 
 		// make panner buttons
@@ -2048,6 +2054,8 @@
 	function _makeUIToolbar (UI) {
 		var container = d.createElement ( 'div' );
 		container.className = 'pk_tbc';
+		container.setAttribute('role','toolbar');
+		container.setAttribute('aria-label','Main tools');
 
 		var toolbar = d.createElement ( 'div' );
 		toolbar.className = 'pk_tb pk_noselect';
@@ -2057,6 +2065,8 @@
 		
 		var transport = d.createElement( 'div' );
 		transport.className = 'pk_transport';
+		transport.setAttribute('role','group');
+		transport.setAttribute('aria-label','Transport controls');
 
 		// play button
 		var btn_stop = d.createElement ('button');
@@ -2442,6 +2452,8 @@
 
 		var timing = d.createElement( 'div' );
 		timing.className = 'pk_timecontainer';
+		timing.setAttribute('role','group');
+		timing.setAttribute('aria-label','Time information')
 
 		var timingspan = d.createElement( 'span' );
 		timingspan.innerText = '00:00:000';
@@ -2675,6 +2687,8 @@
 		
 		var actions = d.createElement( 'div' );
 		actions.className = 'pk_ctns';
+		action.setAttribute('role','group');
+		action.setAttribute('aria-label','Copy/Paste controls');
 		
 		var copy_btn = d.createElement ('button');
 		copy_btn.className = 'pk_btn icon-files-empty pk_inact';
@@ -2738,6 +2752,8 @@
 		
 		var selection = d.createElement( 'div' );
 		selection.className = 'pk_selection';
+		selection.setAttribute('role','group');
+		selection.setAttribute('aria-label','Selected audio time properties');
 		selection.innerHTML = '<div class="pk_sellist">' + 
 			'<span class="pk_title">Selection:</span>' + 
 			'<div><span class="title">Start:</span><span class="s_s pk_dat">-</span></div>' + 
