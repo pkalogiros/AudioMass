@@ -1999,9 +1999,7 @@ body.pk_stndln{
 }
 
 /* a11y fixes */
-* .pk_btn,
-.pk_pan_btn:focus {
-	border:3px solid #333;
+* .pk_btn{	
 	transition-duration: 0.2s;
 }
 * .pk_btn:focus,
