@@ -2022,9 +2022,9 @@
 		// change temp message, it's pretty ugly #### TODO
 		var ttmp = d.createElement('div');
 		ttmp.className = 'pk_tmpMsg';
-		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or click ' +
-		'<a style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
-		'onclick="PKAudioEditor.engine.LoadSample()">here to use a sample</a>';
+		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or ' +
+		'<a href="#" style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
+		'onclick="PKAudioEditor.engine.LoadSample()">load a sample audio file</a>';
 		main_audio_view.appendChild( ttmp );
 
 		var ttmp2 = d.createElement('div');
