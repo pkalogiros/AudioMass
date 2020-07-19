@@ -2687,8 +2687,8 @@
 		
 		var actions = d.createElement( 'div' );
 		actions.className = 'pk_ctns';
-		action.setAttribute('role','group');
-		action.setAttribute('aria-label','Copy/Paste controls');
+		actions.setAttribute('role','group');
+		actions.setAttribute('aria-label','Copy/Paste controls');
 		
 		var copy_btn = d.createElement ('button');
 		copy_btn.className = 'pk_btn icon-files-empty pk_inact';
