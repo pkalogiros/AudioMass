@@ -2060,7 +2060,8 @@
 
 		// play button
 		var btn_stop = d.createElement ('button');
-		btn_stop.innerHTML = '<span>Stop Playback (Space)</span>';
+		btn_stop.innerHTML = '<span id="btn_stop_label">Stop Playback (Space)</span>';
+		btn_stop.setAttribute('aria-labelledby','btn_stop_label');
 		btn_stop.className = 'pk_btn pk_stop icon-stop2';
 		btn_stop.onclick = function() {
 			UI.fireEvent('RequestStop');
@@ -2069,7 +2070,8 @@
 
 		var btn_play = d.createElement ('button');
 		btn_play.className = 'pk_btn pk_play icon-play3';
-		btn_play.innerHTML = '<span>Play (Space)</span>';
+		btn_play.innerHTML = '<span id="btn_play_label">Play (Space)</span>';
+		btn_play.setAttribute('aria-labelledby','btn_play_label');
 		transport.appendChild ( btn_play );
 		btn_play.onclick = function() {
 			UI.fireEvent('RequestPlay');
@@ -2084,7 +2086,8 @@
 
 		var btn_pause = d.createElement ('button');
 		btn_pause.className = 'pk_btn pk_pause icon-pause2';
-		btn_pause.innerHTML = '<span>Pause (Shift+Space)</span>';
+		btn_pause.innerHTML = '<span id="btn_pause_label">Pause (Shift+Space)</span>';
+		btn_pause.setAttribute('aria-labelledby','btn_pause_label');
 		transport.appendChild ( btn_pause );
 		btn_pause.onclick = function() {
 			UI.fireEvent('RequestPause');
@@ -2093,7 +2096,8 @@
 
 		var btn_loop = d.createElement ('button');
 		btn_loop.className = 'pk_btn pk_loop icon-loop';
-		btn_loop.innerHTML = '<span>Toggle Loop (L)</span>';
+		btn_loop.innerHTML = '<span id="btn_loop_label">Toggle Loop (L)</span>';
+		btn_loop.setAttribute('aria-labelledby','btn_loop_label');
 		transport.appendChild ( btn_loop );
 		btn_loop.onclick = function() {
 			UI.fireEvent('RequestSetLoop');
@@ -2106,7 +2110,8 @@
 
 		var btn_back_jump = d.createElement ('button');
 		btn_back_jump.className = 'pk_btn pk_back_jump icon-backward2';
-		btn_back_jump.innerHTML = '<span>Seek (left arrow)</span>';
+		btn_back_jump.innerHTML = '<span id="btn_back_jump_label">Seek (left arrow)</span>';
+		btn_back_jump.setAttribute('aria-labelledby','btn_back_jump_label');
 		transport.appendChild ( btn_back_jump );
 
 		///////////////////////////////////////////////////////////
@@ -2185,7 +2190,8 @@
 
 		var btn_front_jump = d.createElement ('button');
 		btn_front_jump.className = 'pk_btn pk_front_jump icon-forward3';
-		btn_front_jump.innerHTML = '<span>Seek (right arrow)</span>';
+		btn_front_jump.innerHTML = '<span id="btn_front_jump_label">Seek (right arrow)</span>';
+		btn_front_jump.setAttribute('aria-labelledby','btn_front_jump_label');
 		transport.appendChild ( btn_front_jump );
 
 		var btn_frnt_focus = false;
@@ -2376,7 +2382,8 @@
 
 		var btn_back_total = d.createElement ('button');
 		btn_back_total.className = 'pk_btn icon-previous2';
-		btn_back_total.innerHTML = '<span>Seek Start (Shift + left arrow)</span>';
+		btn_back_total.innerHTML = '<span id="btn_back_total_label">Seek Start (Shift + left arrow)</span>';
+		btn_back_total.setAttribute('aria-labelledby','btn_back_total_label');
 		transport.appendChild ( btn_back_total );
 		btn_back_total.onclick = function() {
 			UI.fireEvent( 'RequestRegionClear');
@@ -2386,7 +2393,8 @@
 
 		var btn_front_total = d.createElement ('button');
 		btn_front_total.className = 'pk_btn icon-next2';
-		btn_front_total.innerHTML = '<span>Seek End (Shift + right arrow)</span>';
+		btn_front_total.innerHTML = '<span id="btn_front_total_label">Seek End (Shift + right arrow)</span>';
+		btn_front_total.setAttribute('aria-labelledby','btn_front_total_label');
 		btn_front_total.onclick = function() {
 			UI.fireEvent( 'RequestRegionClear');
 			UI.fireEvent( 'RequestSeekTo', 0.996);
@@ -2397,7 +2405,8 @@
 
 		var btn_rec = d.createElement ('button');
 		btn_rec.className = 'pk_btn icon-rec';
-		btn_rec.innerHTML = '<span>Record (R)</span>';
+		btn_rec.innerHTML = '<span id="btn_rec_label">Record (R)</span>';
+		btn_rec.setAttribute('aria-labelledby','btn_rec_label');
 		btn_rec.onclick = function() {
 			if (this.getAttribute('disabled') === 'disabled') {
 				this.blur (); return ;
@@ -2669,7 +2678,8 @@
 		
 		var copy_btn = d.createElement ('button');
 		copy_btn.className = 'pk_btn icon-files-empty pk_inact';
-		copy_btn.innerHTML = '<span>Copy Selection (Shift + C)</span>';
+		copy_btn.innerHTML = '<span id="copy_btn_label">Copy Selection (Shift + C)</span>';
+		copy_btn.setAttribute('aria-labelledby','copy_btn_label');
 		actions.appendChild ( copy_btn );
 
 		copy_btn.onclick = function() {
@@ -2687,7 +2697,8 @@
 		var paste_btn = d.createElement ('button');
 		paste_btn.setAttribute('focusable', 'false');
 		paste_btn.className = 'pk_btn icon-file-text2 pk_inact';
-		paste_btn.innerHTML = '<span>Paste Selection (Shift + V)</span>';
+		paste_btn.innerHTML = '<span id="paste_btn_label">Paste Selection (Shift + V)</span>';
+		paste_btn.setAttribute('aria-labelledby','paste_btn_label');
 		actions.appendChild ( paste_btn );
 
 		paste_btn.onclick = function() {
@@ -2697,7 +2708,8 @@
 
 		var cut_btn = d.createElement ('button');
 		cut_btn.className = 'pk_btn icon-scissors pk_inact';
-		cut_btn.innerHTML = '<span>Cut Selection (Shift + X)</span>';
+		cut_btn.innerHTML = '<span id="cut_btn_label">Cut Selection (Shift + X)</span>';
+		cut_btn.setAttribute('aria-labelledby','cut_btn_label');
 		actions.appendChild ( cut_btn );
 
 		cut_btn.onclick = function() {
@@ -2707,7 +2719,8 @@
 		
 		var silence_btn = d.createElement ('button');
 		silence_btn.className = 'pk_btn icon-silence';
-		silence_btn.innerHTML = '<span>Insert Silence (Shift + N)</span>';
+		silence_btn.innerHTML = '<span id="silence_btn_label">Insert Silence (Shift + N)</span>';
+		silence_btn.setAttribute('aria-labelledby','silence_btn_label');
 		actions.appendChild ( silence_btn );
 		
 		UI.KeyHandler.addCallback ('KeyShiftN', function( k ) {
@@ -2734,7 +2747,8 @@
 		
 		var btn_clear_selection = d.createElement ('button');
 		btn_clear_selection.className = 'pk_btn icon-clearsel pk_inact';
-		btn_clear_selection.innerHTML = '<span>Clear Selection (~ tilda)</span>';
+		btn_clear_selection.innerHTML = '<span id="btn_clear_selection_label">Clear Selection (~ tilda)</span>';
+		btn_clear_selection.setAttribute('aria-labelledby','btn_clear_selection_label');
 
 		var sel_spans = selection.getElementsByClassName('pk_dat');
 		UI.listenFor ('DidCreateRegion', function ( region ) {
