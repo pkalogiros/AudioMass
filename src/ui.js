@@ -2723,7 +2723,8 @@
 		};
 
 		var cut_btn = d.createElement ('button');
-		cut_btn.className = 'pk_btn icon-scissors pk_inact';
+		cut_btn.className = 'pk_btn icon-scissors';
+		_setButtonActiveState(cut_btn,'inactive');
 		cut_btn.innerHTML = '<span>Cut Selection (Shift + X)</span>';
 		cut_btn.setAttribute('aria-label','Cut Selection (Shift + X)');
 		actions.appendChild ( cut_btn );
@@ -2841,6 +2842,18 @@
 
 		// -
 	};
+
+	function _setButtonActiveState(button,state) {
+		if (state==="active") {
+			button.removeAttribute('tabindex');
+			button.classList.remove('pk_inact');
+		} else {
+			button.setAttribute('tabindex','-1');
+			button.classList.add('pk_inact');
+		}
+	}
+
+
 
 	function _makeMobileScroll (UI) {
 
