@@ -10,7 +10,7 @@ setTimeout(function () {
 			if (PKAE.isMobile) {
 				change -= 15;
 				body_str = 'Tips:<br/>Please make sure your device is not in silent mode. You might need to physically flip the silent switch. '+
-				'<img src="phone-switch.jpg" style="max-width:224px;max-height:126px;width:40%;margin: 10px auto; display: block;"/>'+
+				'<img src="phone-switch.jpg" alt="Phone silent mode switch" style="max-width:224px;max-height:126px;width:40%;margin: 10px auto; display: block;"/>'+
 				'<br/><br/>';
 			}
 			else {
