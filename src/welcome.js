@@ -15,7 +15,7 @@ setTimeout(function () {
 			}
 			else {
 				body_str = 'Tips:<br/>Please keep in mind that most key shortcuts rely on the <strong>Shift + <u>key</u></strong> combo. (eg Shift+Z for undo, Shift+C copy, Shift+X cut... etc )<br/><br/>';
-				body_str2 = 'Check out the codebase on <a href="https://github.com/pkalogiros/audiomass" target="_blank">Github</a><br/><br/>'; // checkout the code on github
+				body_str2 = '<a href="https://github.com/pkalogiros/audiomass" target="_blank">Check out the codebase on Github</a><br/><br/>'; // checkout the code on github
 			}
 
 			// Welcome to AudioMass,
@@ -52,7 +52,9 @@ setTimeout(function () {
 				}
 			});
 			md.Show ();
+
 			document.getElementsByClassName('pk_modal_cancel')[0].innerHTML = '&nbsp; &nbsp; &nbsp; OK &nbsp; &nbsp; &nbsp;';
+			document.getElementsByClassName('pk_modal_cancel')[0].focus();
 	};
 
 	var change = 96;
