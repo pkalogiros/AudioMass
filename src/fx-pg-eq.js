@@ -1615,8 +1615,10 @@
 				};
 				if (!PKAudioEditor.engine.wavesurfer.isReady)
 				{
-					play_btn.className += ' pk_inact';
-					both_btn.className += ' pk_inact';
+					// play_btn.className += ' pk_inact';
+					_setButtonState(play_btn,'inactive');
+					// both_btn.className += ' pk_inact';
+					_setButtonState(both_btn,'inactive');
 				}
 
 				if (PKAudioEditor.engine.wavesurfer.isPlaying()) {
@@ -1865,8 +1867,10 @@
 
 				if (!PKAudioEditor.engine.wavesurfer.isReady)
 				{
-					play_btn.className += ' pk_inact';
-					loop_btn.className += ' pk_inact';
+					// play_btn.className += ' pk_inact';
+					_setButtonState(play_btn,'inactive');
+					// loop_btn.className += ' pk_inact';
+					_setButtonState(loop_btn,'inactive');
 				}
 				if (PKAudioEditor.engine.wavesurfer.isPlaying()) {
 					play_btn.className += ' pk_act';
@@ -2877,14 +2881,16 @@
 							  }
 
 							  is_ready = true;
-							  btn_start.classList.remove ('pk_inact');
+									// btn_start.classList.remove ('pk_inact');
+									_setButtonState(btn_start,'active');
 							});
 						}
 						else {
 							devices_sel.parentNode.style.display = 'none';
 							has_devices = false;
 							is_ready = true;
-							btn_start.classList.remove ('pk_inact');
+							// btn_start.classList.remove ('pk_inact');
+							_setButtonState(btn_start,'active');
 						}
 					};
 
@@ -2934,7 +2940,8 @@
 						if (is_active) {
 							stop ();
 
-							btn_pause.classList.add ('pk_inact');
+							// btn_pause.classList.add ('pk_inact');
+							_setButtonState(btn_pause,'inactive');
 							btn_start.innerText = 'START RECORDING';
 
 							return ;
@@ -2969,7 +2976,8 @@
 			            	script_processor.connect ( audio_context.destination );
 
 			            	is_active = true;
-			            	btn_pause.classList.remove ('pk_inact');
+																// btn_pause.classList.remove ('pk_inact');
+																_setButtonState(btn_pause,'active');
 			            	btn_start.innerText = 'FINISH RECORDING';
 			            	script_processor.onaudioprocess = fetchBufferFunction;
 
