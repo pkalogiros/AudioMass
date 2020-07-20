@@ -2059,6 +2059,8 @@
 
 		var toolbar = d.createElement ( 'div' );
 		toolbar.className = 'pk_tb pk_noselect';
+		toolbar.setAttribute('tabindex','0');
+		toolbar.setAttribute('id','skipToolbar');
 
 		var btn_groups = d.createElement( 'div' );
 		btn_groups.className = 'pk_btngroup';

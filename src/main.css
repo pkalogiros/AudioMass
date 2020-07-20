@@ -1999,7 +1999,39 @@ body.pk_stndln{
 }
 
 /* a11y fixes */
-* .pk_btn{	
+
+/*for skip links*/
+.skip {
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+	left:-10px;
+}
+a.skip:focus {
+	clip: none;
+	height: auto;
+	overflow: none;
+	width: auto;
+	background: black;
+	color:white;
+	font-weight: bold;
+	font-size: 22px;
+	padding: 10px;
+	z-index: 1000;
+	top: 30px;
+	left: 15px;
+	border: 2px solid white;
+	border-radius: 3px;
+	outline: none;
+}
+#skipToolbar:focus {
+	outline: 2px solid white;
+}
+
+* .pk_btn, .pk_pan_btn {	
+	cursor: pointer;
 	transition-duration: 0.2s;
 }
 * .pk_btn:focus,
