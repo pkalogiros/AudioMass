@@ -73,7 +73,8 @@ body,html{height:100%;background:#111;
 	white-space:nowrap
 }
 
-.pk_hdr .pk_btn:hover{
+.pk_hdr .pk_btn:hover,
+.pk_hdr .pk_btn:focus-within{
 	background:#eee;
 	color:#111
 }
@@ -630,7 +631,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	box-shadow: 0 2px 12px rgba(138, 58, 138, 0.5);
 	background-clip: padding-box;
 }
-.pk_contextMenu a, .pk_contextMenu a:hover{
+.pk_contextMenu a, .pk_contextMenu a:hover, .pk_contextMenu a:focus{
 	clear: both;
 	color: #eee;
 	display: block;
@@ -645,7 +646,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	font-weight:normal;
 	transition: all 110ms;
 }
-.pk_contextMenu a:hover{
+.pk_contextMenu a:hover,
+.pk_contextMenu a:focus{
 	color:#99c2c6;
 	line-height: 18px;
 	text-decoration: none;
@@ -936,7 +938,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	-webkit-user-select:none;
 	user-select:none;
 }
-.pk_modal_a_bottom:hover{
+.pk_modal_a_bottom:hover,
+.pk_modal_a_bottom:focus{
 	/*background: #eee;
     color: #111;
     border-color: #eee;*/
@@ -958,7 +961,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
     transition: background 120ms;
 }
 
-.pk_modal_cancel:hover{
+.pk_modal_cancel:hover,
+.pk_modal_cancel:focus{
 	box-shadow: 0 0 6px rgba(158, 39, 39, 0.6);
     border-color: unset;
     background: #280a0ac7;
@@ -970,7 +974,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
     transition: border-color 120ms, color 120ms;
 }
 
-.pk_modal_a_accpt:hover{
+.pk_modal_a_accpt:hover,
+.pk_modal_a_accpt:focus{
     color: #99c2c6;
 }
 
@@ -1153,7 +1158,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
     letter-spacing: normal;
 }
 
-.pk_sel_edt:hover > span{
+.pk_sel_edt:hover > span,
+.pk_sel_edt:focus > span{
 	visibility:visible;
 	opacity: 1;
 }
@@ -1666,7 +1672,8 @@ input.pk_horiz.pk_w180{
     transition:background 120ms;
 }
 
-.pk_pgeq_els:hover{
+.pk_pgeq_els:hover,
+.pk_pgeq_els:focus{
 	background:#3b413f;
 }
 
@@ -1821,7 +1828,8 @@ body.pk_stndln{
 	background:#303030;
 }
 
-.pk_tbsa:hover{
+.pk_tbsa:hover,
+.pk_tbsa:focus{
 	box-shadow: inset 0 -2px 6px #181818;
 }
 
@@ -1894,7 +1902,8 @@ body.pk_stndln{
     transition: background 70ms;
 }
 
-#pk_tmp_tap3:hover{
+#pk_tmp_tap3:hover,
+#pk_tmp_tap3:focus{
 	background:#363636;
 }
 
@@ -1930,7 +1939,8 @@ body.pk_stndln{
     padding-right:5px;
 }
 
-.pk_lcldrf:hover{
+.pk_lcldrf:hover,
+.pk_lcldrf:focus{
 	background:#292929;
 }
 
@@ -1986,4 +1996,48 @@ body.pk_stndln{
 .pk_aut_act,
 .pk_aut{
     box-shadow: 0px 0px 20px #eee, inset 0px 0px 4px gold;
+}
+
+/* a11y fixes */
+
+/*for skip links*/
+.skip {
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+	left:-10px;
+}
+a.skip:focus {
+	clip: none;
+	height: auto;
+	overflow: none;
+	width: auto;
+	background: black;
+	color:white;
+	font-weight: bold;
+	font-size: 22px;
+	padding: 10px;
+	z-index: 1000;
+	top: 30px;
+	left: 15px;
+	border: 2px solid white;
+	border-radius: 3px;
+	outline: none;
+}
+#skipToolbar:focus {
+	outline: 2px solid white;
+}
+
+* .pk_btn, .pk_pan_btn {	
+	cursor: pointer;
+	transition-duration: 0.2s;
+}
+* .pk_btn:focus,
+.pk_pan_btn:focus {
+	border:3px solid black;
+	color:black;
+	background: white;
+	box-shadow: 0 0 0 2px #fff;
 }

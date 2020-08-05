@@ -1291,6 +1291,8 @@
 	function _makeUITopHeader ( menu_tree, UI ) {
 		var header = d.createElement ( 'div' );
 		header.className = 'pk_hdr pk_noselect';
+		header.setAttribute('role','region');
+		header.setAttribute('aria-label','Application menu');
 
 		var _name = 'TopHeader',
 			_default_class = 'pk_btn pk_noselect';
@@ -1648,6 +1650,8 @@
 
 		var audio_container = d.createElement ('div');
 		audio_container.className = 'pk_av_cont';
+		audio_container.setAttribute('role','region');
+		audio_container.setAttribute('aria-label','Audio waveform');
 		UI.el.appendChild( audio_container );
 
 
@@ -1659,6 +1663,8 @@
 		
 		var footer = d.createElement ( 'div' );
 		footer.className = 'pk_ftr pk_noselect';
+		footer.setAttribute('role','region');
+		footer.setAttribute('aria-label','Volume information');
 		UI.el.appendChild( footer );
 
 		// make panner buttons
@@ -1672,8 +1678,6 @@
 
 		var btn_panner_left = d.createElement ('button');
 		var btn_panner_right = d.createElement ('button');
-		btn_panner_left.setAttribute ('tabIndex', -1);
-		btn_panner_right.setAttribute ('tabIndex', -1);
 		btn_panner_left.className = 'pk_pan_btn';
 		btn_panner_right.className = 'pk_pan_btn';
 
@@ -1728,7 +1732,6 @@
 		var btn_zoom_in_h = d.createElement ('button');
 		btn_zoom_in_h.className = 'pk_btn pk_zoom_in_h';
 		btn_zoom_in_h.innerHTML = '+<span>Zoom In Horiz (+)</span>';
-		btn_zoom_in_h.setAttribute ('tabIndex', -1);
 		btn_zoom_in_h.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'h', -1);
 			this.blur();
@@ -1737,7 +1740,6 @@
 		var btn_zoom_out_h = d.createElement ('button');
 		btn_zoom_out_h.className = 'pk_btn pk_zoom_out_h pk_inact';
 		btn_zoom_out_h.innerHTML = '&ndash;<span>Zoom Out Horiz (-)</span>';
-		btn_zoom_out_h.setAttribute ('tabIndex', -1);
 		btn_zoom_out_h.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'h', 1);
 			this.blur();
@@ -1746,7 +1748,6 @@
 		var btn_zoom_reset = d.createElement ('button');
 		btn_zoom_reset.className = 'pk_btn pk_zoom_reset pk_inact';
 		btn_zoom_reset.innerHTML = '[R] <span>Reset Zoom (0)</span>';
-		btn_zoom_reset.setAttribute ('tabIndex', -1);
 		btn_zoom_reset.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 0);
 			this.blur();
@@ -1768,7 +1769,6 @@
 		var btn_zoom_in_v = d.createElement ('button');
 		btn_zoom_in_v.className = 'pk_btn pk_zoom_in_v';
 		btn_zoom_in_v.innerHTML = '&#x2195; +<span>Zoom In Vertically</span>';
-		btn_zoom_in_v.setAttribute ('tabIndex', -1);
 		btn_zoom_in_v.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'v', -1);
 			this.blur();
@@ -1777,7 +1777,6 @@
 		var btn_zoom_out_v = d.createElement ('button');
 		btn_zoom_out_v.className = 'pk_btn pk_zoom_out_v';
 		btn_zoom_out_v.innerHTML = '&#x2195; &ndash;<span>Zoom Out Vertically</span>';
-		btn_zoom_out_v.setAttribute ('tabIndex', -1);
 		btn_zoom_out_v.onclick = function () {
 			app.fireEvent ('RequestZoomUI', 'v', 1);
 			this.blur();
@@ -2023,9 +2022,9 @@
 		// change temp message, it's pretty ugly #### TODO
 		var ttmp = d.createElement('div');
 		ttmp.className = 'pk_tmpMsg';
-		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or click ' +
-		'<a style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
-		'onclick="PKAudioEditor.engine.LoadSample()">here to use a sample</a>';
+		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or ' +
+		'<a href="#" style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
+		'onclick="PKAudioEditor.engine.LoadSample()">load a sample audio file</a>';
 		main_audio_view.appendChild( ttmp );
 
 		var ttmp2 = d.createElement('div');
@@ -2055,20 +2054,26 @@
 	function _makeUIToolbar (UI) {
 		var container = d.createElement ( 'div' );
 		container.className = 'pk_tbc';
+		container.setAttribute('role','region');
+		container.setAttribute('aria-label','Main toolbar');
 
 		var toolbar = d.createElement ( 'div' );
 		toolbar.className = 'pk_tb pk_noselect';
+		toolbar.setAttribute('tabindex','-1');
+		toolbar.setAttribute('id','skipToolbar');
 
 		var btn_groups = d.createElement( 'div' );
 		btn_groups.className = 'pk_btngroup';
 		
 		var transport = d.createElement( 'div' );
 		transport.className = 'pk_transport';
+		transport.setAttribute('role','group');
+		transport.setAttribute('aria-label','Transport controls');
 
 		// play button
 		var btn_stop = d.createElement ('button');
-		btn_stop.setAttribute ('tabIndex', -1);
 		btn_stop.innerHTML = '<span>Stop Playback (Space)</span>';
+		btn_stop.setAttribute('aria-label','Stop Playback (Space)');
 		btn_stop.className = 'pk_btn pk_stop icon-stop2';
 		btn_stop.onclick = function() {
 			UI.fireEvent('RequestStop');
@@ -2076,9 +2081,9 @@
 		transport.appendChild ( btn_stop );
 
 		var btn_play = d.createElement ('button');
-		btn_play.setAttribute ('tabIndex', -1);
 		btn_play.className = 'pk_btn pk_play icon-play3';
 		btn_play.innerHTML = '<span>Play (Space)</span>';
+		btn_play.setAttribute('aria-label','Play (Space)');
 		transport.appendChild ( btn_play );
 		btn_play.onclick = function() {
 			UI.fireEvent('RequestPlay');
@@ -2092,9 +2097,9 @@
 		});
 
 		var btn_pause = d.createElement ('button');
-		btn_pause.setAttribute('tabIndex', -1);
 		btn_pause.className = 'pk_btn pk_pause icon-pause2';
 		btn_pause.innerHTML = '<span>Pause (Shift+Space)</span>';
+		btn_pause.setAttribute('aria-label','Pause (Shift+Space)');
 		transport.appendChild ( btn_pause );
 		btn_pause.onclick = function() {
 			UI.fireEvent('RequestPause');
@@ -2102,9 +2107,9 @@
 		};
 
 		var btn_loop = d.createElement ('button');
-		btn_loop.setAttribute('tabIndex', -1);
 		btn_loop.className = 'pk_btn pk_loop icon-loop';
 		btn_loop.innerHTML = '<span>Toggle Loop (L)</span>';
+		btn_loop.setAttribute('aria-label','Toggle Loop (L)');
 		transport.appendChild ( btn_loop );
 		btn_loop.onclick = function() {
 			UI.fireEvent('RequestSetLoop');
@@ -2116,9 +2121,9 @@
 		});
 
 		var btn_back_jump = d.createElement ('button');
-		btn_back_jump.setAttribute('tabIndex', -1);
 		btn_back_jump.className = 'pk_btn pk_back_jump icon-backward2';
 		btn_back_jump.innerHTML = '<span>Seek (left arrow)</span>';
+		btn_back_jump.setAttribute('aria-label','Seek (left arrow)');
 		transport.appendChild ( btn_back_jump );
 
 		///////////////////////////////////////////////////////////
@@ -2196,9 +2201,9 @@
 		////////////////////////
 
 		var btn_front_jump = d.createElement ('button');
-		btn_front_jump.setAttribute('tabIndex', -1);
 		btn_front_jump.className = 'pk_btn pk_front_jump icon-forward3';
 		btn_front_jump.innerHTML = '<span>Seek (right arrow)</span>';
+		btn_front_jump.setAttribute('aria-label','Seek (right arrow)');
 		transport.appendChild ( btn_front_jump );
 
 		var btn_frnt_focus = false;
@@ -2388,9 +2393,9 @@
 		}, [27]);
 
 		var btn_back_total = d.createElement ('button');
-		btn_back_total.setAttribute('tabIndex', -1);
 		btn_back_total.className = 'pk_btn icon-previous2';
 		btn_back_total.innerHTML = '<span>Seek Start (Shift + left arrow)</span>';
+		btn_back_total.setAttribute('aria-label','Seek Start (Shift + left arrow)');
 		transport.appendChild ( btn_back_total );
 		btn_back_total.onclick = function() {
 			UI.fireEvent( 'RequestRegionClear');
@@ -2399,9 +2404,9 @@
 		};
 
 		var btn_front_total = d.createElement ('button');
-		btn_front_total.setAttribute('tabIndex', -1);
 		btn_front_total.className = 'pk_btn icon-next2';
 		btn_front_total.innerHTML = '<span>Seek End (Shift + right arrow)</span>';
+		btn_front_total.setAttribute('aria-label','Seek End (Shift + right arrow)');
 		btn_front_total.onclick = function() {
 			UI.fireEvent( 'RequestRegionClear');
 			UI.fireEvent( 'RequestSeekTo', 0.996);
@@ -2411,9 +2416,9 @@
 
 
 		var btn_rec = d.createElement ('button');
-		btn_rec.setAttribute('tabIndex', -1);
 		btn_rec.className = 'pk_btn icon-rec';
 		btn_rec.innerHTML = '<span>Record (R)</span>';
+		btn_rec.setAttribute('aria-label','Record (R)');
 		btn_rec.onclick = function() {
 			if (this.getAttribute('disabled') === 'disabled') {
 				this.blur (); return ;
@@ -2449,6 +2454,8 @@
 
 		var timing = d.createElement( 'div' );
 		timing.className = 'pk_timecontainer';
+		timing.setAttribute('role','group');
+		timing.setAttribute('aria-label','Time information')
 
 		var timingspan = d.createElement( 'span' );
 		timingspan.innerText = '00:00:000';
@@ -2682,11 +2689,13 @@
 		
 		var actions = d.createElement( 'div' );
 		actions.className = 'pk_ctns';
+		actions.setAttribute('role','group');
+		actions.setAttribute('aria-label','Copy/Paste controls');
 		
 		var copy_btn = d.createElement ('button');
-		copy_btn.setAttribute('tabIndex', -1);
 		copy_btn.className = 'pk_btn icon-files-empty pk_inact';
 		copy_btn.innerHTML = '<span>Copy Selection (Shift + C)</span>';
+		copy_btn.setAttribute('aria-label','Copy Selection (Shift + C)');
 		actions.appendChild ( copy_btn );
 
 		copy_btn.onclick = function() {
@@ -2705,6 +2714,7 @@
 		paste_btn.setAttribute('focusable', 'false');
 		paste_btn.className = 'pk_btn icon-file-text2 pk_inact';
 		paste_btn.innerHTML = '<span>Paste Selection (Shift + V)</span>';
+		paste_btn.setAttribute('aria-label','Paste Selection (Shift + V)');
 		actions.appendChild ( paste_btn );
 
 		paste_btn.onclick = function() {
@@ -2713,9 +2723,10 @@
 		};
 
 		var cut_btn = d.createElement ('button');
-		cut_btn.setAttribute('tabIndex', -1);
-		cut_btn.className = 'pk_btn icon-scissors pk_inact';
+		cut_btn.className = 'pk_btn icon-scissors';
+		_setButtonActiveState(cut_btn,'inactive');
 		cut_btn.innerHTML = '<span>Cut Selection (Shift + X)</span>';
+		cut_btn.setAttribute('aria-label','Cut Selection (Shift + X)');
 		actions.appendChild ( cut_btn );
 
 		cut_btn.onclick = function() {
@@ -2724,9 +2735,9 @@
 		};
 		
 		var silence_btn = d.createElement ('button');
-		silence_btn.setAttribute('tabIndex', -1);
 		silence_btn.className = 'pk_btn icon-silence';
 		silence_btn.innerHTML = '<span>Insert Silence (Shift + N)</span>';
+		silence_btn.setAttribute('aria-label','Insert Silence (Shift + N)');
 		actions.appendChild ( silence_btn );
 		
 		UI.KeyHandler.addCallback ('KeyShiftN', function( k ) {
@@ -2744,6 +2755,8 @@
 		
 		var selection = d.createElement( 'div' );
 		selection.className = 'pk_selection';
+		selection.setAttribute('role','group');
+		selection.setAttribute('aria-label','Selected audio time properties');
 		selection.innerHTML = '<div class="pk_sellist">' + 
 			'<span class="pk_title">Selection:</span>' + 
 			'<div><span class="title">Start:</span><span class="s_s pk_dat">-</span></div>' + 
@@ -2752,9 +2765,9 @@
 		'</div>';
 		
 		var btn_clear_selection = d.createElement ('button');
-		btn_clear_selection.setAttribute('tabIndex', -1);
 		btn_clear_selection.className = 'pk_btn icon-clearsel pk_inact';
 		btn_clear_selection.innerHTML = '<span>Clear Selection (~ tilda)</span>';
+		btn_clear_selection.setAttribute('aria-label','Clear Selection (~ tilda)');
 
 		var sel_spans = selection.getElementsByClassName('pk_dat');
 		UI.listenFor ('DidCreateRegion', function ( region ) {
@@ -2829,6 +2842,18 @@
 
 		// -
 	};
+
+	function _setButtonActiveState(button,state) {
+		if (state==="active") {
+			button.removeAttribute('tabindex');
+			button.classList.remove('pk_inact');
+		} else {
+			button.setAttribute('tabindex','-1');
+			button.classList.add('pk_inact');
+		}
+	}
+
+
 
 	function _makeMobileScroll (UI) {
 

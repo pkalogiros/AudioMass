@@ -24,6 +24,10 @@
 		// var centerer
 		var el_cont = d.createElement ('div');
 		el_cont.className = 'pk_modal_cnt';
+		el_cont.setAttribute('role','dialog');
+		el_cont.setAttribute('aria-modal','true');
+		el_cont.setAttribute('aria-labelledby','dialogHeading');
+		el_cont.setAttribute('aria-describedby','dialogContent');
 		this.el_cont = el_cont;
 		
 		// title
