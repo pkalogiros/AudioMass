@@ -2582,7 +2582,7 @@
 				app.fireEvent ('RequestStop');
 			},
 
-			body: '<div class="pk_rec">' +
+			body: '<div class="pk_rec" style="user-select:none">' +
 				'<div class="pk_row">' +
 				  '<label>Devices:</label>' +
 				  '<select style="max-width:220px"></select>' +
@@ -2602,7 +2602,7 @@
 				  '<a class="pk_tbsa pk_inact" style="margin-left: 24px; text-align: center;">PAUSE</a>' +
 				'</div>' +
 				'<div class="pk_row">' +
-					'<a class="pk_tbsa" style="float:left;display:none;text-align: center;">OPEN RECORDING</a>' +
+					'<a class="pk_tbsa" style="float:left;display:none;text-align:center;box-shadow:0 0 7px #3a6b79 inset;">OPEN RECORDING</a>' +
 					'<a class="pk_tbsa" style="float:left;display:none;margin-left: 24px; text-align: center;">APPEND TO EXISTING</a>' +
 				'</div>' +
 				'</div>',
@@ -2619,6 +2619,8 @@
 					var is_ready = false;
 					var is_active = false;
 					var is_paused = false;
+					var has_recorded = false;
+
 					var mainbtns = q.el_body.getElementsByClassName('pk_tbsa');
 					var btn_start = mainbtns[0];
 					var btn_pause = mainbtns[1];
@@ -2664,7 +2666,7 @@
 						}
 
 						volctx.fillStyle = "green";
-						volctx.fillRect(0, 0, volume*200*1.4, 40);
+						volctx.fillRect(0, 0, volume*200*1.67, 40);
 
 						time_span.innerText = ((currtime * 10) >> 0) / 10;
 
@@ -2694,7 +2696,7 @@
 						}
 
 						var rms =  Math.sqrt(sum / (buffer_size / 2) );
-						volume = Math.max(rms, volume * 0.87);
+						volume = Math.max(rms, volume * 0.9);
 
 
 						var curr_time = (temp_buffer_index * buffer_size) / sample_rate;
@@ -2916,6 +2918,8 @@
 						if (app.engine.is_ready) {
 							btn_add.style.display = 'block';
 						}
+
+						has_recorded = true;
 					};
 					// ---
 
@@ -2931,11 +2935,21 @@
 							debounce = false;
 						}, 260);
 
+						// check if recording exists - ask for confirmation
+						if (has_recorded) {
+							if (!window.confirm("Are you sure? This will discard the current recording."))
+							{
+								return ;
+							}
+						}
+
+
 						if (is_active) {
 							stop ();
 
 							btn_pause.classList.add ('pk_inact');
 							btn_start.innerText = 'START RECORDING';
+							btn_start.style.boxShadow = 'none';
 
 							return ;
 						}
@@ -2971,6 +2985,7 @@
 			            	is_active = true;
 			            	btn_pause.classList.remove ('pk_inact');
 			            	btn_start.innerText = 'FINISH RECORDING';
+			            	btn_start.style.boxShadow = '#992222 0px 0px 6px inset';
 			            	script_processor.onaudioprocess = fetchBufferFunction;
 
 			            	draw_volume ();

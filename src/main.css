@@ -1,10 +1,10 @@
 @font-face {
   font-family: 'icomoon';
-  src:  url('fonts/icomoon.eot?sogz1m');
-  src:  url('fonts/icomoon.eot?sogz1m#iefix') format('embedded-opentype'),
-    url('fonts/icomoon.ttf?sogz1m') format('truetype'),
-    url('fonts/icomoon.woff?sogz1m') format('woff'),
-    url('fonts/icomoon.svg?sogz1m#icomoon') format('svg');
+  src:  url('fonts/icomoon.eot');
+  src:  url('fonts/icomoon.eot#iefix') format('embedded-opentype'),
+    url('fonts/icomoon.ttf') format('truetype'),
+    url('fonts/icomoon.woff') format('woff'),
+    url('fonts/icomoon.svg#icomoon') format('svg');
   font-weight: normal;
   font-style: normal;
 }
@@ -30,9 +30,6 @@ body,html{height:100%;background:#111;
 
 .pk_noselect{
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
     -ms-user-select: none;
     user-select: none
 }
@@ -280,11 +277,18 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_timing{
     display: block;
     position: absolute;
-    padding:7px 0 0 14px;
+    padding:9px 0 0 14px;
     letter-spacing: 1px;
     font-size: 29px;
     text-align: left;
-        z-index: 2;
+    z-index: 2;
+}
+
+.pk_timingcnv{
+    display: block;
+    position: absolute;
+    z-index: 2;
+    left:6px;
 }
 
 .pk_btngroup{float:left;}
@@ -386,6 +390,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	width:100%;
 	width:calc(100% - 64px);
 	margin:0 auto;
+	contain: content;
 	/*height:calc(100% - 168px);*/
 	
 	background:#000;
@@ -661,6 +666,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
     background: #000;
 	overflow:hidden;
 	position:relative;
+	contain:strict;
 }
 
 .pk_wavedrag.pk_drag{

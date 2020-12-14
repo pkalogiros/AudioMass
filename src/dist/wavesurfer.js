@@ -3,6 +3,325 @@
  * https://github.com/katspaugh/wavesurfer.js
  * @license BSD-3-Clause
  */
+
+
+/**
+ * Calculate FFT - Based on https://github.com/corbanbrook/dsp.js
+ */
+/* eslint-disable complexity, no-redeclare, no-var, one-var */
+const FFT = function(bufferSize, sampleRate, windowFunc, alpha) {
+    this.bufferSize = bufferSize;
+    this.sampleRate = sampleRate;
+    this.bandwidth = (2 / bufferSize) * (sampleRate / 2);
+
+    this.sinTable = new Float32Array(bufferSize);
+    this.cosTable = new Float32Array(bufferSize);
+    this.windowValues = new Float32Array(bufferSize);
+    this.reverseTable = new Uint32Array(bufferSize);
+
+    this.peakBand = 0;
+    this.peak = 0;
+
+    var i;
+    switch (windowFunc) {
+        case 'bartlett':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    (2 / (bufferSize - 1)) *
+                    ((bufferSize - 1) / 2 - Math.abs(i - (bufferSize - 1) / 2));
+            }
+            break;
+        case 'bartlettHann':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    0.62 -
+                    0.48 * Math.abs(i / (bufferSize - 1) - 0.5) -
+                    0.38 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1));
+            }
+            break;
+        case 'blackman':
+            alpha = alpha || 0.16;
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    (1 - alpha) / 2 -
+                    0.5 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1)) +
+                    (alpha / 2) *
+                        Math.cos((4 * Math.PI * i) / (bufferSize - 1));
+            }
+            break;
+        case 'cosine':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] = Math.cos(
+                    (Math.PI * i) / (bufferSize - 1) - Math.PI / 2
+                );
+            }
+            break;
+        case 'gauss':
+            alpha = alpha || 0.25;
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] = Math.pow(
+                    Math.E,
+                    -0.5 *
+                        Math.pow(
+                            (i - (bufferSize - 1) / 2) /
+                                ((alpha * (bufferSize - 1)) / 2),
+                            2
+                        )
+                );
+            }
+            break;
+        case 'hamming':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    0.54 -
+                    0.46 * Math.cos((Math.PI * 2 * i) / (bufferSize - 1));
+            }
+            break;
+        case 'hann':
+        case undefined:
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    0.5 * (1 - Math.cos((Math.PI * 2 * i) / (bufferSize - 1)));
+            }
+            break;
+        case 'lanczoz':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    Math.sin(Math.PI * ((2 * i) / (bufferSize - 1) - 1)) /
+                    (Math.PI * ((2 * i) / (bufferSize - 1) - 1));
+            }
+            break;
+        case 'rectangular':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] = 1;
+            }
+            break;
+        case 'triangular':
+            for (i = 0; i < bufferSize; i++) {
+                this.windowValues[i] =
+                    (2 / bufferSize) *
+                    (bufferSize / 2 - Math.abs(i - (bufferSize - 1) / 2));
+            }
+            break;
+        default:
+            throw Error("No such window function '" + windowFunc + "'");
+    }
+
+    var limit = 1;
+    var bit = bufferSize >> 1;
+    var i;
+
+    while (limit < bufferSize) {
+        for (i = 0; i < limit; i++) {
+            this.reverseTable[i + limit] = this.reverseTable[i] + bit;
+        }
+
+        limit = limit << 1;
+        bit = bit >> 1;
+    }
+
+    for (i = 0; i < bufferSize; i++) {
+        this.sinTable[i] = Math.sin(-Math.PI / i);
+        this.cosTable[i] = Math.cos(-Math.PI / i);
+    }
+
+    this.calculateSpectrum = function(buffer) {
+        // Locally scope variables for speed up
+        var bufferSize = this.bufferSize,
+            cosTable = this.cosTable,
+            sinTable = this.sinTable,
+            reverseTable = this.reverseTable,
+            real = new Float32Array(bufferSize),
+            imag = new Float32Array(bufferSize),
+            bSi = 2 / this.bufferSize,
+            sqrt = Math.sqrt,
+            rval,
+            ival,
+            mag,
+            spectrum = new Float32Array(bufferSize / 2);
+
+        var k = Math.floor(Math.log(bufferSize) / Math.LN2);
+
+        if (Math.pow(2, k) !== bufferSize) {
+            throw 'Invalid buffer size, must be a power of 2.';
+        }
+        if (bufferSize !== buffer.length) {
+            throw 'Supplied buffer is not the same size as defined FFT. FFT Size: ' +
+                bufferSize +
+                ' Buffer Size: ' +
+                buffer.length;
+        }
+
+        var halfSize = 1,
+            phaseShiftStepReal,
+            phaseShiftStepImag,
+            currentPhaseShiftReal,
+            currentPhaseShiftImag,
+            off,
+            tr,
+            ti,
+            tmpReal;
+
+        for (var i = 0; i < bufferSize; i++) {
+            real[i] =
+                buffer[reverseTable[i]] * this.windowValues[reverseTable[i]];
+            imag[i] = 0;
+        }
+
+        while (halfSize < bufferSize) {
+            phaseShiftStepReal = cosTable[halfSize];
+            phaseShiftStepImag = sinTable[halfSize];
+
+            currentPhaseShiftReal = 1;
+            currentPhaseShiftImag = 0;
+
+            for (var fftStep = 0; fftStep < halfSize; fftStep++) {
+                var i = fftStep;
+
+                while (i < bufferSize) {
+                    off = i + halfSize;
+                    tr =
+                        currentPhaseShiftReal * real[off] -
+                        currentPhaseShiftImag * imag[off];
+                    ti =
+                        currentPhaseShiftReal * imag[off] +
+                        currentPhaseShiftImag * real[off];
+
+                    real[off] = real[i] - tr;
+                    imag[off] = imag[i] - ti;
+                    real[i] += tr;
+                    imag[i] += ti;
+
+                    i += halfSize << 1;
+                }
+
+                tmpReal = currentPhaseShiftReal;
+                currentPhaseShiftReal =
+                    tmpReal * phaseShiftStepReal -
+                    currentPhaseShiftImag * phaseShiftStepImag;
+                currentPhaseShiftImag =
+                    tmpReal * phaseShiftStepImag +
+                    currentPhaseShiftImag * phaseShiftStepReal;
+            }
+
+            halfSize = halfSize << 1;
+        }
+
+        for (var i = 0, N = bufferSize / 2; i < N; i++) {
+            rval = real[i];
+            ival = imag[i];
+            mag = bSi * sqrt(rval * rval + ival * ival);
+
+            if (mag > this.peak) {
+                this.peakBand = i;
+                this.peak = mag;
+            }
+            spectrum[i] = mag;
+        }
+        return spectrum;
+    };
+};
+/* eslint-enable complexity, no-redeclare, no-var, one-var */
+
+
+
+
+/*
+  function ASMWaveProcessor (stdlib, foreign, buffer) {
+    'use asm';
+
+    var MULT = stdlib.Math.imul;
+    var FLOOR = stdlib.Math.floor;
+    var MIN = stdlib.Math.min;
+    var MAX = stdlib.Math.max;
+
+    var HEAPU8 = new stdlib.Uint8Array( buffer );
+    var HEAPF32 = new stdlib.Float32Array( buffer );
+    var HEAPI32 = new stdlib.Uint32Array( buffer );
+
+    function GetPeaks (init, length, first, sampleStep, sampleSize) {
+        init = init|0;
+        length = length|0;
+        first = first|0;
+        sampleStep = sampleStep|0;
+        sampleSize = +sampleSize;
+
+        var i = 0;
+        var j = 0;
+        var min = 0.0;
+        var max = 0.0;
+        var start = 0;
+        var end = 0;
+        var value = 0.0;
+
+
+        // var peaks = this.splitPeaks[c];
+        for(i = init; (i|0) <= (length|0); i = (i + 1)|0) {
+            start = first|0 + ~~FLOOR(+(i|0)*sampleSize)|0;
+            end = (start|0) + ~~FLOOR(sampleSize)|0;
+            min = 0.0;
+            max = 0.0;
+
+            for (j = start; (j|0) < (end|0); j = (j + sampleStep)|0) {
+                 value = +HEAPF32[ ((j|0) << 2) >> 2];
+
+                 max = MAX(max, value);
+                 min = MIN(min, value);
+            }
+
+            // put it in the end of the array...
+            // console.log( 'aa ',  2 * i, max );
+            HEAPF32[ (MULT(2, i|0) << 2) >> 2 ] = max;
+            HEAPF32[ ((MULT(2, i|0) + 1) << 2) >> 2 ] = min;
+        }
+
+
+                ///////////////////////////
+                for (i = init; i <= length; ++i) {
+                    var start = first + (i * sampleSize) >> 0;
+                    var end = (start + sampleSize) >> 0;
+                    var min = 0;
+                    var max = 0;
+                    var j = void 0;
+
+                    for (j = start; j < end; j += sampleStep) {
+                        var value = chan[j];
+
+
+                        if (value > max) {
+                            max = value;
+                        }
+
+                        else if (value < min) {
+                            min = value;
+
+                            //console.log( value );
+                        }
+                    }
+
+                   // if (window.rr === 1)
+                   // {
+                   //     console.log(1);
+                   // }
+
+                    peaks[2 * i] = max;
+                    peaks[2 * i + 1] = min;
+                }
+                ///////////////////////////
+
+
+    }
+
+    return { GetPeaks: GetPeaks };
+  }
+
+  var ASM_HEAP = new ArrayBuffer( 16777216 * 2 );
+  var ASM_stdlib = { Math: Math, Float32Array: Float32Array, Uint8Array: Uint8Array, Uint32Array: Uint32Array };
+  var ASM_LIB = new ASMWaveProcessor (ASM_stdlib, null, ASM_HEAP);
+  */
+
+
+
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -414,6 +733,174 @@ var Drawer = function (_util$Observer) {
             });
         }
 
+    }, {
+        key: 'drawSpectre',
+        value: function drawSpectre(frequencies, length, start, end, vis_duration, duration, sample_rate ) {
+
+              var q = this;
+              //debugger;
+              if (!q.setWidth(length)) {
+                  q.clearWave();
+              }
+
+              //console.log( length, start, end, vis_duration, duration, sample_rate );
+
+              var resample2 = function (freqs) {
+                var pixels = q.width;
+                var freq_len = freqs.length;
+                var jump = freq_len / pixels;
+                var new_freqs = [];
+                var new_freq_len = 0;
+
+                // debugger;
+
+                if (duration < start + vis_duration)
+                {
+                  vis_duration = duration - start;
+                }
+
+                var beginning = start/duration;
+                var freq_start = 0;
+                if (beginning !== 0)
+                {
+                  freq_start = (freq_len * beginning) >> 0;
+                }
+
+                // skip frequencies that are before beginning
+                var total = vis_duration/duration;
+
+                if (total !== 1)
+                {
+                  new_freq_len = freq_len - (( (1-total) * freq_len) >> 0);
+                  jump = new_freq_len / pixels;
+                }
+
+                // console.log( pixels, freq_len, jump );
+
+                for (var i = 0; i < pixels; ++i)
+                {
+                  new_freqs[i] = freqs[ freq_start + (i * jump) >> 0];
+                }
+
+                return (new_freqs);
+              };
+
+              var resample = function (oldMatrix) {
+                  var columnsNumber = q.width;
+                  var newMatrix = [];
+                  var oldPiece = 1 / oldMatrix.length;
+                  var newPiece = 1 / columnsNumber;
+                  var i;
+
+                  debugger;
+
+                  for (i = 0; i < columnsNumber; i++)
+                  {
+                    var column = new Array(oldMatrix[0].length);
+                    var j = void 0;
+
+                    for (j = 0; j < oldMatrix.length; j++) {
+                      var oldStart = j * oldPiece;
+                      var oldEnd = oldStart + oldPiece;
+                      var newStart = i * newPiece;
+                      var newEnd = newStart + newPiece;
+                      var overlap = oldEnd <= newStart || newEnd <= oldStart ? 0 : Math.min(Math.max(oldEnd, newStart), Math.max(newEnd, oldStart)) - Math.max(Math.min(oldEnd, newStart), Math.min(newEnd, oldStart));
+                      var k = void 0;
+                      /* eslint-disable max-depth */
+
+                      if (overlap > 0) {
+                        for (k = 0; k < oldMatrix[0].length; k++) {
+                          if (column[k] == null) {
+                            column[k] = 0;
+                          }
+
+                          column[k] += overlap / newPiece * oldMatrix[j][k];
+                        }
+                      }
+                      /* eslint-enable max-depth */
+
+                    }
+
+                    var intColumn = new Uint8Array(oldMatrix[0].length);
+                    var m = void 0;
+
+                    for (m = 0; m < oldMatrix[0].length; m++) {
+                      intColumn[m] = column[m];
+                    }
+
+                    newMatrix.push(intColumn);
+                  }
+
+                  return newMatrix;
+              };
+
+var _colorMap = [[0,0,0,1],[0.011764705882352941,0,0,1],[0.023529411764705882,0,0,1],[0.03529411764705882,0,0,1],[0.047058823529411764,0,0,1],[0.058823529411764705,0,0,1],[0.07058823529411765,0,0,1],[0.08235294117647059,0,0,1],[0.09411764705882353,0,0,1],[0.10588235294117647,0,0,1],[0.11764705882352941,0,0,1],[0.12941176470588237,0,0,1],[0.1411764705882353,0,0,1],[0.15294117647058825,0,0,1],[0.16470588235294117,0,0,1],[0.17647058823529413,0,0,1],[0.18823529411764706,0,0,1],[0.2,0,0,1],[0.21176470588235294,0,0,1],[0.2235294117647059,0,0,1],[0.23529411764705882,0,0,1],[0.24705882352941178,0,0,1],[0.25882352941176473,0,0,1],[0.27058823529411763,0,0,1],[0.2823529411764706,0,0,1],[0.29411764705882354,0,0,1],[0.3058823529411765,0,0,1],[0.3176470588235294,0,0,1],[0.32941176470588235,0,0,1],[0.3411764705882353,0,0,1],[0.35294117647058826,0,0,1],[0.36470588235294116,0,0,1],[0.3764705882352941,0,0,1],[0.38823529411764707,0,0,1],[0.4,0,0,1],[0.4117647058823529,0,0,1],[0.4235294117647059,0,0,1],[0.43529411764705883,0,0,1],[0.4470588235294118,0,0,1],[0.4549019607843137,0,0,1],[0.4666666666666667,0,0,1],[0.47843137254901963,0,0,1],[0.49019607843137253,0,0,1],[0.5019607843137255,0,0,1],[0.5137254901960784,0,0,1],[0.5254901960784314,0,0,1],[0.5372549019607843,0,0,1],[0.5490196078431373,0,0,1],[0.5607843137254902,0,0,1],[0.5725490196078431,0,0,1],[0.5843137254901961,0,0,1],[0.596078431372549,0,0,1],[0.6078431372549019,0,0,1],[0.6196078431372549,0,0,1],[0.6313725490196078,0,0,1],[0.6431372549019608,0,0,1],[0.6549019607843137,0,0,1],[0.6666666666666666,0,0,1],[0.6784313725490196,0,0,1],[0.6901960784313725,0,0,1],[0.7019607843137254,0,0,1],[0.7137254901960784,0,0,1],[0.7254901960784313,0,0,1],[0.7372549019607844,0,0,1],[0.7490196078431373,0,0,1],[0.7607843137254902,0,0,1],[0.7725490196078432,0,0,1],[0.7843137254901961,0,0,1],[0.796078431372549,0,0,1],[0.807843137254902,0,0,1],[0.8196078431372549,0,0,1],[0.8313725490196079,0,0,1],[0.8431372549019608,0,0,1],[0.8549019607843137,0,0,1],[0.8666666666666667,0,0,1],[0.8784313725490196,0,0,1],[0.8901960784313725,0,0,1],[0.9019607843137255,0,0,1],[0.9019607843137255,0.011764705882352941,0,1],[0.9058823529411765,0.023529411764705882,0,1],[0.9058823529411765,0.03137254901960784,0,1],[0.9058823529411765,0.043137254901960784,0,1],[0.9098039215686274,0.054901960784313725,0,1],[0.9098039215686274,0.06666666666666667,0,1],[0.9098039215686274,0.07450980392156863,0,1],[0.9137254901960784,0.08627450980392157,0,1],[0.9137254901960784,0.09803921568627451,0,1],[0.9137254901960784,0.10980392156862745,0,1],[0.9176470588235294,0.11764705882352941,0,1],[0.9176470588235294,0.12941176470588237,0,1],[0.9176470588235294,0.1411764705882353,0,1],[0.9215686274509803,0.15294117647058825,0,1],[0.9215686274509803,0.1607843137254902,0,1],[0.9215686274509803,0.17254901960784313,0,1],[0.9254901960784314,0.1843137254901961,0,1],[0.9254901960784314,0.19607843137254902,0,1],[0.9254901960784314,0.20784313725490197,0,1],[0.9294117647058824,0.21568627450980393,0,1],[0.9294117647058824,0.22745098039215686,0,1],[0.9294117647058824,0.23921568627450981,0,1],[0.9333333333333333,0.25098039215686274,0,1],[0.9333333333333333,0.25882352941176473,0,1],[0.9333333333333333,0.27058823529411763,0,1],[0.9372549019607843,0.2823529411764706,0,1],[0.9372549019607843,0.29411764705882354,0,1],[0.9372549019607843,0.30196078431372547,0,1],[0.9411764705882353,0.3137254901960784,0,1],[0.9411764705882353,0.3254901960784314,0,1],[0.9411764705882353,0.33725490196078434,0,1],[0.9450980392156862,0.34509803921568627,0,1],[0.9450980392156862,0.3568627450980392,0,1],[0.9450980392156862,0.3686274509803922,0,1],[0.9490196078431372,0.3803921568627451,0,1],[0.9490196078431372,0.38823529411764707,0,1],[0.9490196078431372,0.4,0,1],[0.9529411764705882,0.4117647058823529,0,1],[0.9529411764705882,0.4235294117647059,0,1],[0.9529411764705882,0.43529411764705883,0,1],[0.9529411764705882,0.44313725490196076,0,1],[0.9568627450980393,0.4549019607843137,0,1],[0.9568627450980393,0.4666666666666667,0,1],[0.9568627450980393,0.47843137254901963,0,1],[0.9607843137254902,0.48627450980392156,0,1],[0.9607843137254902,0.4980392156862745,0,1],[0.9607843137254902,0.5098039215686274,0,1],[0.9647058823529412,0.5215686274509804,0,1],[0.9647058823529412,0.5294117647058824,0,1],[0.9647058823529412,0.5411764705882353,0,1],[0.9686274509803922,0.5529411764705883,0,1],[0.9686274509803922,0.5647058823529412,0,1],[0.9686274509803922,0.5725490196078431,0,1],[0.9725490196078431,0.5843137254901961,0,1],[0.9725490196078431,0.596078431372549,0,1],[0.9725490196078431,0.6078431372549019,0,1],[0.9764705882352941,0.6196078431372549,0,1],[0.9764705882352941,0.6274509803921569,0,1],[0.9764705882352941,0.6392156862745098,0,1],[0.9803921568627451,0.6509803921568628,0,1],[0.9803921568627451,0.6627450980392157,0,1],[0.9803921568627451,0.6705882352941176,0,1],[0.984313725490196,0.6823529411764706,0,1],[0.984313725490196,0.6941176470588235,0,1],[0.984313725490196,0.7058823529411765,0,1],[0.9882352941176471,0.7137254901960784,0,1],[0.9882352941176471,0.7254901960784313,0,1],[0.9882352941176471,0.7372549019607844,0,1],[0.9921568627450981,0.7490196078431373,0,1],[0.9921568627450981,0.7568627450980392,0,1],[0.9921568627450981,0.7686274509803922,0,1],[0.996078431372549,0.7803921568627451,0,1],[0.996078431372549,0.792156862745098,0,1],[0.996078431372549,0.8,0,1],[1,0.8117647058823529,0,1],[1,0.8235294117647058,0,1],[1,0.8235294117647058,0.011764705882352941,1],[1,0.8274509803921568,0.0196078431372549,1],[1,0.8274509803921568,0.03137254901960784,1],[1,0.8313725490196079,0.0392156862745098,1],[1,0.8313725490196079,0.050980392156862744,1],[1,0.8352941176470589,0.058823529411764705,1],[1,0.8352941176470589,0.07058823529411765,1],[1,0.8392156862745098,0.0784313725490196,1],[1,0.8392156862745098,0.09019607843137255,1],[1,0.8392156862745098,0.09803921568627451,1],[1,0.8431372549019608,0.10980392156862745,1],[1,0.8431372549019608,0.11764705882352941,1],[1,0.8470588235294118,0.12941176470588237,1],[1,0.8470588235294118,0.13725490196078433,1],[1,0.8509803921568627,0.14901960784313725,1],[1,0.8509803921568627,0.1568627450980392,1],[1,0.8549019607843137,0.16862745098039217,1],[1,0.8549019607843137,0.17647058823529413,1],[1,0.8549019607843137,0.18823529411764706,1],[1,0.8588235294117647,0.19607843137254902,1],[1,0.8588235294117647,0.20784313725490197,1],[1,0.8627450980392157,0.21568627450980393,1],[1,0.8627450980392157,0.22745098039215686,1],[1,0.8666666666666667,0.23529411764705882,1],[1,0.8666666666666667,0.24705882352941178,1],[1,0.8666666666666667,0.2549019607843137,1],[1,0.8705882352941177,0.26666666666666666,1],[1,0.8705882352941177,0.27450980392156865,1],[1,0.8745098039215686,0.28627450980392155,1],[1,0.8745098039215686,0.29411764705882354,1],[1,0.8784313725490196,0.3058823529411765,1],[1,0.8784313725490196,0.3137254901960784,1],[1,0.8823529411764706,0.3254901960784314,1],[1,0.8823529411764706,0.3333333333333333,1],[1,0.8823529411764706,0.34509803921568627,1],[1,0.8862745098039215,0.35294117647058826,1],[1,0.8862745098039215,0.36470588235294116,1],[1,0.8901960784313725,0.37254901960784315,1],[1,0.8901960784313725,0.3843137254901961,1],[1,0.8941176470588236,0.39215686274509803,1],[1,0.8941176470588236,0.403921568627451,1],[1,0.8980392156862745,0.4117647058823529,1],[1,0.8980392156862745,0.4235294117647059,1],[1,0.8980392156862745,0.43137254901960786,1],[1,0.9019607843137255,0.44313725490196076,1],[1,0.9019607843137255,0.45098039215686275,1],[1,0.9058823529411765,0.4627450980392157,1],[1,0.9058823529411765,0.47058823529411764,1],[1,0.9098039215686274,0.4823529411764706,1],[1,0.9098039215686274,0.49019607843137253,1],[1,0.9137254901960784,0.5019607843137255,1],[1,0.9137254901960784,0.5098039215686274,1],[1,0.9137254901960784,0.5215686274509804,1],[1,0.9176470588235294,0.5294117647058824,1],[1,0.9176470588235294,0.5411764705882353,1],[1,0.9215686274509803,0.5490196078431373,1],[1,0.9215686274509803,0.5607843137254902,1],[1,0.9254901960784314,0.5686274509803921,1],[1,0.9254901960784314,0.5803921568627451,1],[1,0.9254901960784314,0.5882352941176471,1],[1,0.9294117647058824,0.6,1],[1,0.9294117647058824,0.6078431372549019,1],[1,0.9333333333333333,0.6196078431372549,1],[1,0.9333333333333333,0.6274509803921569,1],[1,0.9372549019607843,0.6392156862745098,1],[1,0.9372549019607843,0.6470588235294118,1],[1,0.9411764705882353,0.6588235294117647,1],[1,0.9411764705882353,0.6666666666666666,1],[1,0.9411764705882353,0.6784313725490196,1],[1,0.9450980392156862,0.6862745098039216,1],[1,0.9450980392156862,0.6980392156862745,1],[1,0.9490196078431372,0.7058823529411765,1],[1,0.9490196078431372,0.7176470588235294,1],[1,0.9529411764705882,0.7254901960784313,1],[1,0.9529411764705882,0.7372549019607844,1],[1,0.9568627450980393,0.7450980392156863,1],[1,0.9568627450980393,0.7568627450980392,1],[1,0.9568627450980393,0.7647058823529411,1],[1,0.9607843137254902,0.7764705882352941,1],[1,0.9607843137254902,0.7843137254901961,1],[1,0.9647058823529412,0.796078431372549,1],[1,0.9647058823529412,0.803921568627451,1],[1,0.9686274509803922,0.8156862745098039,1],[1,0.9686274509803922,0.8235294117647058,1],[1,0.9725490196078431,0.8352941176470589,1],[1,0.9725490196078431,0.8431372549019608,1],[1,0.9725490196078431,0.8549019607843137,1],[1,0.9764705882352941,0.8627450980392157,1],[1,0.9764705882352941,0.8745098039215686,1],[1,0.9803921568627451,0.8823529411764706,1],[1,0.9803921568627451,0.8941176470588236,1],[1,0.984313725490196,0.9019607843137255,1],[1,0.984313725490196,0.9137254901960784,1],[1,0.984313725490196,0.9215686274509803,1],[1,0.9882352941176471,0.9333333333333333,1],[1,0.9882352941176471,0.9411764705882353,1],[1,0.9921568627450981,0.9529411764705882,1],[1,0.9921568627450981,0.9607843137254902,1],[1,0.996078431372549,0.9725490196078431,1],[1,0.996078431372549,0.9803921568627451,1],[1,1,0.9921568627450981,1],[1,1,1,1]];
+
+              /*
+              var _colorMap = [];
+              for (var _i = 0; _i < 256; _i++) {
+                var val = (255 - _i) / 256;
+                _colorMap.push([val, val, val, 1]);
+              }
+              */
+
+              var height = this.height;
+              var heightFactor = 1;
+
+              var pixels = resample2(frequencies);
+              var i;
+              var j;
+
+              //debugger;
+              this.canvases.forEach(function (entry) {
+
+                  var ll = 0;
+                  if (pixels[0]) { ll = pixels[0].length - 1; }
+
+                  // console.log ('ooo ', q.width, height, ll );
+                  
+                  if (!q.imagedata) {
+                    q.imagedata = entry.waveCtx.createImageData(q.width, height);
+                  }
+
+                  for (i = 0; i < pixels.length; i++) {
+                    for (j = 0; j < pixels[i].length; j++) {
+                      var colorMap = _colorMap[pixels[i][j]];
+
+                      var pixelindex = ((ll - j) * q.width + i) * 4;
+                      q.imagedata.data[pixelindex]   = colorMap[0] * 255;
+                      q.imagedata.data[pixelindex+1] = colorMap[1] * 255;
+                      q.imagedata.data[pixelindex+2] = colorMap[2] * 255;
+                      q.imagedata.data[pixelindex+3] = colorMap[3] * 255;
+
+                      //entry.waveCtx.fillStyle = 'rgba(' + colorMap[0] * 256 + ', ' + colorMap[1] * 256 + ', ' + colorMap[2] * 256 + ',' + colorMap[3] + ')';
+                      //entry.waveCtx.fillStyle = 'rgb(' + colorMap[0] * 256 + ', ' + colorMap[1] * 256 + ', ' + colorMap[2] * 256 + ')';
+                      //entry.waveCtx.fillRect(i, height - j * heightFactor, 1, heightFactor);
+                    }
+                  }
+
+                  entry.waveCtx.putImageData(q.imagedata, 0, 0);
+              });
+
+
+              /*
+              var spectrCc = my.spectrCc;
+              var height = my.height;
+              var pixels = my.resample(frequenciesData);
+              var heightFactor = my.buffer ? 2 / my.buffer.numberOfChannels : 1;
+              var i;
+              var j;
+
+              for (i = 0; i < pixels.length; i++) {
+                for (j = 0; j < pixels[i].length; j++) {
+                  var colorMap = my.colorMap[pixels[i][j]];
+                  my.spectrCc.fillStyle = 'rgba(' + colorMap[0] * 256 + ', ' + colorMap[1] * 256 + ', ' + colorMap[2] * 256 + ',' + colorMap[3] + ')';
+                  my.spectrCc.fillRect(i, height - j * heightFactor, 1, heightFactor);
+                }
+              }
+              */
+
+        }
         /**
          * Scroll to the beginning
          */
@@ -937,6 +1424,10 @@ var MultiCanvas = function (_Drawer) {
             }));
             entry.waveCtx = entry.wave.getContext('2d', {alpha:false, antialias:false});
 
+            entry.waveCtx.font = "12px Arial lighter";
+            // entry.waveCtx.textAlign = "center";
+
+
             if (this.hasProgressCanvas) {
                 entry.progress = this.progressWave.appendChild(this.style(document.createElement('canvas'), {
                     position: 'absolute',
@@ -1346,7 +1837,7 @@ var MultiCanvas = function (_Drawer) {
 
                 if (zoom >= 1)
                 {
-                        width *= PKAudioEditor.engine.wavesurfer.ZoomFactor;
+                        width *= zoom;
 
                         var percentage = offs / total;
                         var left_offset = (percentage * width);
@@ -1356,29 +1847,25 @@ var MultiCanvas = function (_Drawer) {
                         var x = 0;
                         var pixel_distance = (width / total);
 
-                        ctx.font = "12px Arial lighter";
-                        ctx.textAlign = "center";
-                        
-                        ctx.fillStyle = "#111";
+                        //ctx.font = "12px Arial lighter";
+                        ctx.textAlign = 'center';
+
+                        ctx.fillStyle = '#111';
                         ctx.fillRect(0, 0, this.width, 24);
-                        ctx.fillStyle = "#aaa";
+                        ctx.fillStyle = '#aaa';
                         ctx.strokeStyle = '#aaa';
 
-                        // every 50 pixels put something
+                        // every 60 pixels put something
                         // console.log( pixel_distance );
 
-                        if (pixel_distance < 80) {
-                            pixel_distance = 80;
+                        if (pixel_distance < 60) {
+                            pixel_distance = 60;
                         }
-
-                        if (pixel_distance > 160)
+                        else if (pixel_distance > 160)
                         {
-  //                          console.log( pixel_distance );
-
                             pixel_distance /= ((pixel_distance / 160) >> 0) + 1;
-
-//                            console.log( pixel_distance );
                         }
+
 
                         var elements = width / pixel_distance;
                         var previous_time = 0;
@@ -3718,6 +4205,13 @@ var WaveSurfer = function (_util$Observer) {
                 var width = _this5.drawer.width;
                 var duration = _this5.VisibleDuration;
 
+                var last_ = width * (_this5.ZoomFactor - (step/Math.abs(step))) >> 0;
+                var sampleSize_ = _this5.backend.buffer.length / last_;
+                if (sampleSize_ < 1.0) {
+                    return ;
+                }
+
+
                 if (!where) where = 0.5; // make "where" be the cursor? #### 
 
                 if (step < 0) {
@@ -3815,8 +4309,10 @@ var WaveSurfer = function (_util$Observer) {
             var ppp = (this.ActiveMarker - left_offset) * this.ZoomFactor;
             var minPxDelta = 1 / this.drawer.params.pixelRatio;
             var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
-            this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
 
+            //if (pos > -40) {
+                this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+            //}
 
             // this.drawer.CursorMarker.style.left =  sleft;
             this.drawer.progress(percent, left_offset, this.ZoomFactor);
@@ -3840,7 +4336,11 @@ var WaveSurfer = function (_util$Observer) {
             var ppp = (this.ActiveMarker - left_offset) * this.ZoomFactor;
             var minPxDelta = 1 / this.drawer.params.pixelRatio;
             var pos = Math.round(ppp * this.drawer.width) * minPxDelta;
-            this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+
+            //if (pos > -40) {
+                this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
+            //}
+            //this.drawer.CursorMarker.style.transform = 'translate(' + pos + 'px,0)';
 
            // this.drawer.ZMarker.style.left = (this.ActiveMarker  * 100) + '%';
             this.drawer.progress(percent, left_offset, this.ZoomFactor);
@@ -4562,10 +5062,30 @@ var WaveSurfer = function (_util$Observer) {
 
             var start = this.LeftProgress;
             var end = width * this.ZoomFactor >> 0;
-
-
             var peaks = void 0;
+            //var spectre = void 0;
 
+            /*
+            if (true) // (this.Spectrogram)
+            {
+
+              if (!this.spectre)
+              {
+                var t0 = window.performance.now ();
+                this.spectre = this.backend.getSpectre(width, start, end, force, this.drawer);
+                console.log( "spectre freq: ", (window.performance.now () - t0));
+              }
+
+              var t1 = window.performance.now ();
+              this.drawer.drawSpectre(this.spectre, width, start, end, this.VisibleDuration,this.getDuration(), this.backend.buffer.sampleRate);
+              console.log( "spectre draw: ", (window.performance.now () - t1));
+
+              // this.fireEvent('redraw', peaks, width);
+              return ;
+            }
+            */
+
+            // console.log( width, start, end );
             peaks = this.backend.getPeaks(width, start, end, force);
             this.drawer.drawPeaks(peaks, width, 0, end, peaks.length, this.backend.shift);
 
@@ -5768,6 +6288,49 @@ var WebAudio = function (_util$Observer) {
          */
 
     }, {
+        key: 'getSpectre',
+        value: function getSpectre(length, first, last, force, drawer) {
+            first = first * this.buffer.sampleRate;
+            last = last || length - 1;
+
+            var fftSamples = 512; //this.fftSamples;
+            var buffer = this.buffer;
+            var channelOne = buffer.getChannelData(0);
+            var bufferLength = buffer.length;
+            var sampleRate = buffer.sampleRate;
+            var frequencies = [];
+
+            var noverlap = 0;
+
+            // debugger;
+            //if (!noverlap) {
+            //  var uniqueSamplesPerPx = buffer.length / 1376; // drawer.canvases[0].wave.width;
+            //  noverlap = Math.max(0, Math.round(fftSamples - uniqueSamplesPerPx));
+            //}
+
+            var fft = new FFT(fftSamples, sampleRate, this.windowFunc, this.alpha);
+            var maxSlicesCount = Math.floor(bufferLength / (fftSamples - noverlap));
+            var currentOffset = 0; //first;
+            var maxOffset = channelOne.length;
+
+            while (currentOffset + fftSamples < maxOffset) {
+              var segment = channelOne.slice(currentOffset, currentOffset + fftSamples);
+              var spectrum = fft.calculateSpectrum(segment);
+              var array = new Uint8Array(fftSamples / 2);
+              var j = void 0;
+
+              for (j = 0; j < fftSamples / 2; j++) {
+                array[j] = Math.max(-255, Math.log10(spectrum[j]) * 45);
+              }
+
+              frequencies.push(array);
+              currentOffset += fftSamples - noverlap;
+            }
+
+            return (frequencies);
+        // ---
+      }
+    }, {
         key: 'getPeaks',
         value: function getPeaks(length, first, last, force) {
 
@@ -5794,7 +6357,7 @@ var WebAudio = function (_util$Observer) {
             var sampleStep = ~~(sampleSize / 10) || 1;
 
             if (sampleStep > 32) sampleStep = 32; // todo
-            if (sampleStep < 6) sampleStep = 6;
+            else if (sampleStep < 6) sampleStep = 6;
 
             var channels = this.buffer.numberOfChannels;
             var c = void 0;
@@ -5830,6 +6393,7 @@ var WebAudio = function (_util$Observer) {
 
                      //   if (abs_shift > 0.5) {
                         shift = Math.round ( shift );
+                        first = this.peaksStart - (shift * sampleSize);
 
                         shift = (shift * 2);
                         //    shift = Math.round ( Math.abs (shift) ) * (shift < 0 ? - 1 : 1);
@@ -5849,8 +6413,8 @@ var WebAudio = function (_util$Observer) {
 
 //console.log( peaks[0], peaks[1], peaks[2], peaks[3], peaks[4], peaks[5], peaks[6] , peaks[7] , peaks[8] , peaks[9] , peaks[10] );
 
-this.splitPeaks[c] = peaks.slice(-shift);
-//peaks.copyWithin(0, -shift);
+                                //this.splitPeaks[c] = peaks.slice(-shift);
+                                peaks.copyWithin(0, -shift);
 
 //console.log( peaks[0], peaks[1], peaks[2], peaks[3], peaks[4], peaks[5], peaks[6] , peaks[7] , peaks[8] , peaks[9] , peaks[10] );
 
@@ -5875,6 +6439,34 @@ this.splitPeaks[c] = peaks.slice(-shift);
                 }
             }
 
+
+
+            /*
+            if (!window.test123)
+            {
+                window.test123 = true;
+                var heapf32 = new Float32Array ( ASM_HEAP );
+                //var heapI32 = new Uint32Array ( ASM_HEAP );
+
+                // init
+                // length
+                // sampleSize
+                // first 
+
+                //heapI32[0] = init;
+                //heapI32[1] = length;
+                //heapI32[2] = first;
+                //heapf32[3] = sampleSize;
+
+                heapf32.set (this.buffer.getChannelData(0), 0);
+
+                ASM_LIB.GetPeaks (init, length, first, sampleStep, sampleSize);
+            }
+            */
+
+
+
+
             for (c = 0; c < channels; ++c) {
                 var peaks = this.splitPeaks[c];
                 var chan = this.buffer.getChannelData(c);
@@ -5891,6 +6483,7 @@ this.splitPeaks[c] = peaks.slice(-shift);
                         var value = chan[j];
 
 
+                        /*
                         if (this.reg) {
                             if (j >= this.reg.pos.start && j <= this.reg.pos.end) {
                                 // take the value from the buffer
@@ -5902,6 +6495,8 @@ this.splitPeaks[c] = peaks.slice(-shift);
                             }
                             // ----
                         }
+                        */
+
 
                         if (value > max) {
                             max = value;
@@ -5918,6 +6513,7 @@ this.splitPeaks[c] = peaks.slice(-shift);
                    // {
                    //     console.log(1);
                    // }
+                   // console.log( 'bb ', 2 * i, max );
 
                     peaks[2 * i] = max;
                     peaks[2 * i + 1] = min;

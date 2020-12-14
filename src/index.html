@@ -4,6 +4,8 @@
 	<title>AudioMass - Audio Editor</title>
 	<link href="ico.png" rel="shortcut icon">
 	<meta charset="utf-8" />
+	<link rel="manifest" href="manifest.json">
+
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"/>
 
@@ -60,7 +62,15 @@
 	<script src="multitrack.js"></script>
 	<script src="multitrack-ui.js"></script>
 -->
-	<script> var editor = PKAudioEditor.init ('app'); </script>
+	<script>
+		var editor = PKAudioEditor.init ('app');
+
+		if ('serviceWorker' in navigator) {
+			try {
+				navigator.serviceWorker.register( 'sw.js' );
+			} catch ( error ) {}
+		}
+	</script>
 
 </body>
 </html>

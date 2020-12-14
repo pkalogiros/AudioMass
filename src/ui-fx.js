@@ -455,7 +455,7 @@
 						var offset = 0;
 
 						if (radios[1].checked)
-							offset = PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(2)/1;
+							offset = PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(3)/1;
 
 						if (value > 0.001)
 							UI.fireEvent ('RequestActionSilence', offset, value);

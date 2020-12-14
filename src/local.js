@@ -134,7 +134,7 @@
 				created: new Date().getTime(),
 				data: arr_buffs,
 				data2: arr_buffs2,
-				durr: buffer.duration.toFixed(2)/1,
+				durr: buffer.duration.toFixed(3)/1,
 				chans: chans,
 				comp: compression,
 				thumb: PKAudioEditor.engine.GetWave (buffer),
