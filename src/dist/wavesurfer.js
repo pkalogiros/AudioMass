@@ -6395,6 +6395,8 @@ var WebAudio = function (_util$Observer) {
                         shift = Math.round ( shift );
                         first = this.peaksStart - (shift * sampleSize);
 
+                        first = this.peaksStart - (shift * sampleSize);
+
                         shift = (shift * 2);
                         //    shift = Math.round ( Math.abs (shift) ) * (shift < 0 ? - 1 : 1);
 
