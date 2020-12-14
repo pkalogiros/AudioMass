@@ -367,11 +367,12 @@ var Region = function () {
             this.firedOut = false;
 
             var onProcess = function onProcess(time) {
-                // ####
-                // no real need to cut audio at 2 decimal points.
-                // if (!_this3.firedOut && _this3.firedIn && (_this3.start >= Math.round(time * 100) / 100 || _this3.end <= Math.round(time * 100) / 100)) {
+                // #### ok, it seems that latency is at 5.8ms, so we cannot accurately stop... Thus the 0.0028 magic number
+                // this will probably be worse on other systems, but until we kill wavesurfer and migrate to AudioWorklet
+                // this should do...
 
-                    if (!_this3.firedOut && _this3.firedIn && (_this3.start >= time || _this3.end <= time)) {
+                if (!_this3.firedOut && _this3.firedIn && (_this3.start >= Math.round(time * 1000) / 1000 || _this3.end <= (time + 0.0028)  ) ) {
+                // if (!_this3.firedOut && _this3.firedIn && (_this3.start >= Math.round(time * 1000) / 1000 || _this3.end <= Math.round(time * 1000) / 1000)) {
                     _this3.firedOut = true;
                     _this3.firedIn = false;
                     _this3.fireEvent('out');
@@ -1027,17 +1028,18 @@ var RegionsPlugin = function () {
             };
 
             var right_mouse = null;
+
+            /////////////////////////////////////////////////////////////
+            /////////////////////////////////////////////////////////////
+            //////////////////////// EVENT DOWN /////////////////////////
             var eventDown = function eventDown(e) {
                 right_mouse = null;
-                if (e.touches) {
-
+                if (e.touches)
+                {
                     e.preventDefault (); // ####
                     if (e.touches.length > 1) {
                         return;
                     }
-                    // else {
-                    //
-                    // }
                 }
                 if (e.which === 3) {
                     right_mouse = {x:e.pageX, y:e.pageY};
@@ -1057,6 +1059,12 @@ var RegionsPlugin = function () {
 
                 region = null;
                 scrollDirection = null;
+
+
+                // add listeners for event move...
+                document.body.addEventListener('mousemove', eventMove);
+                document.body.addEventListener('touchmove', eventMove);
+                // ------------------------------
 
                 // if shift key is press add region!
                 if (PKAudioEditor.ui.KeyHandler.keyMap[16]) {
@@ -1110,6 +1118,9 @@ var RegionsPlugin = function () {
                 }
                 // -
             };
+            // ENDOF EVENT DOWN
+            ////////////////////////////////
+
 
             //if (('PointerEvent' in window) && !(window.ontouchstart) )
             //    this.wrapper.addEventListener('pointerdown', eventDown);
@@ -1152,6 +1163,12 @@ var RegionsPlugin = function () {
 
                 _this8.wavesurfer.Interacting &= ~(1 << 0);
 
+                if (drag)
+                {
+                    document.body.removeEventListener('mousemove', eventMove);
+                    document.body.removeEventListener('touchmove', eventMove);
+                }
+
                 drag = false;
                 pxMove = 0;
                 scrollDirection = null;
@@ -1175,6 +1192,7 @@ var RegionsPlugin = function () {
                 _this8.wrapper.removeEventListener('touchend', eventUp);
                 _this8.wrapper.removeEventListener('mouseup', eventUp);
             });
+
 
             var eventMove = function eventMove(e) {
                 if (!drag) {
@@ -1224,8 +1242,11 @@ var RegionsPlugin = function () {
             //    this.wrapper.addEventListener('pointermove', eventMove);
             //else
             //{
-                this.wrapper.addEventListener('mousemove', eventMove);
-                this.wrapper.addEventListener('touchmove', eventMove);
+
+                // ####
+                // this.wrapper.addEventListener('mousemove', eventMove);
+                // this.wrapper.addEventListener('touchmove', eventMove);
+
             //}
 
             this.on('disable-drag-selection', function () {
@@ -1233,8 +1254,11 @@ var RegionsPlugin = function () {
                 //    _this8.wrapper.removeEventListener('pointermove', eventMove);
                 //else
                 //{
-                    _this8.wrapper.removeEventListener('touchmove', eventMove);
-                    _this8.wrapper.removeEventListener('mousemove', eventMove);
+                    // _this8.wrapper.removeEventListener('touchmove', eventMove);
+                    // _this8.wrapper.removeEventListener('mousemove', eventMove);
+
+                    document.body.removeEventListener('mousemove', eventMove);
+                    document.body.removeEventListener('touchmove', eventMove);
                 //}
             });
         }

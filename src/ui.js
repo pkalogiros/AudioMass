@@ -220,7 +220,7 @@
 									
 								  setup:function( q ) {
 								  		var wv = PKAudioEditor.engine.wavesurfer;
-								  		console.log( document.getElementById('frmtex') );
+								  		//console.log( document.getElementById('frmtex') );
 
 								  		// if no region
 										var region = wv.regions.list[0];
@@ -274,6 +274,8 @@
 						},
 						clss: 'pk_inact',
 						setup: function ( obj ) {
+							obj.setAttribute('data-id', 'dl');
+
 							app.listenFor ('DidUnloadFile', function () {
 								obj.classList.add ('pk_inact');
 							});
@@ -467,7 +469,7 @@
 										lblr.className = 'pk_dis';
 									} else {
 										q.el_body.getElementsByClassName('pk_check')[1].checked = true;
-										lblr.childNodes[1].innerText = app.ui.formatTime(region.start) + ' to ' + app.ui.formatTime(region.end);
+										lblr.childNodes[1].textContent = app.ui.formatTime(region.start) + ' to ' + app.ui.formatTime(region.end);
 									}
 
 									// if no copy buffer
@@ -874,7 +876,7 @@
 								}
 								else
 								{
-									obj.innerHTML = 'Redo&nbsp;<i style="pointer-events:none">' + redo_states[redo_states.length - 1].desc  + '</i><span class="pk_shrtct">Shft+Y</span>';
+									obj.innerHTML = 'Redo&nbsp;<i style="pointer-events:none">' + redo_states[0].desc  + '</i><span class="pk_shrtct">Shft+Y</span>';
 									obj.classList.remove ('pk_inact');
 								}
 							});
@@ -1393,6 +1395,10 @@
 				target_el.parentNode.className = _default_class;
 			}
 
+			if (index === -1) {
+				index = target_index === -1 ? 0 : target_index;
+			}
+
 			var curr_target = top_els[ index ];
 			target_el = curr_target;
 
@@ -1800,6 +1806,7 @@
 		wavepoint.className = 'pk_wavepoint';
 
 		var wavedrag = d.createElement ( 'div' );
+		var wavedrag_style = wavedrag.style;
 		wavedrag.className = 'pk_wavedrag pk_inact';
 
 		var wavedrag_left = d.createElement ( 'div' );
@@ -1855,7 +1862,8 @@
 				{
 					wavepoint.style.display = 'block';
 					var perc = app.engine.wavesurfer.getCurrentTime() / app.engine.wavesurfer.getDuration ();
-					wavepoint.style.left = ((perc * 100).toFixed(2)/1) + '%';
+					// wavepoint.style.left = ((perc * 100).toFixed(2)/1) + '%';
+					wavepoint.style.left = ((perc * 10000)>>0)/100 + '%';
 					wavepoint_visible = true;
 				}
 			}
@@ -1864,23 +1872,26 @@
 			if ((100/e) > 99)
 			{
 				wavedrag_width = 100;
-				wavedrag.style.width = '100%';
-				wavedrag.style.left =  '0%';
-				//wavedrag.style.transform = 'translate3d(0,0,0)';
+				wavedrag_style.width = '100%';
+				wavedrag_style.left =  '0%';
+				//wavedrag_style.transform = 'translate(0,0)';
 				wavedrag.classList.add ('pk_inact');
 			}
 			else
 			{
 				wavedrag_width = (100/e);
-				wavedrag.style.width = wavedrag_width + '%';
-				wavedrag.style.left =  o + '%';
-				// wavedrag.style.transform = 'translate3d(' + o + '%,0,0)';
+				wavedrag_style.width = wavedrag_width + '%';
+				wavedrag_style.left =  o + '%';
+				//wavedrag_style.transform = 'translate(' +  (e * o) + '%,0)';
 				wavedrag.classList.remove ('pk_inact');
 			}
 		});
-		UI.listenFor ('DidCursorCenter', function( val ) {
-			wavedrag.style.left = (val * 100) + '%';
-			// wavedrag.style.transform = 'translate3d(' + (val * 100) + '%,0,0)';
+		UI.listenFor ('DidCursorCenter', function( val, zoom ) {
+
+			requestAnimationFrame(function () {
+				wavedrag_style.left = (val * 100) + '%';
+				//wavedrag_style.transform = 'translate(' + (val * zoom * 100) + '%,0)';
+			});
 		});
 		
 		var drag_mode = 0;
@@ -2047,7 +2058,7 @@
 		});
 		UI.listenFor ('DidProgressModal', function ( val ) {
 			UI.loaderEl.getElementsByTagName('span')[1].style.display = 'block';
-			UI.loaderEl.getElementsByTagName('span')[1].innerText = val + '%';
+			UI.loaderEl.getElementsByTagName('span')[1].textContent = val + '%';
 		});
 	}
 
@@ -2293,6 +2304,9 @@
 			// get zoom factor
 			var jump = 0.5;
 			var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+			var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();			
+
+			jump = Math.max(total_dur / 200, 0.05);
 			jump /= zoom;
 			jump *= k_arr_bck_mult;
 
@@ -2320,6 +2334,10 @@
 
 			var jump = 0.5;
 			var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+			var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();			
+
+			jump = Math.max(total_dur / 200, 0.05);
+
 			jump /= zoom;
 			jump *= k_arr_frnt_mult;
 
@@ -2447,22 +2465,77 @@
 			UI.fireEvent ('RequestViewCenterToCursor');
 		}, [9]);
 
+		var is_chrome = !!window.chrome;
 		var timing = d.createElement( 'div' );
 		timing.className = 'pk_timecontainer';
 
 		var timingspan = d.createElement( 'span' );
-		timingspan.innerText = '00:00:000';
-		timingspan.className = 'pk_timing';
-		timing.appendChild( timingspan );
-		this.timing_el = timingspan;
-		
+
+		if (!is_chrome)
+		{
+			timingspan.textContent = '00:00:000';
+			timingspan.className = 'pk_timing';
+			timing.appendChild( timingspan );
+		}
+
+		/////
+		var pk_timingcnv = d.createElement( 'canvas' );
+		pk_timingcnv.className = 'pk_timingcnv';
+		pk_timingcnv.width = 150;
+		pk_timingcnv.height = 40;
+		var pk_timingnum = '00:00:000';
+		var pk_timingctx = pk_timingcnv.getContext('2d', {alpha:false});
+		var timing_caches = {};
+
+		if (is_chrome)
+		{
+			timing.appendChild( pk_timingcnv );
+			pk_timingctx.fillStyle = "#000";
+			pk_timingctx.fillRect(0, 0, 150, 40);
+
+			for (var ii = 0; ii < 11; ++ii)
+			{
+				var curr_cache = d.createElement('canvas');
+				curr_cache.width = 18;
+				curr_cache.height = 26;
+				var curr_ctx = curr_cache.getContext('2d', {alpha:false});
+				curr_ctx.font = "29px Helvetica, Arial, sans-serif";
+				curr_ctx.textAlign = "center";
+				curr_ctx.fillStyle = "#000";
+				curr_ctx.fillRect(0, 0, 18, 26);
+				curr_ctx.fillStyle = "#fff";
+				curr_ctx.textBaseline = 'middle';
+
+				if (ii === 10) {
+					curr_ctx.fillText (':', 8, 14);
+					timing_caches[':'] = curr_cache;
+				}
+				else {
+					curr_ctx.fillText (ii + '', 9, 14);
+					timing_caches[ii+''] = curr_cache;
+				}
+				// timing_caches.push (curr_cache);
+				// document.body.appendChild( curr_cache );
+			}
+
+			(function (pk_timingctx, timing_caches){
+				var ttm = '00:00:000';
+				for (var jk = 0; jk < ttm.length; ++jk)
+				{
+					pk_timingctx.drawImage (timing_caches[ttm[jk]], jk * 16, 10);
+				}
+			})(pk_timingctx, timing_caches);
+		}
+		/////
+
+
 		var total_duration = d.createElement( 'span' );
-		total_duration.innerText = '00:00:000';
+		total_duration.textContent = '00:00:000';
 		total_duration.className = 'pk_total_dur';
 		timing.appendChild( total_duration );
 		
 		var hover_duration = d.createElement( 'span' );
-		hover_duration.innerText = '00:00:000';
+		hover_duration.textContent = '00:00:000';
 		hover_duration.className = 'pk_hover_dur';
 		timing.appendChild( hover_duration );
 
@@ -2562,11 +2635,9 @@
 		});
 		
 		function formatTime( time ) {
-			// if (time === 0) return '00:00:000';
-
 			var time_s = time >> 0;
-			var miliseconds = ((time - time_s) * 1000) >> 0;
-			
+			var miliseconds = time - time_s;
+
 			if (time_s < 10)
 			{
 				if (time === 0) return '00:00:000';
@@ -2582,8 +2653,13 @@
 				var s = (time_s % 60);
 				time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
 			}
-			
-			return time_s + ':' + (miliseconds < 10 ? '00'+miliseconds : miliseconds < 100 ? '0'+miliseconds : miliseconds);
+
+			if (miliseconds < 0.1)
+			{
+				return time_s + ':0' + (miliseconds < 0.01 ? '0' : '') + ((miliseconds*1000)>>0);
+			}
+
+			return time_s + ':' + ((miliseconds*1000)>>0); // (miliseconds+'').substr(2, 3);
 		}
 		UI.formatTime = formatTime;
 		
@@ -2605,15 +2681,43 @@
 
 			old_refresh = new_refresh;
 
-			if (time > -1) {
-				timingspan.innerText = formatTime (time);
+			if (time > -1)
+			{
+				if (!is_chrome)
+				{
+					timingspan.textContent = formatTime (time);
+				}
+				else
+				{
+					var ttm = formatTime (time);
+					var exit = false;
+
+					for (var jk = 0; jk < ttm.length; ++jk)
+					{
+						if (!exit)
+						{
+							if (ttm[jk] === pk_timingnum[jk]) {
+								continue;
+							}
+							else {
+								// pk_timingctx.clearRect ((jk * 16), 10, (9 - jk) * 16, 35);
+								exit = true;
+							}
+						}
+
+						pk_timingctx.drawImage (timing_caches[ttm[jk]], jk * 16, 10);
+					}
+					pk_timingnum = ttm;
+				}
+
 				
 				if (PKAudioEditor.engine.wavesurfer.ZoomFactor > 1)
 				{
 					var perc = time / PKAudioEditor.engine.wavesurfer.getDuration ();
 
 					if (!wvpnt) wvpnt = document.querySelector('.pk_wavepoint');
-					wvpnt.style.left = ((perc * 100).toFixed(2)/1) + '%';
+					wvpnt.style.left = ((perc * 10000)>>0)/100 + '%';
+					// wvpnt.style.left = ((perc * 100).toFixed(2)/1) + '%';
 				}
 			}
 
@@ -2754,7 +2858,7 @@
 		var btn_clear_selection = d.createElement ('button');
 		btn_clear_selection.setAttribute('tabIndex', -1);
 		btn_clear_selection.className = 'pk_btn icon-clearsel pk_inact';
-		btn_clear_selection.innerHTML = '<span>Clear Selection (~ tilda)</span>';
+		btn_clear_selection.innerHTML = '<span>Clear Selection (Q key)</span>';
 
 		var sel_spans = selection.getElementsByClassName('pk_dat');
 		UI.listenFor ('DidCreateRegion', function ( region ) {
@@ -2765,9 +2869,9 @@
 			if (region)
 			{
 				if (!sel_spans[0]) sel_spans = document.querySelectorAll('.pk_sellist .pk_dat');
-				sel_spans[0].innerText = region.start.toFixed(3);
-				sel_spans[1].innerText = region.end.toFixed(3);
-				sel_spans[2].innerText = (region.end - region.start).toFixed(3);
+				sel_spans[0].textContent = region.start.toFixed(3);
+				sel_spans[1].textContent = region.end.toFixed(3);
+				sel_spans[2].textContent = (region.end - region.start).toFixed(3);
 			}
 		});
 		UI.listenFor ('DidDestroyRegion', function () {
@@ -2776,9 +2880,9 @@
 			btn_clear_selection.classList.add  ('pk_inact');
 
 			if (!sel_spans[0]) sel_spans = document.querySelectorAll('.pk_sellist .pk_dat');
-			sel_spans[0].innerText = '-';
-			sel_spans[1].innerText = '-';
-			sel_spans[2].innerText = '-';
+			sel_spans[0].textContent = '-';
+			sel_spans[1].textContent = '-';
+			sel_spans[2].textContent = '-';
 		});
 		
 		btn_clear_selection.onclick = function () {

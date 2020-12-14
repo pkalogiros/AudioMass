@@ -148,6 +148,7 @@
 				if (e.files[0].type == "audio/mp3"
 					|| e.files[0].type == "audio/wave"
 					|| e.files[0].type == "audio/mpeg"
+					|| e.files[0].type == "audio/aiff"
 					|| e.files[0].type == "audio/flac"
 					|| e.files[0].type == "audio/ogg")
 				{
@@ -264,8 +265,9 @@
 					}
 				});
 
-				wavesurfer.load ('test.mp3');
+				app.fireEvent ('RequestZoomUI', 0);
 				q.is_ready = false;
+				wavesurfer.load ('test.mp3');
 			}, 180);
 		}
 		this.LoadURL = function ( url ) {
@@ -537,10 +539,26 @@
 		}, 32);
 
 		app.ui.KeyHandler.addSingleCallback ('KeyTilda', function ( e ) {
+			var open_el = app.ui.TopHeader.getOpenElement();
+
+			if (open_el)
+			{
+				app.ui.TopHeader.closeMenu ();
+				e.preventDefault();
+				return ;
+			}
+
+			if (app.ui.InteractionHandler.on) return ;
+			e.preventDefault();
+
+			app.ui.TopHeader.openMenu (-1);
+		}, 96);
+
+		app.ui.KeyHandler.addSingleCallback ('KeyQ', function ( e ) {
 			if (app.ui.InteractionHandler.on) return ;
 			e.preventDefault();
 			app.fireEvent ('RequestDeselect');
-		}, 96);
+		}, 113);
 
 
 		app.ui.KeyHandler.addCallback ('kF12', function ( k, i, e ) {
@@ -556,7 +574,6 @@
 		app.ui.KeyHandler.addCallback ('KeyShiftSpace' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
 			wavesurfer.playPause();
-			
 		}, [16, 32]);
 		app.ui.KeyHandler.addCallback ('KeySpace' + app.id, function ( key, map ) {
 			if (app.ui.InteractionHandler.on) return ;			
@@ -606,7 +623,13 @@
 			e.stopPropagation();
 			app.fireEvent ('RequestSetLoop');
 		}, 108);
-		
+		app.ui.KeyHandler.addCallback ('KeyShiftSave' + app.id, function ( key ) {
+			if (app.ui.InteractionHandler.on) return ;
+			
+			// fire event to open the save menu
+			document.querySelector('.pk_opt[data-id="dl"]').click();
+		}, [16, 83]);
+
 		wavesurfer.container.addEventListener('mousedown', function(e) {
 			if (e.which === 3) {
 				// wavesurfer.regions.clear();
@@ -627,14 +650,14 @@
 			if (!custom)
 			{
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.000,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				
 				if (!wavesurfer.isPlaying ())
 				setTimeout(function () {
-					app.fireEvent ('RequestSeekTo',0.001);
+					app.fireEvent ('RequestSeekTo', 0.00);
 				},0);	
 			}
 			else
@@ -1167,8 +1190,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1198,8 +1221,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1232,8 +1255,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1260,8 +1283,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1287,8 +1310,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1318,8 +1341,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1347,8 +1370,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1378,8 +1401,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1407,8 +1430,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1438,8 +1461,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1467,8 +1490,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1499,8 +1522,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1532,8 +1555,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1566,8 +1589,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1600,8 +1623,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.0,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1611,7 +1634,6 @@
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
-
 
 						var originalBuffer = wavesurfer.backend.buffer;
 						var sil_arr = [];
@@ -1822,7 +1844,7 @@
 
 				_compute_channels ();
 
-				app.fireEvent ('RequestSeekTo', 0.001);
+				app.fireEvent ('RequestSeekTo', 0.00);
 			}
 			else if (val === 'mono')
 			{
@@ -1850,7 +1872,7 @@
 
 				_compute_channels ();
 
-				app.fireEvent ('RequestSeekTo', 0.001);
+				app.fireEvent ('RequestSeekTo', 0.00);
 			}
 
 			OneUp ('Applied Channel Change: ' + val);
@@ -1874,8 +1896,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1907,8 +1929,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1940,8 +1962,8 @@
 			
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -1993,8 +2015,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -2026,8 +2048,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -2055,8 +2077,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -2088,8 +2110,8 @@
 
 			if (!region) {
 				wavesurfer.regions.add({
-					start:0.001,
-					end:wavesurfer.getDuration() - 0.001,
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
 				region = wavesurfer.regions.list[0];
@@ -2307,7 +2329,7 @@
 				app.fireEvent ('RequestSeekTo', (start/wavesurfer.getDuration() ));
 		});
 		wavesurfer.on( 'cursorcenter', function ( e ) {
-			app.fireEvent ('DidCursorCenter', e);
+			app.fireEvent ('DidCursorCenter', e, wavesurfer.ZoomFactor);
 		});
 		
 		var wave = wavesurfer.drawer.canvases[0].wave.parentNode;
