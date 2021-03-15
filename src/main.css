@@ -403,6 +403,29 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	cursor:text;
 }
 
+#pk_prgwv{
+	position: absolute;
+	z-index: 3;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	background:#ff8c35;
+	width:1px;
+	display: none;
+	/*box-sizing: 'border-box'*/
+	transform: translate3d(0,0,0);
+	pointer-events:none;
+}
+
+/*
+#pk_prgwv:after{
+	content: '';
+	display:block;
+	background:#ff8c35;
+	width:1px;
+	height:100%;
+}*/
+
 /*.pk_mob .pk_av{
 	width:calc(100% - 28px);
 }*/
