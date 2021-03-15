@@ -628,7 +628,9 @@ var Drawer = function (_util$Observer) {
             !noPrevent && e.preventDefault();
 
             var clientX = (e.targetTouches && e.targetTouches[0]) ? e.targetTouches[0].clientX : e.clientX;
-            var bbox = this.wrapper.getBoundingClientRect();
+
+
+            var bbox = this._bbox; // this.wrapper.getBoundingClientRect();
 
             var nominalWidth = this.width;
             var parentWidth = this.getWidth();
@@ -1332,7 +1334,7 @@ var MultiCanvas = function (_Drawer) {
         key: 'createElements',
         value: function createElements() {
             this.progressWave = this.wrapper.appendChild(this.style(document.createElement('wave'), {
-                position: 'absolute',
+/*                position: 'absolute',
                 zIndex: 3,
                 left: 0,
                 top: 0,
@@ -1343,7 +1345,9 @@ var MultiCanvas = function (_Drawer) {
                 boxSizing: 'border-box',
                 borderRightStyle: 'solid',
                 pointerEvents: 'none'
+*/
             }));
+            this.progressWave.id = 'pk_prgwv';
 
             this.addCanvas();
 
@@ -1352,7 +1356,7 @@ var MultiCanvas = function (_Drawer) {
             this.CursorMarker.className = 'pk_wave_cursor';
             this.wrapper.appendChild(this.CursorMarker);
 
-            this.updateCursor();
+            // this.updateCursor();
         }
 
         /**
@@ -3280,19 +3284,18 @@ var Observer = function () {
 
     }, {
         key: "fireEvent",
-        value: function fireEvent(event) {
-            for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
-                args[_key2 - 1] = arguments[_key2];
-            }
-
-            // console.log( event, args );
+        value: function fireEvent(event, a, s) {
+            //for (var _len2 = arguments.length, args = Array(_len2 > 1 ? _len2 - 1 : 0), _key2 = 1; _key2 < _len2; _key2++) {
+            //    args[_key2 - 1] = arguments[_key2];
+            //}
 
             if (!this.handlers) {
                 return;
             }
             var handlers = this.handlers[event];
             handlers && handlers.forEach(function (fn) {
-                fn.apply(undefined, args);
+                // fn.apply(undefined, args);
+                fn(a, s);
             });
         }
     }]);
@@ -4047,6 +4050,7 @@ var WaveSurfer = function (_util$Observer) {
             this.drawer.on('resize', function() {
                 //console.log (_this5.drawer._width);
                 _this5.drawer._width = Math.round(_this5.drawer.container.clientWidth * _this5.drawer.params.pixelRatio);
+                _this5.drawer._bbox = _this5.drawer.wrapper.getBoundingClientRect();
                 //console.log (_this5.drawer._width);
             });
             this.on ('resize', function (){
@@ -4096,7 +4100,7 @@ var WaveSurfer = function (_util$Observer) {
                              || (Math.abs (last_touch_pos.x - touch_pos.x) < 20 &&  Math.abs (last_touch_pos.y - touch_pos.y) < 20) )
                         {
                             setTimeout(function () {
-                                var bbox = _this5.drawer.wrapper.getBoundingClientRect();
+                                var bbox = _this5.drawer._bbox; // _this5.drawer.wrapper.getBoundingClientRect();
 
                                 var nominalWidth = _this5.drawer.width;
                                 var parentWidth = _this5.drawer.getWidth();
@@ -4254,16 +4258,15 @@ var WaveSurfer = function (_util$Observer) {
 
                 if (!_this5.isReady || e.deltaY == 0) return;
 
-                var perf = window.performance.now();
-                if (perf - throttle_wheel < 45) {
+                var perf = e.timeStamp; // window.performance.now();
+                if (perf - throttle_wheel < 46) {
                     return;
                 }
 
                 throttle_wheel = perf;
-
                 var width = _this5.drawer.width;
 
-                var rect = _this5.getWaveEl().getBoundingClientRect();
+                var rect = _this5.drawer._bbox; // _this5.getWaveEl().getBoundingClientRect();
                 var where = (e.clientX - rect.left) / width;
 
                 _this5.SetZoom ( where, e.deltaY, e );
@@ -4428,7 +4431,7 @@ var WaveSurfer = function (_util$Observer) {
 
                 if (q.ZoomFactor > 1 && q.FollowCursor && !q.Interacting)
                 {
-                    var new_db = window.performance.now(); //  ####
+                    var new_db = stamp; // window.performance.now(); //  ####
                     if (new_db - db > timing_gap)
                     {
                         db = new_db;
@@ -5010,7 +5013,7 @@ var WaveSurfer = function (_util$Observer) {
         key: 'setCursorColor',
         value: function setCursorColor(color) {
             this.params.cursorColor = color;
-            this.drawer.updateCursor();
+            //this.drawer.updateCursor();
         }
 
         /**
@@ -6013,7 +6016,7 @@ var WebAudio = function (_util$Observer) {
                 var buffer = _this2.buffer;
                 var sample_rate = buffer.sampleRate;
                 var offset = time * sample_rate >> 0;
-                var jump = 2;
+                var jump = 4;
                 var clip_level = 1.0;
                 var loudness = [0, 0];
                 var sr = 512;
@@ -6023,10 +6026,11 @@ var WebAudio = function (_util$Observer) {
                 for (var i = 0; i < buffer.numberOfChannels; ++i) {
                     temp = 0;
                     var chan_data = buffer.getChannelData(i);
+
                     for (var j = 0; j < sr; j += jump) {
-                        var x = chan_data[offset + j];
-                        if (Math.abs(x) >= temp) {
-                            temp = Math.abs(x);
+                        var x = Math.abs(chan_data[offset + j]);
+                        if (x > temp) {
+                            temp = x;
                         }
                     }
 
