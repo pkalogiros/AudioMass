@@ -1,0 +1,3 @@
+# Ignore these files since we are using Nginx as web server for our Docker image
+**/audiomass-server.go
+**/audiomass-server.py
