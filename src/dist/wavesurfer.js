@@ -6219,7 +6219,7 @@ var WebAudio = function (_util$Observer) {
             PKAudioEditor.engine.ID3 (arraybuffer);
 
             if (!this.offlineAc) {
-                this.offlineAc = this.getOfflineAudioContext(44100); // this.ac ? this.ac.sampleRate : 44100);
+                this.offlineAc = this.getOfflineAudioContext(this?.ac?.sampleRate || 44100);
             }
 
             var promise = this.offlineAc.decodeAudioData(arraybuffer, function (data) {
