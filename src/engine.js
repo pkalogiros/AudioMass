@@ -479,8 +479,17 @@
 				wavesurfer.stop ();
 				wavesurfer.play ();
 			}
-			else
-				wavesurfer.play ();
+			else {
+				if (!app.rec.isActive ()) {
+					wavesurfer.play ();
+				} else {
+					setTimeout(function() {
+						if (!app.rec.isActive () && !x && !wavesurfer.isPlaying ()) {
+							wavesurfer.play ();
+						}
+					}, 220);
+				}
+			}
 		});
 		app.listenFor ('RequestPause', function () {
 			app.fireEvent ('RequestActionRecordStop');

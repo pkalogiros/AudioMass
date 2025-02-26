@@ -9,7 +9,7 @@
 		var audio_context = null;
 		var script_processor = null;
 
-		var buffer_size = 2048; // * 2 ?
+		var buffer_size = 2048 * 2; // * 2 ?
 		var channel_num = 1;
 		var channel_num_out = 1;
 
@@ -22,14 +22,14 @@
 
 		var temp_buffers = [];
 		var temp_buffer_index = -1;
-		var jumps = 4;
+		var jumps = 1;
 
 		var end_record_func = null;
 		var start_record_func = null;
 
 		// temp vars
 		var curr_offset = 0;
-		var first_skip = 12; // skip first samples to evade the button's click
+		var first_skip = 8; // skip first samples to evade the button's click
 		var fetchBufferFunction = function( ev ) {
 
 			if (first_skip > 0) {
@@ -49,8 +49,10 @@
 
 			if (--jumps === 0)
 			{
-				jumps = 4;
-				app.engine.wavesurfer.DrawTemp ( starting_offset, temp_buffers );
+				requestAnimationFrame(function(){
+					jumps = 4;
+					app.engine.wavesurfer.DrawTemp ( starting_offset, temp_buffers );
+				});
 			}
 		};
 
@@ -90,13 +92,68 @@
 
 			if (!_sample_rate)
 			{
-				if (app.engine.wavesurfer.backend.buffer)
+				if (app.engine.wavesurfer.backend.buffer) {
 					sample_rate = app.engine.wavesurfer.backend.buffer.sampleRate;
-				else
+				}
+				else {
 					sample_rate = audio_context.sampleRate;
+				}
 			}
 
-			end_record_func = _end_callback;
+			end_record_func = function (offset, buffers, _callback) {
+				async function downsampleAudioBuffer(buffers, sourceSampleRate, targetSampleRate) {
+					// Step 1: Concatenate the Float32Array chunks
+					const totalLength = buffers.reduce((sum, buf) => sum + buf.length, 0);
+					const concatenated = new Float32Array(totalLength);
+					let offset = 0;
+					for (let i = 0; i < buffers.length; i++) {
+						concatenated.set(buffers[i], offset);
+						offset += buffers[i].length;
+					}
+
+					// Step 2: Create an AudioBuffer from the concatenated data at the source sample rate
+					// Create a temporary AudioContext to build the AudioBuffer
+					const tempCtx = new AudioContext({ sampleRate: sourceSampleRate });
+					const audioBuffer = tempCtx.createBuffer(1, totalLength, sourceSampleRate);
+					audioBuffer.copyToChannel(concatenated, 0, 0);
+
+					// Release the temporary context if you don't need it anymore
+					tempCtx.close();
+
+					// Step 3: Use an OfflineAudioContext to resample the AudioBuffer to the target sample rate
+					const duration = audioBuffer.duration;
+					const newLength = Math.ceil(duration * targetSampleRate);
+					const offlineCtx = new OfflineAudioContext(1, newLength, targetSampleRate);
+
+					const source = offlineCtx.createBufferSource();
+					source.buffer = audioBuffer;
+					source.connect(offlineCtx.destination);
+					source.start(0);
+
+					// Render the resampled AudioBuffer
+					const renderedBuffer = await offlineCtx.startRendering();
+
+					// Return the downsampled Float32Array
+					return renderedBuffer.getChannelData(0);
+				}
+
+				var source_sample_rate = audio_context ? audio_context.sampleRate : 48000;
+				if (source_sample_rate === sample_rate) {
+					_callback ();
+					_end_callback (offset, buffers);	
+					return ;
+				}
+
+				downsampleAudioBuffer(buffers, source_sample_rate, sample_rate).then(newBuffer => {
+					_callback ();
+					_end_callback (offset, [newBuffer]);
+				}).catch(error => {
+					_callback ();
+					console.error("Error during downsampling:", error);
+				});
+
+				// _end_callback (offset, buffers);
+			};
 			start_record_func = _start_callback;
 
 			navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function( stream ) {
@@ -138,16 +195,20 @@
 			media_stream_source.disconnect ();
 			script_processor.disconnect ();
 
-			is_active = false;
 			app.engine.wavesurfer.DrawTemp ( null );
 
 			if (temp_buffers.length > 0 && !cancel_recording)
-				end_record_func && end_record_func ( starting_offset / sample_rate, temp_buffers );
+				end_record_func && end_record_func ( starting_offset / sample_rate, temp_buffers, function (){
+					is_active = false;
+				});
 			else
-				end_record_func && end_record_func ( null, null );
+				end_record_func && end_record_func ( null, null, function(){
+					is_active = false;
+				});
 
 			sample_rate = 0;
-			first_skip = 12;
+			first_skip = 8;
+			jumps = 1;
 			temp_buffer_index = -1;
 			starting_offset = ending_offset = 0;
 			temp_buffers = [];
