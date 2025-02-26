@@ -7,7 +7,7 @@
 	<link rel="manifest" href="manifest.json">
 
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no">
 
 	<meta name="description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool"/>
 	<meta property="og:image" content="https://audiomass.co/icon.jpg"/>
@@ -56,21 +56,17 @@
 	<script src="local.js"></script>
 	<script src="id3.js"></script>
 	<script src="lzma.js"></script>
-
-
 <!--
 	<script src="multitrack.js"></script>
 	<script src="multitrack-ui.js"></script>
 -->
 	<script>
 		var editor = PKAudioEditor.init ('app');
-
 		if ('serviceWorker' in navigator) {
 			try {
 			//	navigator.serviceWorker.register( 'sw.js' );
 			} catch ( error ) {}
 		}
 	</script>
-
 </body>
 </html>
