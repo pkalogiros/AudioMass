@@ -952,6 +952,13 @@
 						}
 					},
 
+                    {
+                        name: "Noise Reduction (Voice)",
+                        action: function () {
+                            app.fireEvent("RequestActionFX_NoiseRNN");
+                        },
+                    },
+
 					{
 						name   : 'Paragraphic EQ',
 						action:function () {

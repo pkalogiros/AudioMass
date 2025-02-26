@@ -1920,6 +1920,55 @@
 			
 			OneUp ('Applied Reverse');
 		});
+
+		var noisernn_load = !1;
+        app.listenFor("RequestActionFX_NoiseRNN", function (a) {
+        	var h = wavesurfer;
+            if (q.is_ready) { // n -> q
+                app.fireEvent("RequestPause");
+                var b = function () {
+                    var f = h.regions.list[0];
+                    f || (h.regions.add({ start: 0, end: h.getDuration() - 0, id: "t" }), (f = h.regions.list[0]));
+                    var m = q.TrimTo(f.start, 3),
+                        k = q.TrimTo(f.end - f.start, 3);
+                    f = f.end - f.start;
+                    f = q.TrimTo(f, 3);
+                    app.fireEvent("StateRequestPush", { desc: "Apply Noise RNN (fx)", meta: [m, k], data: h.backend.buffer });
+                    for (var u = AudioUtils.Copy(m, k), w = 0; w < u.numberOfChannels; w++) {
+                        var x = u.getChannelData(w),
+                            z = wasm_denoise_stream_perf(x);
+                        x.set(z);
+                    }
+                    AudioUtils.Replace(m, k, u);
+                    app.fireEvent("RequestSeekTo", m / h.getDuration());
+                    wavesurfer.regions.clear();
+                    h.regions.add({ start: m, end: m + f, id: "t" });
+                    OneUp("Applied Noise RNN (fx)");
+                };
+                noisernn_load
+                    ? b()
+                    : ((a = document.createElement("script")),
+                      (a.src = "rnn_denoise.js"),
+                      (a.onload = function () {
+                          noisernn_load = !0;
+                          var f = function () {
+                              window.Module && window.Module.asm && window.Module.asm.malloc
+                                  ? b()
+                                  : setTimeout(function () {
+                                        f();
+                                    }, 350);
+                          };
+                          setTimeout(function () {
+                              f();
+                          }, 100);
+                      }),
+                      (a.onerror = function () {
+                          alert("Could not download noise Reduction script");
+                      }),
+                      document.head.appendChild(a));
+            }
+        });
+
 		app.listenFor ('RequestActionFX_FadeIn', function ( val ) {
 			if (!q.is_ready) return ;
 			
