@@ -14,3 +14,11 @@ Live: [https://audiomass.co](https://audiomass.co)
 
 ...
 
+
+
+---
+
+If you want to build the all.build.js minified file for delivery/publishing this then you can use uglify and run as:
+```cat dist/wavesurfer.js dist/plugin/wavesurfer.regions.js oneup.js app.js keys.js contextmenu.js ui-fx.js ui.js modal.js state.js engine.js actions.js drag.js recorder.js welcome.js fx-pg-eq.js fx-auto.js local.js id3.js lzma.js | uglifyjs -c -m -o all.build.js```
+
+Thanks!
