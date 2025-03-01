@@ -240,12 +240,10 @@
 				id: filter_id,
 			  title:'Change Speed',
 				presets:[
-					{name:'-1/4',val:0.25},
-					{name:'-1/2',val:0.5},
+					{name:'A lot slower',val:0.65},
 					{name:'Slightly slower',val:0.85},
-					{name:'Slightly faster%',val:1.1},
-					{name:'+1/4',val:1.25},
-					{name:'+1/2',val:1.5}
+					{name:'Slightly faster',val:1.15},
+					{name:'Blazing Fast',val:1.4}
 				],
 				custom_pres:custom_presets.Get (filter_id),
 			ondestroy: function ( q ) {
@@ -310,7 +308,7 @@
 					{name:'-1/4',val:0.25},
 					{name:'-1/2',val:0.5},
 					{name:'Slightly slower',val:0.85},
-					{name:'Slightly faster%',val:1.1},
+					{name:'Slightly faster',val:1.1},
 					{name:'+1/4',val:1.25},
 					{name:'+1/2',val:1.5}
 				],
