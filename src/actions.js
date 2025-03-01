@@ -1450,10 +1450,7 @@
 						for (var i = 0; i < l; ++i) {
 								const offset = t;
 								const outputTime = i * synthesisHop;
-								//if (offset + grainDuration > source.buffer.duration) {
-								//	console.log("stoooop");
-								//	break;
-								//}  // stop if beyond source
+								//if (offset + grainDuration > fx_buffer.duration) break;
 								const grainGain = filter_chain[i];
 								let grainSource = temp_source[i];
 								grainSource.stop();
