@@ -231,6 +231,72 @@
 			x.Show();
 		});
 
+		app.listenFor ('RequestActionFXUI_Rate', function () {
+			app.fireEvent ('RequestSelect', 1);
+
+			var filter_id = 'speed';
+
+			var x = new PKAudioFXModal({
+				id: filter_id,
+			  title:'Change Speed',
+				presets:[
+					{name:'-1/4',val:0.25},
+					{name:'-1/2',val:0.5},
+					{name:'Slightly slower',val:0.85},
+					{name:'Slightly faster%',val:1.1},
+					{name:'+1/4',val:1.25},
+					{name:'+1/2',val:1.5}
+				],
+				custom_pres:custom_presets.Get (filter_id),
+			ondestroy: function ( q ) {
+				app.ui.InteractionHandler.on = false;
+				app.ui.KeyHandler.removeCallback (modal_esc_key);
+			},
+			preview: function ( q ) {
+				var input = q.el_body.getElementsByTagName('input')[0];
+				var value = input.value.trim() / 1;
+				app.fireEvent ('RequestActionFX_PREVIEW_RATE', value);
+			},
+
+			  buttons: [
+				{
+					title:'Apply Rate',
+					clss:'pk_modal_a_accpt',
+					callback: function( q ) {
+						var input = q.el_body.getElementsByTagName('input')[0];
+						var value = input.value.trim() / 1;
+
+						if (value != 1.0)
+							app.fireEvent ('RequestActionFX_RATE', value);
+
+						q.Destroy ();
+					}
+				}
+			  ],
+			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' + 
+				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.05" value="1.0" />'+
+				'<span class="pk_val">1.0</span></div>',
+			  setup:function( q ) {
+				  var range = q.el_body.getElementsByTagName('input')[0];
+				  var span = q.el_body.getElementsByTagName('span')[0];
+
+				  range.oninput = function() {
+					span.innerHTML = range.value;
+					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', range.value/1);
+				  };
+				  
+				  app.fireEvent ('RequestPause');
+				  app.ui.InteractionHandler.checkAndSet (modal_name);
+				   
+				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
+				  	if (!app.ui.InteractionHandler.check (modal_name)) return ;
+
+				    q.Destroy ();
+				  }, [27]);
+			  }
+			}, app);
+			x.Show();
+		});
 
 		app.listenFor ('RequestActionFXUI_Speed', function () {
 			app.fireEvent ('RequestSelect', 1);

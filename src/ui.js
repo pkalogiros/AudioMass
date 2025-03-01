@@ -1025,9 +1025,16 @@
 					},
 
 					{
-						name   : 'Speed Up / Slow Down',
+						name   : 'Speed Up / Slow Down (pitch)',
 						action:function () {
 							app.fireEvent ('RequestActionFXUI_Speed');
+						}
+					},
+
+					{
+						name : 'Playback Rate',
+						action:function () {
+							app.fireEvent ('RequestActionFXUI_Rate');
 						}
 					},
 

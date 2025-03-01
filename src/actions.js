@@ -338,8 +338,12 @@
 			this.previewVal = val;
 		};
 
-		function stopPreview () {
+		function stopPreview (_fx) {
 			if (!this.previewing) return ;
+
+			if (_fx) {
+				_fx.destroy && _fx.destroy ();
+			}
 
 			if (this.PreviewFilter)
 			{
@@ -434,7 +438,7 @@
 
 
 		function previewEffect ( _offset, _duration, _fx ) {
-			if (this.previewing) stopPreview ();
+			if (this.previewing) stopPreview (_fx);
 
 			var orig_buffer = wavesurfer.backend.buffer;
 
@@ -568,7 +572,10 @@
 			source.buffer = fx_buffer;
 
 			var filter = null;
-			if (_fx) filter = _fx.filter ( audio_ctx, audio_ctx.destination, source, _duration/1 );
+			if (_fx) {
+				filter = _fx.filter ( audio_ctx, audio_ctx.destination, source, _duration/1 );
+				filter.destroy && filter.destroy ();
+			}
 
 			source.start ();
 
@@ -1340,6 +1347,131 @@
 							eq.frequency.value = val[ i ].freq;
 						}
 						// -
+					}
+				};
+			},
+
+			Rate : function ( val ) {
+				var prev_val = 1.0;
+				var temp_source = [];
+
+				return {
+					filter : function ( audio_ctx, destination, source, duration ) {
+						var fx_buffer = source.buffer;
+
+						var stretch_ratio = val;
+						let grainDuration = 0.05;  // 50 ms grain
+						const analysisHop = 0.025;   // 25 ms step (50% overlap)
+						const desiredOverlap = 0.5;            // 50% overlap
+						const synthesisHop = analysisHop * stretch_ratio;  //  output hop
+
+						if (stretch_ratio > 1) {
+							grainDuration = synthesisHop / (1 - desiredOverlap); // 0.15 sec (150 ms
+						}
+
+						var offlineCtx = audio_ctx;
+						const now = audio_ctx.currentTime;
+
+						// var filter = fx.filter ( offlineCtx, offlineCtx.destination, null, duration );
+						var applyHannWindowFast = function (gainNode, outputTime, grainDuration) {
+							// The automation curve using a Hann window shape
+							const numSteps = 50;
+
+							for (let i = 0; i <= numSteps; i++) {
+								const t = (i / numSteps) * grainDuration;
+								const windowValue = 0.5 * (1 - Math.cos((2 * Math.PI * t) / grainDuration));
+								gainNode.gain.linearRampToValueAtTime(windowValue, outputTime + t);
+							}
+						};
+
+						// Schedule grains
+						var grainIndex = 0;
+						var filter_chain = [];
+
+						for (let t = 0; t < fx_buffer.duration; t += analysisHop) {
+								const offset = t;
+								const outputTime = grainIndex * synthesisHop;
+								if (offset + grainDuration > fx_buffer.duration) break;  // stop if beyond source
+
+								const grainSource = offlineCtx.createBufferSource();
+								grainSource.buffer = fx_buffer;
+
+								const grainGain = offlineCtx.createGain();
+								grainSource.connect(grainGain);
+								grainGain.connect(offlineCtx.destination);
+
+								applyHannWindowFast (grainGain, now + outputTime, grainDuration);
+
+								grainSource.start(now + outputTime, offset, grainDuration);
+								filter_chain.push (grainGain);
+								temp_source[grainIndex] = grainSource;
+
+								++grainIndex;
+
+						}
+
+						return (filter_chain);
+					},
+
+					destroy : function () {
+						temp_source = [];
+					},
+
+					update : function ( filter_chain, audio_ctx, val, source ) {
+						prev_val = 1 / val;
+						var fx_buffer = source.buffer;
+
+						let grainDuration = 0.05;  // 50 ms grain
+						const analysisHop = 0.025;   // 25 ms step (50% overlap)
+						const desiredOverlap = 0.5;            // 50% overlap
+						const synthesisHop = analysisHop * prev_val;  //  output hop
+
+						if (prev_val > 1) {
+							grainDuration = synthesisHop / (1 - desiredOverlap); // 0.15 sec (150 ms
+						}
+
+						const now = audio_ctx.currentTime;
+
+						// var filter = fx.filter ( offlineCtx, offlineCtx.destination, null, duration );
+						var applyHannWindowFast = function (gainNode, outputTime, grainDuration) {
+							// The automation curve using a Hann window shape
+							const numSteps = 50;
+
+							for (let i = 0; i <= numSteps; i++) {
+								const t = (i / numSteps) * grainDuration;
+								const windowValue = 0.5 * (1 - Math.cos((2 * Math.PI * t) / grainDuration));
+								gainNode.gain.linearRampToValueAtTime(windowValue, outputTime + t);
+							}
+						};
+
+						// Schedule grains
+						var l = filter_chain.length;
+						var t = 0;
+						for (var i = 0; i < l; ++i) {
+								const offset = t;
+								const outputTime = i * synthesisHop;
+								//if (offset + grainDuration > source.buffer.duration) {
+								//	console.log("stoooop");
+								//	break;
+								//}  // stop if beyond source
+								const grainGain = filter_chain[i];
+								let grainSource = temp_source[i];
+								grainSource.stop();
+
+								grainSource = audio_ctx.createBufferSource();
+								grainGain.gain.setValueAtTime(grainGain.gain.value, now);
+								grainGain.gain.cancelScheduledValues(now);
+
+								grainSource.buffer = fx_buffer;
+								grainSource.connect(grainGain);
+								temp_source[i] = grainSource;
+
+								applyHannWindowFast (grainGain, outputTime + now, grainDuration);
+
+								grainSource.start(now + outputTime, offset, grainDuration);
+								t += analysisHop;
+						}
+						// --
 					}
 				};
 			},

@@ -473,6 +473,8 @@
 			wavesurfer.stop ( val );
 		});
 		app.listenFor ('RequestPlay', function ( x ) { // unique listener
+			if (q.in_fx) return ;
+
 			app.fireEvent ('RequestActionRecordStop');
 
 			if ( !x && wavesurfer.isPlaying ()) {
@@ -2150,6 +2152,140 @@
 			app.fireEvent ('DidStartPreview');
 		});
 
+		app.listenFor ('RequestActionFX_RATE', function ( val ) {
+			if (!q.is_ready) return ;
+			
+			app.fireEvent('RequestPause');
+
+			var region = wavesurfer.regions.list[0];
+			var dims = [ 0, 0 ];
+
+			function handleStateInline ( start, end ) {
+				app.fireEvent ('StateRequestPush', {
+					desc : 'Apply Rate (fx)',
+					meta : [ start, end ],
+					data : wavesurfer.backend.buffer
+				});
+			}
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+			
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+			var duration = (region.end - region.start) / val;
+			duration = q.TrimTo (duration, 3);
+
+			handleStateInline ( start, end );
+
+			var fx_buffer = AudioUtils.Copy ( start, end );
+			var originalBuffer = wavesurfer.backend.buffer;
+			var new_offset = ((start/1)   * originalBuffer.sampleRate) >> 0;
+			var new_len    = ((duration/1) * originalBuffer.sampleRate) >> 0;
+			var old_len    = ((end/1) * originalBuffer.sampleRate) >> 0;
+
+			/// -----
+			var fx = AudioUtils.FXBank.Rate( new_len / old_len );
+
+			var getOfflineAudioContext = function (channels, sampleRate, duration) {
+					return new (window.OfflineAudioContext ||
+					window.webkitOfflineAudioContext)(channels, duration, sampleRate);
+			};
+			var audio_ctx = getOfflineAudioContext ( // offlineCtx
+					wavesurfer.SelectedChannelsLen, // orig_buffer.numberOfChannels,
+					fx_buffer.sampleRate,
+					new_len
+			);
+
+			// var source = audio_ctx.createBufferSource ();
+			var source = {buffer:null, disconnect:function(){}};
+			source.buffer = fx_buffer;
+
+			var filter = fx.filter ( audio_ctx, audio_ctx.destination, source, duration );
+
+			q.in_fx = true;
+			app.ui.InteractionHandler.on = true;
+			OneUp ('Please wait, applying FX', 2600);
+
+			var offline_callback = function( rendered_buffer ) {
+				AudioUtils.Replace (start, end, rendered_buffer);
+
+				wavesurfer.regions.clear();
+				wavesurfer.regions.add({
+					start:start,
+					end: start + duration,
+					id:'t'
+				});
+
+				app.fireEvent ('RequestSeekTo', (start/wavesurfer.getDuration()));
+
+				OneUp ('Applied Rate (fx)');
+
+				if (filter.length > 0) {
+					for (var i = 0; i < filter.length; ++i) filter[i].disconnect ();
+				} else filter && filter.disconnect && filter.disconnect ();
+
+				rendered_buffer = fx_buffer = filter = null;
+				source.disconnect ();
+
+				q.in_fx = false;
+				app.ui.InteractionHandler.on = false;
+			};
+
+			var offline_renderer = audio_ctx.startRendering(); 
+			if (offline_renderer)
+				offline_renderer.then( offline_callback ).catch(function(err) {
+					console.log('Rendering failed: ' + err);
+				});
+			else
+				audio_ctx.oncomplete = function ( e ) {
+					offline_callback ( e.renderedBuffer );
+				};
+		});
+
+		app.listenFor ('RequestActionFX_PREVIEW_RATE', function ( val ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+
+			var region = wavesurfer.regions.list[0];
+			var dims = [ 0, 0 ];
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+			var duration = (region.end - region.start) / val;
+
+			var originalBuffer = wavesurfer.backend.buffer;
+			var new_offset = ((start/1)   * originalBuffer.sampleRate) >> 0;
+			var new_len    = ((duration/1) * originalBuffer.sampleRate) >> 0;
+			var old_len    = ((end/1) * originalBuffer.sampleRate) >> 0;
+
+			// -----
+			var stretch_ratio = new_len / old_len;
+
+			AudioUtils.FXPreview( start, end, AudioUtils.FXBank.Rate( stretch_ratio ) );
+
+			app.fireEvent ('DidStartPreview');
+		});
+
 		app.listenFor ('RequestActionFX_SPEED', function ( val ) {
 			if (!q.is_ready) return ;
 			
@@ -2196,6 +2332,8 @@
 				originalBuffer.sampleRate
 			);*/
 
+			q.in_fx = true;
+			app.ui.InteractionHandler.on = true;
 			var fx = AudioUtils.FXBank.Speed( val );
 
 			var getOfflineAudioContext = function (channels, sampleRate, duration) {
@@ -2230,49 +2368,6 @@
 
 				OneUp ('Applied Speed (fx)');
 
-//				AudioUtils.Insert (new_offset, rendered_buffer);
-
-/*				var uber_buffer = wavesurfer.backend.ac.createBuffer(
-					originalBuffer.numberOfChannels,
-					originalBuffer.length + (new_len - old_len),
-					originalBuffer.sampleRate
-				);
-
-				for (var i = 0; i < originalBuffer.numberOfChannels; ++i)
-				{
-					var uber_chan_data = uber_buffer.getChannelData (i);
-					var chan_data = originalBuffer.getChannelData (i);
-
-					// check if channel is active
-					if (wavesurfer.ActiveChannels[ i ] === 0)
-					{
-						uber_chan_data.set (
-							chan_data
-						);
-						continue;
-					}
-
-					var fx_chan_data = null;
-					if (rendered_buffer.numberOfChannels === 1)
-						fx_chan_data = rendered_buffer.getChannelData( 0 );
-					else
-						fx_chan_data = rendered_buffer.getChannelData( i );
-
-					uber_chan_data.set (
-						chan_data
-					);
-
-					uber_chan_data.set (
-						fx_chan_data, new_offset, fx_chan_data.length - new_offset
-					);
-
-					//uber_chan_data.set (
-					//	fx_chan_data, new_offset, fx_chan_data.length - new_offset
-					//);
-				}
-
-				loadDecoded ( uber_buffer );
-*/
 				if (filter.length > 0) {
 					for (var i = 0; i < filter.length; ++i) filter[i].disconnect ();
 				} else filter && filter.disconnect && filter.disconnect ();
@@ -2282,6 +2377,8 @@
 				source.disconnect ();
 				// audio_ctx.close ();
 				// -
+				q.in_fx = false;
+				app.ui.InteractionHandler.on = false;
 			};
 
 			var offline_renderer = audio_ctx.startRendering(); 
