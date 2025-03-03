@@ -4680,7 +4680,8 @@ var WaveSurfer = function (_util$Observer) {
 
             // return an error if progress is not a number between 0 and 1
             if (typeof progress !== 'number' || !isFinite(progress) || progress < 0 || progress > 1) {
-                return console.error('Error calling wavesurfer.seekTo, parameter must be a number between 0 and 1!');
+                progress = 0;
+                // return console.error('Error calling wavesurfer.seekTo, parameter must be a number between 0 and 1!');
             }
             this.ActiveMarker = progress;
 

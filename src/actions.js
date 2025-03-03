@@ -1407,7 +1407,6 @@
 								temp_source[grainIndex] = grainSource;
 
 								++grainIndex;
-
 						}
 
 						return (filter_chain);

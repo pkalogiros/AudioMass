@@ -53,6 +53,8 @@
 				q.is_ready = false;
 				wavesurfer.loadBlob( e );
 				app.fireEvent ('DidUnloadFile');
+
+				wavesurfer.regions && wavesurfer.regions.clear();
 			};
 
 			if ( q.is_ready )
@@ -160,7 +162,9 @@
 										if (wavesurfer.arraybuffer) q.is_ready = true;
 
 										app.fireEvent ('RequestResize');
-										setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
+										setTimeout(function() { 
+											app.fireEvent ('DidDownloadFile');
+										}, 12);
 										app.stopListeningForName ('RequestCancelModal');
 
 										OneUp ('Canceled Loading', 1350);
@@ -170,6 +174,7 @@
 									q.is_ready = false;
 									wavesurfer.loadBlob( e.files[0] );
 									app.fireEvent ('DidUnloadFile');
+									wavesurfer.regions && wavesurfer.regions.clear();
 							};
 
 							if ( q.is_ready )
@@ -2189,9 +2194,7 @@
 			var new_offset = ((start/1)   * originalBuffer.sampleRate) >> 0;
 			var new_len    = ((duration/1) * originalBuffer.sampleRate) >> 0;
 			var old_len    = ((end/1) * originalBuffer.sampleRate) >> 0;
-
-			/// -----
-			var fx = AudioUtils.FXBank.Rate( new_len / old_len );
+			var stretch_ratio = new_len / old_len;
 
 			var getOfflineAudioContext = function (channels, sampleRate, duration) {
 					return new (window.OfflineAudioContext ||
@@ -2203,15 +2206,90 @@
 					new_len
 			);
 
-			// var source = audio_ctx.createBufferSource ();
-			var source = {buffer:null, disconnect:function(){}};
-			source.buffer = fx_buffer;
+			var stretchAudio = function (input_buffer, sampleRate, stretchRatio) {
+			  // Parameters (in seconds)
+			  let channels_len = input_buffer.numberOfChannels;
+			  let samples = [ input_buffer.getChannelData(0) ];
+			  for (let i = 1; i < channels_len; ++i) {
+			  	samples.push ( input_buffer.getChannelData(1) );
+			  }
 
-			var filter = fx.filter ( audio_ctx, audio_ctx.destination, source, duration );
+			  let grainDurationSec = 0.05; // 50 ms
+			  const analysisHopSec = 0.025; // 25 ms (50% overlap)
+			  const desiredOverlap = 0.5;
+			  const synthesisHopSec = analysisHopSec * stretchRatio; // output hop
+
+			  // Adjust grain duration for ratios > 1
+			  if (stretchRatio > 1) {
+			    grainDurationSec = synthesisHopSec / (1 - desiredOverlap);
+			  }
+
+			  // Convert durations to samples
+			  const grainSize = Math.floor(grainDurationSec * sampleRate);
+			  const analysisHop = Math.floor(analysisHopSec * sampleRate);
+			  const synthesisHop = Math.floor(synthesisHopSec * sampleRate);
+
+			  // Precompute Hann window
+			  const window = new Float32Array(grainSize);
+			  for (let i = 0; i < grainSize; i++) {
+			    // Using (grainSize - 1) so that the window spans [0, grainDurationSec]
+			    window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (grainSize - 1)));
+			  }
+
+			  // Estimate number of grains and output length
+			  const numGrains = Math.floor((samples[0].length - grainSize) / analysisHop);
+			  const outputLength = synthesisHop * numGrains + grainSize;
+			  let output = [ new Float32Array(outputLength) ];
+			  for (let i = 1; i < channels_len; ++i) {
+			  	output.push ( new Float32Array(outputLength) );
+			  }
+
+			  // Process each grain: copy, window, and add to output
+			  let inputIndex = 0;
+			  let outputIndex = 0;
+			  for (let n = 0; n < numGrains; ++n) {
+			    // For each sample in the grain, multiply by the window and add to the output
+			    for (let i = 0; i < grainSize; ++i) {
+			    	for (let j = 0; j < channels_len; ++j) {
+			      		output[j][outputIndex + i] += samples[j][inputIndex + i] * window[i];
+			      	}
+			    }
+			    inputIndex += analysisHop;
+			    outputIndex += synthesisHop;
+			  }
+			  
+			  return output;
+			};
+
+			/// -----
+			var filter = [];
+			//if (stretch_ratio < 1) {
+			//	var fx = AudioUtils.FXBank.Rate( stretch_ratio );
+			//	var source = {buffer:null, disconnect:function(){}};
+			//	source.buffer = fx_buffer;
+			//	filter = fx.filter ( audio_ctx, audio_ctx.destination, source, duration );
+			//}
+			//else
+			//{
+				const stretchedSamples = stretchAudio(fx_buffer, fx_buffer.sampleRate, stretch_ratio);
+
+				// Optionally, if you need an AudioBuffer from the stretchedSamples:
+				// const offlineCtx = new OfflineAudioContext(stretchedSamples.length, stretchedSamples[0].length, fx_buffer.sampleRate);
+				const newBuffer = audio_ctx.createBuffer(stretchedSamples.length, stretchedSamples[0].length, fx_buffer.sampleRate);
+				
+				for (let i = 0; i < stretchedSamples.length; ++i) {
+					newBuffer.copyToChannel(stretchedSamples[i], i);
+				}
+
+				var source = audio_ctx.createBufferSource ();
+				source.buffer = newBuffer;
+				source.connect ( audio_ctx.destination );
+				source.start ();
+			//}
 
 			q.in_fx = true;
 			app.ui.InteractionHandler.on = true;
-			OneUp ('Please wait, applying FX', 2600);
+			// OneUp ('Please wait, applying FX', 2600);
 
 			var offline_callback = function( rendered_buffer ) {
 				AudioUtils.Replace (start, end, rendered_buffer);
