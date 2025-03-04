@@ -2211,7 +2211,7 @@
 			  let channels_len = input_buffer.numberOfChannels;
 			  let samples = [ input_buffer.getChannelData(0) ];
 			  for (let i = 1; i < channels_len; ++i) {
-			  	samples.push ( input_buffer.getChannelData(1) );
+			  	samples.push ( input_buffer.getChannelData(i) );
 			  }
 
 			  let grainDurationSec = 0.05; // 50 ms
