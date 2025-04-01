@@ -183,6 +183,11 @@
 												}
 											}
 
+											if (format == 'flac')
+											{
+												kbps = document.getElementById('flac-comp').value / 1;
+											}
+
 											app.engine.DownloadFile ( value, format, kbps, export_sel, stereo );
 											q.Destroy ();
 											// -
@@ -198,6 +203,8 @@
 									'<label for="k01">mp3</label>' +
 									'<input type="radio" class="pk_check" id="k02" name="frmtex" value="wav">'+  
 									'<label for="k02">wav <i>(44100hz)</i></label>' +
+									'<input type="radio" class="pk_check" id="k03" name="frmtex" value="flac">'+  
+									'<label for="k03">flac</i></label>' +
 									'</div>' +
 
 									'<div class="pk_row" id="frmtex-mp3"><input type="radio" class="pk_check" id="k1" name="rdslnc" checked value="128">'+ 
@@ -206,6 +213,12 @@
 									'<label for="k2">192kbps</label>'+
 									'<input type="radio" class="pk_check"  id="k3" name="rdslnc" value="256">'+
 									'<label for="k3">256kbps</label></div>'+
+
+									'<div class="pk_row" style="display:none" id="frmtex-flac">'+
+									'<label>Flac: Compression Level</label>'+
+									'<input type="range" class="pk_horiz" min="0" max="8" step="1" value="5" id="flac-comp">'+
+									'<span class="pk_val" style="float:left;margin-left:15px">5</span></div>' +
+
 									'<div class="pk_row" style="padding-bottom:5px">' +
 									'<input type="radio" class="pk_check" id="k6" name="chnl" checked value="mono">'+
 									'<label for="k6">Mono</label>'+
@@ -247,6 +260,11 @@
 
 									  		var format = document.getElementById('frmtex');
 									  		var mp3conf = document.getElementById('frmtex-mp3');
+									  		var flacconf = document.getElementById('frmtex-flac');
+
+											document.getElementById('flac-comp').oninput = function() {
+												this.parentNode.getElementsByTagName('span')[0].innerText = this.value;
+											};
 
 									  		format && format.addEventListener('change', function(e){
 												var inputs = this.getElementsByTagName('input');
@@ -257,12 +275,20 @@
 														if (inputs[i].value === 'mp3')
 														{
 															mp3conf.style.display = 'block';
-															inputtxt.value = inputtxt.value.replace('.wav', '.mp3');
+															flacconf.style.display = 'none';
+															inputtxt.value = inputtxt.value.replace('.wav', '.mp3').replace('.flac', '.mp3');
+														}
+														else if (inputs[i].value === 'flac')
+														{
+															mp3conf.style.display = 'none';
+															flacconf.style.display = 'block';
+															inputtxt.value = inputtxt.value.replace('.mp3', '.flac').replace('.wav', '.flac');
 														}
 														else
 														{
 															mp3conf.style.display = 'none';
-															inputtxt.value = inputtxt.value.replace('.mp3', '.wav');
+															flacconf.style.display = 'none';
+															inputtxt.value = inputtxt.value.replace('.mp3', '.wav').replace('.flac', '.wav');
 														}
 													}
 												}

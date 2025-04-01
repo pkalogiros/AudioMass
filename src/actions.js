@@ -815,6 +815,9 @@
 			if (format === 'mp3') {
 				worker = new Worker('lame.js');
 			}
+			else if (format === 'flac') {
+				worker = new Worker('flac.js');
+			}
 			else {
 				worker = new Worker('wav.js');
 			}
@@ -900,6 +903,7 @@
 			worker.postMessage ({
 				sample_rate: sample_rate,
 				kbps:!kbps ? 128 : kbps,
+				flac_compression: kbps,
 				channels: channels
 			});
 			worker.postMessage ( dataAsInt16ArrayLeft.buffer, [dataAsInt16ArrayLeft.buffer] );
