@@ -2639,7 +2639,7 @@
 				var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
 				if (!region) return ;
 
-				UI.fireEvent( 'RequestActionCut');
+				UI.fireEvent( 'RequestActionCut', 1);
 			}, false );
 			main_context.addOption ('Insert Silence', function( e ) {
 				UI.fireEvent ('RequestFXUI_Silence', 0); // #### call effect
@@ -2863,7 +2863,7 @@
 		actions.appendChild ( cut_btn );
 
 		cut_btn.onclick = function() {
-			UI.fireEvent( 'RequestActionCut');
+			UI.fireEvent( 'RequestActionCut', 1);
 			this.blur();
 		};
 		

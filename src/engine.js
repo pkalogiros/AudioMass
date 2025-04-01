@@ -627,8 +627,13 @@
 		app.ui.KeyHandler.addCallback ('KeyShiftCut' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
 			
-			app.fireEvent( 'RequestActionCut');
+			app.fireEvent( 'RequestActionCut', 1);
 		}, [16, 88]);
+		app.ui.KeyHandler.addCallback ('KeyDel' + app.id, function ( key ) {
+			if (app.ui.InteractionHandler.on) return ;
+
+			app.fireEvent( 'RequestActionCut');
+		}, [8]);
 		app.ui.KeyHandler.addCallback ('KeyShiftSelectAll' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
 			app.fireEvent ('RequestSelect');
@@ -948,7 +953,7 @@
 			// ---
 		};
 
-		app.listenFor ('RequestActionCut', function () {
+		app.listenFor ('RequestActionCut', function ( use_clipboard ) {
 			if (!q.is_ready) return ;
 			
 			var region = wavesurfer.regions.list[0];
@@ -960,7 +965,7 @@
 			var end = q.TrimTo ( (region.end - region.start), 3)
 
 			app.fireEvent ('StateRequestPush', {
-				desc : 'Cut',
+				desc : use_clipboard ? 'Cut' : 'Delete',
 				meta : [ start, end ],
 				data : wavesurfer.backend.buffer
 			});
@@ -976,7 +981,17 @@
 
 			app.fireEvent ('RequestSeekTo', tmp / wavesurfer.getDuration ());
 			
-			copy_buffer = cutbuffer;
+			if (use_clipboard) {
+				copy_buffer = cutbuffer;
+
+				app.fireEvent ('DidSetClipboard', 1);
+				app.fireEvent ('DidCut', cutbuffer);
+
+				OneUp ('Cut :: ' + q.TrimTo (start, 2) + ' to ' + q.TrimTo (start/1 + end/1, 2), 1100);
+			}
+			else {
+				OneUp ('Delete :: ' + q.TrimTo (start, 2) + ' to ' + q.TrimTo (start/1 + end/1, 2), 1100);
+			}
 
 			/*
 			var image = app.engine.GetWave (copy_buffer);
@@ -985,11 +1000,6 @@
 			imm.src = image;
 			eel.appendChild( imm );
 			*/
-
-			app.fireEvent ('DidSetClipboard', 1);
-			app.fireEvent ('DidCut', cutbuffer);
-			
-			OneUp ('Cut :: ' + q.TrimTo (start, 2) + ' to ' + q.TrimTo (start/1 + end/1, 2), 1100);
 		});
 		
 		app.listenFor ('RequestActionCopy', function () {
@@ -2206,6 +2216,49 @@
 					new_len
 			);
 
+			/*
+			var TimeStretcher = function(o){o=o||{};this.ws=o.windowSize||1024;this.or=o.overlapRatio||0.5;this.sw=o.seekWindowMs||30;}
+			TimeStretcher.prototype.stretch=function(buf,ts){
+			  if(ts<=0) throw new Error("Stretch ratio must be positive");
+			  var ch=buf.numberOfChannels, sr=buf.sampleRate, il=buf.length, ol=Math.floor(il*ts),
+			      out=new AudioBuffer({numberOfChannels:ch,length:ol,sampleRate:sr});
+			  for(var c=0;c<ch;c++){
+			    var inD=buf.getChannelData(c), outD=out.getChannelData(c), ws=this.ws,
+			        ov=Math.floor(ws*this.or), hs=ws-ov, sw=Math.floor(this.sw*sr/1000),
+			        win=this._hannWindow(ws), iIdx=0, oIdx=0;
+			    while(oIdx<ol-ws){
+			      var nIdx=Math.min(Math.floor(oIdx/ts),il-ws-sw);
+			      if(iIdx>0 && Math.abs(nIdx-iIdx)>hs){
+			        var ssi=Math.max(0,nIdx-sw), sei=Math.min(il-ws,nIdx+sw);
+			        iIdx=this._findBestMatch(inD,iIdx+hs,ssi,sei,ws);
+			      } else { iIdx=nIdx; }
+			      for(var i=0;i<ws;i++){
+			        if(iIdx+i<il && oIdx+i<ol)
+			          outD[oIdx+i]+= inD[iIdx+i]*win[i];
+			      }
+			      oIdx+=hs;
+			    }
+			    this._normalizeOutput(outD);
+			  }
+			  return out;
+			};
+			TimeStretcher.prototype._hannWindow=function(l){var w=new Float32Array(l);for(var i=0;i<l;i++)w[i]=0.5*(1-Math.cos(2*Math.PI*i/(l-1)));return w;};
+			TimeStretcher.prototype._findBestMatch=function(d,ref,s,e,ws){
+			  var bp=s,be=Number.MAX_VALUE, refArr=new Float32Array(ws);
+			  for(var i=0;i<ws;i++) if(ref+i<d.length) refArr[i]=d[ref+i];
+			  for(var pos=s;pos<=e;pos++){
+			    var err=0;
+			    for(var i=0;i<ws;i+=4) {
+			      if(pos+i<d.length){var diff=refArr[i]-d[pos+i];err+=diff*diff;}
+			    }
+			    if(err<be){be=err;bp=pos;}
+			  }
+			  return bp;
+			};
+			TimeStretcher.prototype._normalizeOutput=function(d){
+			  var m=0; for(var i=0;i<d.length;i++) m=Math.max(m,Math.abs(d[i]));
+			  if(m>1){var g=0.95/m; for(var i=0;i<d.length;i++) d[i]*=g;}
+			};*/
 			var stretchAudio = function (input_buffer, sampleRate, stretchRatio) {
 			  // Parameters (in seconds)
 			  let channels_len = input_buffer.numberOfChannels;
@@ -2257,6 +2310,28 @@
 			    inputIndex += analysisHop;
 			    outputIndex += synthesisHop;
 			  }
+
+			  	/*
+				let normalization = new Float32Array(outputLength);
+				inputIndex = 0;
+				outputIndex = 0;
+				for (let n = 0; n < numGrains; ++n) {
+				  for (let i = 0; i < grainSize; ++i) {
+				    normalization[outputIndex + i] += window[i];
+				  }
+				  inputIndex += analysisHop;
+				  outputIndex += synthesisHop;
+				}
+
+				// Normalize each channel's output:
+				for (let j = 0; j < channels_len; ++j) {
+				  for (let i = 0; i < outputLength; ++i) {
+				    if (normalization[i] > 0) {
+				      output[j][i] /= normalization[i];
+				    }
+				  }
+				}
+				*/
 			  
 			  return output;
 			};
@@ -2271,6 +2346,8 @@
 			//}
 			//else
 			//{
+				// use timestretcher here...
+				// var ts = new TimeStretcher({windowSize:2048,overlapRatio:0.75,seekWindowMs:20}).stretch(fx_buffer,stretch_ratio);
 				const stretchedSamples = stretchAudio(fx_buffer, fx_buffer.sampleRate, stretch_ratio);
 
 				// Optionally, if you need an AudioBuffer from the stretchedSamples:
