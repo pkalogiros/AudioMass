@@ -101,8 +101,6 @@ onmessage = function(ev) {
     // Finish encoding
     Flac.FLAC__stream_encoder_finish(flacEncoder);
 
-    debugger;
-    
     // Combine all buffers into a single Uint8Array
     var outputData = new Uint8Array(bufIndex);
     var offset = 0;
