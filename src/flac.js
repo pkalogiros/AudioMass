@@ -96,7 +96,17 @@ onmessage = function(ev) {
     }
 
     // Encode the audio data
-    Flac.FLAC__stream_encoder_process_interleaved(flacEncoder, samples, samples_left.length);
+    if (channels > 1) {
+        Flac.FLAC__stream_encoder_process_interleaved(flacEncoder, samples, samples_left.length);
+    } else {
+        var tmp_samples = new Int32Array(samples_left.length);
+        var tmp_index = 0;
+        while (tmp_index < samples_left.length) {
+            tmp_samples[tmp_index] = samples_left[tmp_index];
+            ++tmp_index;
+        }
+        Flac.FLAC__stream_encoder_process(flacEncoder, [tmp_samples], samples_left.length);
+    }
     
     // Finish encoding
     Flac.FLAC__stream_encoder_finish(flacEncoder);
