@@ -109,16 +109,13 @@ window.addEventListener('load', async () => {
       const blob = await response.blob();
 
       const fileName = fileUrl.split('/').pop() || 'audio.mp3';
-      const fileType = blob.type || 'audio/mpeg';
-      const file = new File([blob], fileName, { type: fileType });
+      const arrayBuffer = await blob.arrayBuffer();
 
-      // נוודא שהמערכת מוכנה לפני טעינה
       if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.LoadFile) {
-        window.PKAudioEditor.engine.LoadFile(file);
-      } else if (window.loadAudioFile) {
-        window.loadAudioFile(file);
+        // הגרסה הזו שולחת את ה־buffer ישירות לפונקציה, כפי שהיא מצפה
+        window.PKAudioEditor.engine.LoadFile(arrayBuffer, fileName);
       } else {
-        console.error("לא נמצאה פונקציית טעינה מתאימה (LoadFile או loadAudioFile).");
+        console.error("LoadFile function not found on PKAudioEditor.engine");
       }
     } catch (err) {
       console.error("Error loading file from URL:", err);
@@ -126,3 +123,5 @@ window.addEventListener('load', async () => {
     }
   }
 });
+
+
