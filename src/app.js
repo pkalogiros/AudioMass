@@ -127,7 +127,7 @@ window.addEventListener('load', async () => {
   }
 });
 
-// --- AudioMass: Playback speed controls ---
+// --- AudioMass: Playback speed controls with pitch correction ---
 window.addEventListener('load', () => {
   const buttons = document.querySelectorAll('.speed-btn');
   buttons.forEach(btn => {
@@ -135,10 +135,37 @@ window.addEventListener('load', () => {
       const speed = parseFloat(btn.dataset.speed);
       if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.wavesurfer) {
         const ws = window.PKAudioEditor.engine.wavesurfer;
+
+        // שינוי המהירות
         ws.setPlaybackRate(speed);
+
+        // ✅ תיקון pitch (גובה הקול) – אוניברסלי לכל הדפדפנים
+        try {
+          const ctx = ws.backend.ac;
+          if (ctx) {
+            // Chrome / Edge / Brave
+            if ('preservesPitch' in ctx) ctx.preservesPitch = true;
+            // Firefox
+            if ('mozPreservesPitch' in ctx) ctx.mozPreservesPitch = true;
+            // Safari
+            if ('webkitPreservesPitch' in ctx) ctx.webkitPreservesPitch = true;
+          }
+
+          const src = ws.backend.bufferSource;
+          if (src) {
+            src.playbackRate.value = speed;
+            if (src.detune) src.detune.value = 0;
+          }
+        } catch (e) {
+          console.warn("Pitch correction not fully supported:", e);
+        }
+
         console.log("Playback speed set to", speed + "x");
 
-        // סימון ויזואלי של הכפתור שנבחר
+        // שמירת מהירות בזיכרון מקומי
+        localStorage.setItem('am_playback_speed', speed);
+
+        // עדכון ויזואלי
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
       } else {
@@ -146,9 +173,20 @@ window.addEventListener('load', () => {
       }
     });
   });
+
+  // אתחול מהירות קודמת אם נשמרה
+  const savedSpeed = parseFloat(localStorage.getItem('am_playback_speed') || '1');
+  if (savedSpeed !== 1) {
+    const activeBtn = [...buttons].find(b => parseFloat(b.dataset.speed) === savedSpeed);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // המתן מעט לטעינת האודיו לפני קביעת המהירות
+    const interval = setInterval(() => {
+      const ws = window.PKAudioEditor?.engine?.wavesurfer;
+      if (ws) {
+        ws.setPlaybackRate(savedSpeed);
+        clearInterval(interval);
+      }
+    }, 500);
+  }
 });
-
-
-
-
-
