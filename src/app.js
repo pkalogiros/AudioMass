@@ -127,6 +127,28 @@ window.addEventListener('load', async () => {
   }
 });
 
+// --- AudioMass: Playback speed controls ---
+window.addEventListener('load', () => {
+  const buttons = document.querySelectorAll('.speed-btn');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const speed = parseFloat(btn.dataset.speed);
+      if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.wavesurfer) {
+        const ws = window.PKAudioEditor.engine.wavesurfer;
+        ws.setPlaybackRate(speed);
+        console.log("Playback speed set to", speed + "x");
+
+        // סימון ויזואלי של הכפתור שנבחר
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      } else {
+        alert("הנגן עדיין לא מוכן, נסה שוב אחרי טעינת קובץ.");
+      }
+    });
+  });
+});
+
+
 
 
 
