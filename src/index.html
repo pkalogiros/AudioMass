@@ -28,12 +28,56 @@
 	<meta name="twitter:description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool">
 	<meta name="twitter:image" content="https://audiomass.co/icon.jpg">
 
-
 	<link rel="stylesheet" type="text/css" href="main.css">
+
+	<!-- 🎨 עיצוב עבור כפתורי מהירות -->
+	<style>
+		#speed-controls {
+			display: flex;
+			gap: 6px;
+			padding: 10px;
+			justify-content: center;
+			background: #1e1e1e;
+			border-bottom: 1px solid #333;
+		}
+		.speed-btn {
+			font-size: 14px;
+			padding: 6px 12px;
+			border: 1px solid #555;
+			border-radius: 6px;
+			background: #222;
+			color: #eee;
+			cursor: pointer;
+			transition: all 0.2s ease;
+		}
+		.speed-btn:hover {
+			background: #444;
+		}
+		.speed-btn.active {
+			background: #00aaff;
+			color: white;
+			font-weight: bold;
+			border-color: #00aaff;
+		}
+	</style>
 </head>
+
 <body>
+
+	<!-- 🔊 בקרת מהירות ניגון -->
+	<div id="speed-controls">
+		<button class="speed-btn" data-speed="0.5">0.5x</button>
+		<button class="speed-btn" data-speed="0.75">0.75x</button>
+		<button class="speed-btn" data-speed="1">1x</button>
+		<button class="speed-btn" data-speed="1.5">1.5x</button>
+		<button class="speed-btn" data-speed="1.75">1.75x</button>
+		<button class="speed-btn" data-speed="2">2x</button>
+	</div>
+
+	<!-- אזור האפליקציה -->
 	<div id="app"></div>
 
+	<!-- ספריות ו־סקריפטים -->
 	<script src="dist/wavesurfer.js"></script>
 	<script src="dist/plugin/wavesurfer.regions.js"></script>
 	<script src="oneup.js"></script>
@@ -56,17 +100,36 @@
 	<script src="local.js"></script>
 	<script src="id3.js"></script>
 	<script src="lzma.js"></script>
-<!--
-	<script src="multitrack.js"></script>
-	<script src="multitrack-ui.js"></script>
--->
+
 	<script>
-		var editor = PKAudioEditor.init ('app');
+		var editor = PKAudioEditor.init('app');
 		if ('serviceWorker' in navigator) {
 			try {
-			//	navigator.serviceWorker.register( 'sw.js' );
-			} catch ( error ) {}
+				// navigator.serviceWorker.register('sw.js');
+			} catch (error) {}
 		}
+
+		// --- AudioMass: Playback speed controls ---
+		window.addEventListener('load', () => {
+			const buttons = document.querySelectorAll('.speed-btn');
+			buttons.forEach(btn => {
+				btn.addEventListener('click', () => {
+					const speed = parseFloat(btn.dataset.speed);
+					if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.wavesurfer) {
+						const ws = window.PKAudioEditor.engine.wavesurfer;
+						ws.setPlaybackRate(speed);
+						console.log("Playback speed set to", speed + "x");
+
+						// סימון ויזואלי של הכפתור שנבחר
+						buttons.forEach(b => b.classList.remove('active'));
+						btn.classList.add('active');
+					} else {
+						alert("הנגן עדיין לא מוכן, נסה שוב אחרי טעינת קובץ.");
+					}
+				});
+			});
+		});
 	</script>
+
 </body>
 </html>
