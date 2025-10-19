@@ -94,4 +94,35 @@
 
 	PKAudioList.push (w.PKAudioEditor); // keeping track in the audiolist array of our instance
 
+
 })( window, document );
+
+// --- AudioMass: Load audio file from ?file= parameter ---
+window.addEventListener('load', async () => {
+  const params = new URLSearchParams(window.location.search);
+  const fileUrl = params.get('file');
+  if (fileUrl) {
+    try {
+      console.log("Loading audio file from URL:", fileUrl);
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error("Failed to fetch file: " + response.status);
+      const blob = await response.blob();
+
+      const fileName = fileUrl.split('/').pop() || 'audio.mp3';
+      const fileType = blob.type || 'audio/mpeg';
+      const file = new File([blob], fileName, { type: fileType });
+
+      // נוודא שהמערכת מוכנה לפני טעינה
+      if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.LoadFile) {
+        window.PKAudioEditor.engine.LoadFile(file);
+      } else if (window.loadAudioFile) {
+        window.loadAudioFile(file);
+      } else {
+        console.error("לא נמצאה פונקציית טעינה מתאימה (LoadFile או loadAudioFile).");
+      }
+    } catch (err) {
+      console.error("Error loading file from URL:", err);
+      alert("לא ניתן לטעון את הקובץ מהכתובת שסופקה.\nבדוק את הקונסול לפרטים נוספים.");
+    }
+  }
+});
