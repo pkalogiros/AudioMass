@@ -99,33 +99,46 @@
 
 // --- AudioMass: Load audio file from ?file= parameter ---
 window.addEventListener('load', async () => {
-  const params = new URLSearchParams(window.location.search);
-  const fileUrl = params.get('file');
-  if (fileUrl) {
+
+  const search = window.location.search;
+  let fileUrl = null;
+
+  if (search.includes('file=')) {
+    fileUrl = search.split('file=')[1];
     try {
-      console.log("Loading audio file from URL:", fileUrl);
-      const response = await fetch(fileUrl);
-      if (!response.ok) throw new Error("Failed to fetch file: " + response.status);
-      const blob = await response.blob();
+      fileUrl = decodeURIComponent(fileUrl);
+    } catch (e) {}
+  }
 
-      const fileName = fileUrl.split('/').pop() || 'audio.mp3';
-      const fileType = blob.type || 'audio/mpeg';
-      const file = new File([blob], fileName, { type: fileType });
+  if (!fileUrl) return;
 
-      // ניצור אובייקט שמדמה input element עם files[0]
-      const fakeInput = { files: [file] };
+  try {
+    console.log('Loading audio file from URL:', fileUrl);
 
-      if (window.PKAudioEditor && window.PKAudioEditor.engine && window.PKAudioEditor.engine.LoadFile) {
-        window.PKAudioEditor.engine.LoadFile(fakeInput);
-      } else {
-        console.error("LoadFile function not found on PKAudioEditor.engine");
-      }
-    } catch (err) {
-      console.error("Error loading file from URL:", err);
-      alert("לא ניתן לטעון את הקובץ מהכתובת שסופקה.\nבדוק את הקונסול לפרטים נוספים.");
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new Error('HTTP ' + response.status);
     }
+
+    const blob = await response.blob();
+
+    const fileName = fileUrl.split('/').pop().split('?')[0] || 'audio.mp3';
+    const file = new File([blob], fileName, { type: blob.type || 'audio/mpeg' });
+
+    const fakeInput = { files: [file] };
+
+    if (window.PKAudioEditor?.engine?.LoadFile) {
+      window.PKAudioEditor.engine.LoadFile(fakeInput);
+    } else {
+      throw new Error('LoadFile not available');
+    }
+
+  } catch (err) {
+    console.error('Failed to load audio from URL:', err);
+    alert('לא ניתן לטעון את הקובץ מהכתובת שסופקה.\nבדוק הרשאות / CORS / תוקף לינק');
   }
 });
+
 
 // --- AudioMass: Playback speed controls with pitch correction ---
 window.addEventListener('load', () => {
@@ -190,3 +203,4 @@ window.addEventListener('load', () => {
     }, 500);
   }
 });
+
