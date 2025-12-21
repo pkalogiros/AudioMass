@@ -104,10 +104,12 @@ window.addEventListener('load', async () => {
   let fileUrl = null;
 
   if (search.includes('file=')) {
-    fileUrl = search.split('file=')[1];
-    try {
-      fileUrl = decodeURIComponent(fileUrl);
-    } catch (e) {}
+fileUrl = search.split('file=')[1];
+
+// לא לעשות decodeURIComponent מלא כי זה הורס %2F של Firebase
+// נטפל רק במקרים של + כרווח (מגיע לפעמים ממערכות אחרות)
+fileUrl = fileUrl.replace(/\+/g, '%20');
+
   }
 
   if (!fileUrl) return;
@@ -203,4 +205,5 @@ window.addEventListener('load', () => {
     }, 500);
   }
 });
+
 
