@@ -75,7 +75,7 @@
 
 	<a id="d" onclick="dock()">DOCK INTERFACE</a>
 	<a id="e" onclick="remove()">X</a>
-	<a id="f" onmousedown="drag(event)"></a>
+	<a id="f" onmousedown="return drag(event)"></a>
 
 	<script>
 		var d = document;
@@ -95,8 +95,10 @@
 		w.drag = function ( e ) {
 			e.preventDefault ();
 			e.stopPropagation ();
+			e.returnValue = false;
 
 			w.parent.PKAudioEditor.ui.Dock ('RequestDragI', 'eq');
+			return false;
 		};
 
 		w.dock = function () {
