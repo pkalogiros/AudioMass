@@ -29,6 +29,7 @@
 		var rec_redraw = 0;
 		var scroll_sync = false;
 		var did_init_zoom = false;
+		var active_drag = null;
 
 		var el = null;
 		var side = null;
@@ -51,6 +52,22 @@
 		var play = null;
 		var rec = null;
 		var rec_el = null;
+
+		function setActiveDrag ( fn ) {
+			cancelActiveDrag ();
+			active_drag = fn;
+		}
+
+		function clearActiveDrag ( fn ) {
+			if (active_drag === fn) active_drag = null;
+		}
+
+		function cancelActiveDrag () {
+			if (!active_drag) return ;
+			var fn = active_drag;
+			active_drag = null;
+			fn ();
+		}
 
 		function audioCtx () {
 			var wv = app.engine && app.engine.wavesurfer;
@@ -409,6 +426,7 @@
 			if (btn_toggle) btn_toggle.classList[on ? 'add' : 'remove'] ('pk_act');
 
 			if (!on) {
+				cancelActiveDrag ();
 				Stop ();
 				HideMixer ();
 				emitEditorState ();
@@ -770,6 +788,7 @@
 				moved = false;
 				d.addEventListener ('mousemove', move, false);
 				d.addEventListener ('mouseup', up, false);
+				setActiveDrag ( up );
 			};
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
@@ -793,6 +812,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Volume Channel' );
 			}
 		}
@@ -812,6 +832,7 @@
 				moved = false;
 				d.addEventListener ('mousemove', move, false);
 				d.addEventListener ('mouseup', up, false);
+				setActiveDrag ( up );
 			};
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
@@ -835,6 +856,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Pan Channel' );
 			}
 		}
@@ -1009,6 +1031,7 @@
 				moved = false;
 				d.addEventListener ('mousemove', move, false);
 				d.addEventListener ('mouseup', up, false);
+				setActiveDrag ( up );
 			};
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
@@ -1032,6 +1055,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Master Volume' );
 			}
 		}
@@ -1059,6 +1083,7 @@
 			start_h = trackHeight ( track );
 			d.addEventListener ('mousemove', move, false);
 			d.addEventListener ('mouseup', up, false);
+			setActiveDrag ( up );
 
 			function move ( e ) {
 				var h = Math.max (min_track_h, Math.min (max_track_h, start_h + e.clientY - start_y));
@@ -1070,6 +1095,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-resize');
 				if (moved) pushState ( prev, 'Resize Channel' );
 			}
@@ -1085,6 +1111,7 @@
 			selected_track = track.id;
 			d.addEventListener ('mousemove', move, false);
 			d.addEventListener ('mouseup', up, false);
+			setActiveDrag ( up );
 
 			function move ( ev ) {
 				var dy = Math.abs ( ev.clientY - start_y );
@@ -1105,6 +1132,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-order');
 				if (moved && trackIndex ( track.id ) !== start_i) {
 					pushState ( prev, 'Reorder Channel' );
@@ -1265,14 +1293,16 @@
 			if (!lane) return ;
 
 			var has_xf = clipHasXfade ( clip );
+			var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
+			var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
 			var ce = d.createElement ('div');
 			ce.className = 'pk_mt_clip' +
 				(clip.id === selected_clip ? ' pk_mt_clip_sel' : '') +
 				(has_xf ? ' pk_mt_clip_xf' : '');
 			ce.setAttribute ('data-clip', clip.id);
 			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
-			ce.style.width = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0) + 'px';
-			ce.style.height = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16) + 'px';
+			ce.style.width = cw + 'px';
+			ce.style.height = ch + 'px';
 
 			var label = d.createElement ('span');
 			label.textContent = clip.name || 'Audio';
@@ -1294,7 +1324,7 @@
 			}
 			lane.appendChild ( ce );
 
-			drawWave ( clip, canvas );
+			drawWave ( clip, canvas, cw, ch );
 			bindClipDrag ( ce, clip );
 			ce.ondblclick = function ( e ) {
 				e.preventDefault ();
@@ -1345,7 +1375,7 @@
 			};
 		}
 
-		function setRegion ( start, end ) {
+		function setRegion ( start, end, seek ) {
 			var a = clampTime ( start );
 			var b = clampTime ( end );
 			if (b < a) {
@@ -1358,6 +1388,7 @@
 			region = makeRegion ( a, b, region && region.loop );
 			renderRegion ();
 			app.fireEvent ('DidCreateRegion', region);
+			if (seek && !play) setCursorTime ( region.start );
 			return region;
 		}
 
@@ -1475,6 +1506,7 @@
 
 			d.addEventListener ('mousemove', move, false);
 			d.addEventListener ('mouseup', up, false);
+			setActiveDrag ( up );
 
 			function move ( ev ) {
 				var diff = (ev.clientX - down_x) / px_per_sec;
@@ -1498,6 +1530,7 @@
 			function up () {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-region');
 				if (moved && region) setCursorTime ( region.start );
 			}
@@ -1516,6 +1549,7 @@
 
 			d.addEventListener ('mousemove', move, false);
 			d.addEventListener ('mouseup', up, false);
+			setActiveDrag ( up );
 
 			function move ( ev ) {
 				var dx = ev.clientX - down_x;
@@ -1539,11 +1573,13 @@
 			function up ( ev ) {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
 					if (region) setCursorTime ( region.start );
 					return ;
 				}
+				if (!ev) return ;
 
 				var target = regionNodeAtEvent ( ev );
 				var track = regionTrack ({target: target});
@@ -1555,10 +1591,12 @@
 			}
 		}
 
-		function drawWave ( clip, canvas ) {
+		function drawWave ( clip, canvas, w, h ) {
 			var buffer = clip.buffer;
-			var wdt = Math.min (1000, Math.max (64, canvas.parentNode.offsetWidth || 64));
-			var hgt = Math.max (22, canvas.parentNode.offsetHeight - 8);
+			var pw = w !== undefined ? w : canvas.parentNode.offsetWidth;
+			var ph = h !== undefined ? h : canvas.parentNode.offsetHeight;
+			var wdt = Math.min (1000, Math.max (64, pw || 64));
+			var hgt = Math.max (22, ph - 8);
 			canvas.width = wdt;
 			canvas.height = hgt;
 
@@ -1603,15 +1641,19 @@
 			}
 
 			var seconds = rec.buffers.length * rec.size / rec.ctx.sampleRate;
+			var cw = Math.max (36, (seconds * px_per_sec) >> 0);
+			var ch = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16);
 			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
-			rec_el.style.width = Math.max (36, (seconds * px_per_sec) >> 0) + 'px';
-			rec_el.style.height = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16) + 'px';
-			drawRecWave ( rec.buffers, rec_el.getElementsByTagName ('canvas')[0] );
+			rec_el.style.width = cw + 'px';
+			rec_el.style.height = ch + 'px';
+			drawRecWave ( rec.buffers, rec_el.getElementsByTagName ('canvas')[0], cw, ch );
 		}
 
-		function drawRecWave ( buffers, canvas ) {
-			var wdt = Math.min (1000, Math.max (64, canvas.parentNode.offsetWidth || 64));
-			var hgt = Math.max (22, canvas.parentNode.offsetHeight - 8);
+		function drawRecWave ( buffers, canvas, w, h ) {
+			var pw = w !== undefined ? w : canvas.parentNode.offsetWidth;
+			var ph = h !== undefined ? h : canvas.parentNode.offsetHeight;
+			var wdt = Math.min (1000, Math.max (64, pw || 64));
+			var hgt = Math.max (22, ph - 8);
 			var total = buffers.length ? buffers.length * buffers[0].length : 1;
 			var step = Math.max (1, (total / wdt) >> 0);
 			var mid = hgt >> 1;
@@ -1676,6 +1718,7 @@
 				ce.classList.add ('pk_drag');
 				d.addEventListener ('mousemove', move, false);
 				d.addEventListener ('mouseup', up, false);
+				setActiveDrag ( up );
 			};
 
 			function move ( e ) {
@@ -1687,9 +1730,11 @@
 
 				if (drag_mode) {
 					trimClip ( dx / px_per_sec );
+					var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
+					var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
 					ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
-					ce.style.width = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0) + 'px';
-					drawWave ( clip, ce.getElementsByTagName ('canvas')[0] );
+					ce.style.width = cw + 'px';
+					drawWave ( clip, ce.getElementsByTagName ('canvas')[0], cw, ch );
 					queuePlayRefresh ();
 					return ;
 				}
@@ -1710,6 +1755,7 @@
 			function up ( e ) {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				ce.classList.remove ('pk_drag');
 				app.ui.InteractionHandler.forceUnset ('multitrack');
 
@@ -1815,11 +1861,13 @@
 			var down_x = e.clientX;
 			var down_y = e.clientY;
 			var active = false;
+			var last = start;
 
 			if (track) selected_track = track;
 
 			d.addEventListener ('mousemove', move, false);
 			d.addEventListener ('mouseup', up, false);
+			setActiveDrag ( up );
 
 			function move ( ev ) {
 				var dx = ev.clientX - down_x;
@@ -1834,20 +1882,23 @@
 					clearSelectedClip ( true );
 				}
 				ev.preventDefault ();
-				setRegion ( start, timeFromEvent ( ev ) );
+				last = timeFromEvent ( ev );
+				setRegion ( start, last );
 			}
 
 			function up ( ev ) {
 				d.removeEventListener ('mousemove', move);
 				d.removeEventListener ('mouseup', up);
+				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
-					if (setRegion ( start, timeFromEvent ( ev ) ))
-						setCursorTime ( region.start );
-					else
+					if (ev) last = timeFromEvent ( ev );
+					setRegion ( start, last, true );
+					if (!region)
 						setCursorTime ( start );
 				}
 				else {
+					if (!ev) return ;
 					clearSelectedClip ( true );
 					clearRegion ();
 					setCursorTime ( start );
@@ -1882,6 +1933,7 @@
 
 		function addFiles ( file_list, track_id, start ) {
 			if (!file_list || !file_list.length) return ;
+			if (!findTrack ( track_id )) return ;
 			var files = [];
 			for (var i = 0; i < file_list.length; ++i)
 				files.push ( file_list[i] );
@@ -1889,10 +1941,16 @@
 			var prev = cloneState ();
 			var pending = files.length;
 			var added = 0;
+			var missing_track = false;
 			app.fireEvent ('WillDownloadFile');
 
 			files.forEach (function ( file, index ) {
 				decodeFile ( file, function ( buffer ) {
+					if (!findTrack ( track_id )) {
+						missing_track = true;
+						done ();
+						return ;
+					}
 					clips.push ( makeClip (
 						track_id,
 						start + (index * 0.1),
@@ -1909,14 +1967,14 @@
 				if (--pending > 0) return ;
 				app.fireEvent ('DidDownloadFile');
 
-				if (added) {
+				if (added && findTrack ( track_id )) {
 					pushState ( prev, 'Add Clip' );
 					queuePlayRefresh ( true );
 					app.fireEvent ('DidUpdateMultitrack');
 					OneUp ('Added ' + added + ' clip' + (added === 1 ? '' : 's'));
 				}
 				else {
-					OneUp ('Could not decode audio', 1200);
+					OneUp (missing_track ? 'Channel removed' : 'Could not decode audio', 1200);
 				}
 			}
 		}
@@ -1931,6 +1989,56 @@
 				name: name || 'Audio',
 				buffer: buffer
 			};
+		}
+
+		function copyClipBuffer ( clip ) {
+			var src = clip.buffer;
+			var rate = src.sampleRate;
+			var from = Math.max (0, (clipIn ( clip ) * rate) >> 0);
+			var to = Math.min (src.length, (clipOut ( clip ) * rate) >> 0);
+			var len = Math.max (1, to - from);
+			var out = audioCtx ().createBuffer (src.numberOfChannels, len, rate);
+
+			for (var i = 0; i < src.numberOfChannels; ++i)
+				out.getChannelData (i).set (
+					src.getChannelData (i).subarray (from, from + len)
+				);
+
+			return out;
+		}
+
+		function copySelectedClip () {
+			var clip = findClip ( selected_clip );
+			if (!clip) return true;
+
+			var buffer = copyClipBuffer ( clip );
+			if (app.engine.SetCopyBuff) app.engine.SetCopyBuff ( buffer );
+			app.fireEvent ('DidCopy', buffer);
+			OneUp ('Copied clip');
+			return true;
+		}
+
+		function pasteClip () {
+			var buffer = app.engine.GetCopyBuff && app.engine.GetCopyBuff ();
+			if (!buffer) return true;
+
+			var track = selected_track || (tracks[0] && tracks[0].id);
+			if (!track) return true;
+
+			var prev = cloneState ();
+			var clip = makeClip ( track, cursor, buffer, 'Paste' );
+			clips.push ( clip );
+			selected_track = track;
+			selected_clip = clip.id;
+			clearRegion ();
+			setCursorTime ( clip.start );
+			pushState ( prev, 'Paste Clip' );
+			queuePlayRefresh ( true );
+			render ();
+			app.fireEvent ('DidSelectClip', clip);
+			app.fireEvent ('DidUpdateMultitrack');
+			OneUp ('Pasted clip', 900);
+			return true;
 		}
 
 		function makeSilenceBuffer ( seconds ) {
@@ -2205,11 +2313,15 @@
 		}
 
 		function Play ( x ) {
-			if (!clips.length) return ;
 			if (rec) {
-				RecordStop ();
+				var clip = RecordStop ();
+				if (clip) {
+					setCursorTime ( clip.start );
+					schedulePlayback ( false );
+				}
 				return ;
 			}
+			if (!clips.length) return ;
 			if (play && !x) {
 				Stop ();
 				return ;
@@ -2219,6 +2331,8 @@
 				stopNodes ();
 				play = null;
 			}
+			if (region && cursor >= region.end)
+				setCursorTime ( region.start );
 
 			schedulePlayback ( false );
 		}
@@ -2228,7 +2342,7 @@
 			var start_ctx = ctx.currentTime;
 			var solo = hasSolo ();
 			var nodes = [];
-			var dur = region && region.loop ? region.end : duration ();
+			var dur = region ? region.end : duration ();
 			var analyser = ctx.createAnalyser ();
 			var master = ctx.createGain ();
 			var meter = new Float32Array (128);
@@ -2243,7 +2357,7 @@
 				var clip_len = clipLen ( clip );
 				var clip_end = clip.start + clip_len;
 				if (!tr || clip_end <= cursor) continue;
-				if (region && region.loop && clip.start >= region.end) continue;
+				if (region && clip.start >= region.end) continue;
 
 				var source = ctx.createBufferSource ();
 				var gain = ctx.createGain ();
@@ -2251,7 +2365,7 @@
 				var when = start_ctx + Math.max (0, clip.start - cursor);
 				var offset = clipIn ( clip ) + Math.max (0, cursor - clip.start);
 				var play_len = Math.max (0.01, clipOut ( clip ) - offset);
-				if (region && region.loop)
+				if (region)
 					play_len = Math.min ( play_len, Math.max (0.01, region.end - Math.max (cursor, clip.start)) );
 
 				source.buffer = clip.buffer;
@@ -2326,8 +2440,11 @@
 		function tick () {
 			if (!play) return ;
 			cursor = playingCursor ();
-			if (region && region.loop && cursor >= region.end) {
-				setCursorTime ( region.start );
+			if (region && cursor >= region.end) {
+				if (region.loop)
+					setCursorTime ( region.start );
+				else
+					Stop ();
 				return ;
 			}
 			if (cursor >= play.dur) {
@@ -2638,7 +2755,7 @@
 			if (!r.buffers.length) {
 				rec_el = null;
 				render ();
-				return ;
+				return null;
 			}
 
 			var prev = cloneState ();
@@ -2650,12 +2767,17 @@
 				off += r.buffers[i].length;
 			}
 
-			clips.push ( makeClip ( r.track, r.start, buffer, 'Recording' ) );
+			var clip = makeClip ( r.track, r.start, buffer, 'Recording' );
+			clips.push ( clip );
+			selected_track = r.track;
+			selected_clip = clip.id;
 			pushState ( prev, 'Record Clip' );
 			render ();
 			rec_el = null;
 			app.fireEvent ('DidUpdateMultitrack');
+			app.fireEvent ('DidSelectClip', clip);
 			OneUp ('Recorded clip', 1000);
+			return clip;
 		}
 
 		function deleteSelectedClip () {
@@ -2830,7 +2952,7 @@
 				if (arg2 === undefined)
 					arg2 = (main.scrollLeft + main.clientWidth) / px_per_sec;
 				clearSelectedClip ( true );
-				setRegion ( arg1, arg2 );
+				setRegion ( arg1, arg2, true );
 				return true;
 			}
 			if (id === 'RequestSetLoop') {
@@ -2845,8 +2967,11 @@
 				clearSelectedClip ( cleared_region );
 				return true;
 			}
-			if (id === 'RequestActionCopy' || id === 'RequestActionPaste') {
-				return true;
+			if (id === 'RequestActionCopy') {
+				return copySelectedClip ();
+			}
+			if (id === 'RequestActionPaste') {
+				return pasteClip ();
 			}
 			if (id === 'RequestActionSilence') {
 				return addSilence ( arg1, arg2 );

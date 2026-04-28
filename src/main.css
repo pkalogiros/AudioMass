@@ -859,13 +859,13 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_playhead{
 	background:#ff8c35;
-	z-index:4;
+	z-index:11;
 }
 
 .pk_mt_marker{
 	margin-left:-2px;
 	border-right:1px dashed gold;
-	z-index:5;
+	z-index:12;
 }
 
 .pk_tb .pk_btn.pk_mt_btn{

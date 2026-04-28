@@ -859,6 +859,10 @@
 		this.GetCopyBuff = function () {
 			return (copy_buffer);
 		};
+		this.SetCopyBuff = function ( buffer ) {
+			copy_buffer = buffer || null;
+			app.fireEvent ('DidSetClipboard', copy_buffer ? 1 : 0);
+		};
 
 		this.GetSel = function () {
 			var region = wavesurfer.regions.list[0];
