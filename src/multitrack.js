@@ -1145,6 +1145,22 @@
 			return true;
 		}
 
+		function selectTrackByOffset ( diff ) {
+			if (!tracks.length) return true;
+
+			var old = selected_track ? trackIndex ( selected_track ) : -1;
+			var index = old < 0 ? 0 : old + diff;
+			if (index < 0) index = 0;
+			else if (index >= tracks.length) index = tracks.length - 1;
+			if (index === old) return true;
+
+			selected_track = tracks[index].id;
+			render ();
+			scrollTrackIntoView ( selected_track );
+			app.fireEvent ('DidUpdateMultitrack');
+			return true;
+		}
+
 		function bindTrackResize ( handle, track ) {
 			handle.onmousedown = function ( e ) {
 				startTrackResize ( e, track );
@@ -2477,9 +2493,8 @@
 
 		function ZoomUI ( type, val ) {
 			if (type === 0) {
-				px_per_sec = default_px_per_sec;
 				row_h = default_row_h;
-				main.scrollLeft = 0;
+				resetHorizontalZoom ();
 				main.scrollTop = 0;
 				render ();
 				fireZoom ();
@@ -2782,6 +2797,9 @@
 			}
 			if (id === 'RequestChannelMove') {
 				return moveSelectedTrack ( arg1 || 0 );
+			}
+			if (id === 'RequestChannelSelect') {
+				return selectTrackByOffset ( arg1 || 0 );
 			}
 			if (id === 'RequestLoadPickedFiles') {
 				var track = selected_track || (tracks[0] && tracks[0].id);

@@ -2468,7 +2468,7 @@
 
 			UI.fireEvent( 'RequestSkipFront', jump );
 		}, [39]);
-		function mtMoveChannelKey ( diff, ev ) {
+		function mtSelectChannelKey ( diff, ev ) {
 			var mt_on = activeMultitrackFor ( app );
 			var target = ev && ev.target;
 			if (!mt_on ||
@@ -2478,13 +2478,13 @@
 
 			ev && ev.preventDefault ();
 			ev && ev.stopPropagation ();
-			UI.fireEvent ('RequestChannelMove', diff);
+			UI.fireEvent ('RequestChannelSelect', diff);
 		}
 		UI.KeyHandler.addCallback ('KeyMtChannelUp', function ( key, c, ev ) {
-			mtMoveChannelKey ( -1, ev );
+			mtSelectChannelKey ( -1, ev );
 		}, [38]);
 		UI.KeyHandler.addCallback ('KeyMtChannelDown', function ( key, c, ev ) {
-			mtMoveChannelKey ( 1, ev );
+			mtSelectChannelKey ( 1, ev );
 		}, [40]);
 		UI.KeyHandler.addCallback ('KeyShiftArrowBack', function ( key ) {
 			var mt_on = activeMultitrackFor ( app );

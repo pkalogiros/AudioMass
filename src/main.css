@@ -411,23 +411,19 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	cursor:text;
 }
 
+/** MULTITRACK **/
 .pk_mt{
 	display:none;
 	height:calc(100vh - 168px);
 	min-height:280px;
-	background:#080909;
+	background:#111;
 	border-bottom:1px solid #000;
 	overflow:hidden;
 	position:relative;
 }
 
-.pk_mt_on .pk_av_cont{
-	display:none;
-}
-
-.pk_mt_on .pk_mt{
-	display:flex;
-}
+.pk_mt_on .pk_av_cont{display:none}
+.pk_mt_on .pk_mt{display:flex}
 
 .pk_mt_on .pk_zoombtn .pk_zoom_out_v,
 .pk_mt_on .pk_zoombtn .pk_zoom_in_v{
@@ -443,28 +439,26 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_mt_side{
 	width:178px;
 	flex:0 0 178px;
-	background:#181a1a;
-	border-right:1px solid #303535;
-	overflow:visible;
+	background:#111;
+	border-right:1px solid #000;
 	position:relative;
 	z-index:6;
 }
 
 .pk_mt_tracks_wrap{
 	position:absolute;
-	top:25px;
-	left:0;
-	right:0;
-	bottom:0;
+	top:24px;
+	left:0;right:0;bottom:0;
 	overflow-x:hidden;
 	overflow-y:auto;
 }
 
-.pk_mt_head{
+.pk_mt_head,
+.pk_mt_ruler{
 	height:24px;
 	line-height:24px;
-	background:#242828;
-	border-bottom:1px solid #303535;
+	background:#363636;
+	border-bottom:1px solid #000;
 	color:#99c2c6;
 	font-size:12px;
 }
@@ -472,13 +466,17 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_mt_head button{
 	float:left;
 	width:28px;
-	height:20px;
-	margin:2px 8px 0 6px;
-	border:1px solid #3b7773;
-	background:#050707;
-	color:#99c2c6;
+	height:18px;
+	margin:3px 8px 0 6px;
+	border:0;
 	border-radius:3px;
+	background:#111;
+	color:#99c2c6;
 	cursor:pointer;
+}
+
+.pk_mt_head button:hover{
+	box-shadow:0 0 6px #7799ff;
 }
 
 .pk_mt_tracks{
@@ -490,13 +488,13 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	box-sizing:border-box;
 	height:88px;
 	padding:7px 6px;
-	border-bottom:1px solid #2b3030;
-	background:#151717;
+	border-bottom:1px solid #000;
+	background:#1a1a1a;
 	position:relative;
 }
 
 .pk_mt_track.pk_mt_sel{
-	background:#1d2525;
+	background:#282f30;
 }
 
 .pk_mt_track input{
@@ -506,10 +504,10 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:20px;
 	margin:0 0 7px;
 	padding:0 4px;
-	border:1px solid #2c3f3f;
+	border:1px solid #333;
 	border-radius:3px;
-	background:#070808;
-	color:#e7eeee;
+	background:#000;
+	color:#eee;
 	outline:0;
 	font-size:12px;
 	cursor:text;
@@ -517,44 +515,65 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	user-select:text;
 }
 
-.pk_mt_track button{
-	width:25px;
-	height:24px;
-	margin-right:5px;
-	border:1px solid #333;
+.pk_mt_track button,
+.pk_mt_strip button{
+	border:0;
 	border-radius:3px;
-	background:#090a0a;
-	color:#b8c5c5;
-	font-size:11px;
+	background:#000;
+	color:#eee;
 	cursor:pointer;
 	position:relative;
 	overflow:visible;
 }
 
-.pk_mt_track button.pk_act{
-	background:#99c2c6;
-	color:#071010;
-	border-color:#99c2c6;
+.pk_mt_track button{
+	width:25px;
+	height:24px;
+	margin-right:5px;
+	font-size:11px;
 }
 
-.pk_mt_track button.pk_mt_mute.pk_act{
+.pk_mt_strip button{
+	width:21px;
+	height:19px;
+	margin:4px 3px 0 0;
+	font-size:10px;
+}
+
+.pk_mt_track button:hover,
+.pk_mt_strip button:hover{
+	box-shadow:0 0 6px #7799ff;
+}
+
+.pk_mt_track button:active,
+.pk_mt_strip button:active{
+	box-shadow:inset 0 0 10px #262626;
+}
+
+.pk_mt_track button.pk_act,
+.pk_mt_strip button.pk_act{
+	background:#99c2c6;
+	color:#071010;
+}
+
+.pk_mt_track button.pk_mt_mute.pk_act,
+.pk_mt_strip button.pk_mt_mute.pk_act{
 	background:#691515;
 	color:#fff;
-	border-color:#a12a2a;
 	box-shadow:0 0 6px #682020;
 }
 
-.pk_mt_track button.pk_mt_solo.pk_act{
+.pk_mt_track button.pk_mt_solo.pk_act,
+.pk_mt_strip button.pk_mt_solo.pk_act{
 	background:#28c8f0;
 	color:#041014;
-	border-color:#6fe6ff;
 	box-shadow:0 0 6px #1d95b3;
 }
 
-.pk_mt_track button.pk_mt_rec.pk_act{
+.pk_mt_track button.pk_mt_rec.pk_act,
+.pk_mt_strip button.pk_mt_rec.pk_act{
 	background:#e13030;
 	color:#fff;
-	border-color:#ef6868;
 	box-shadow:0 0 6px #d44;
 }
 
@@ -586,39 +605,29 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:23px;
 	margin-right:5px;
 	vertical-align:bottom;
-	border:1px solid #3b7773;
+	border:1px solid #444;
 	border-radius:50%;
-	background:#060808;
+	background:#000;
 	position:relative;
 	cursor:ew-resize;
 }
 
 .pk_mt_knob.pk_mt_vol{
-	border-color:#7c8dbe;
 	cursor:ns-resize;
 }
 
 .pk_mt_knob:before{
 	position:absolute;
-	left:0;
-	right:0;
+	left:0;right:0;
 	bottom:3px;
 	text-align:center;
 	font-size:6px;
 	line-height:6px;
-	color:#789;
 	pointer-events:none;
 }
 
-.pk_mt_pan:before{
-	content:"L/R";
-	color:#8ac4c0;
-}
-
-.pk_mt_vol:before{
-	content:"VOL";
-	color:#b9c6ff;
-}
+.pk_mt_pan:before{content:"L/R";color:#8ac4c0}
+.pk_mt_vol:before{content:"VOL";color:#b9c6ff}
 
 .pk_mt_knob:after{
 	content:attr(data-val);
@@ -628,7 +637,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	width:42px;
 	text-align:center;
 	font-size:9px;
-	color:#667;
+	color:#777;
 }
 
 .pk_mt_knob i{
@@ -647,8 +656,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_resize{
 	position:absolute;
-	left:0;
-	right:0;
+	left:0;right:0;
 	bottom:0;
 	height:9px;
 	cursor:ns-resize;
@@ -660,16 +668,13 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	overflow-x:hidden;
 	overflow-y:auto;
 	position:relative;
-	background:#050606;
+	background:#000;
 	outline:0;
 }
 
 .pk_mt_ruler{
 	position:sticky;
 	top:0;
-	height:24px;
-	background:#111;
-	border-bottom:1px solid #2c3030;
 	z-index:3;
 }
 
@@ -708,18 +713,15 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	min-width:0;
 	height:5px;
 	line-height:0;
-	border-left:1px solid #aaa;
+	border-left:1px solid #777;
 	transform:none;
 }
 
-.pk_mt_tick_half:after{
-	display:none;
-}
+.pk_mt_tick_half:after{display:none}
 
 .pk_mt_lanes{
 	position:relative;
-	background:
-		repeating-linear-gradient(to right, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 86px);
+	background:repeating-linear-gradient(to right, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 86px);
 }
 
 .pk_mt_region{
@@ -734,28 +736,24 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_mt_region .wavesurfer-handle{
 	cursor:col-resize;
 	position:absolute;
-	left:0;
-	top:0;
+	left:0;top:0;
 	width:1%;
 	max-width:4px;
 	height:100%;
 }
 
-.pk_mt_region .wavesurfer-handle-end{
-	left:100%;
-}
+.pk_mt_region .wavesurfer-handle-end{left:100%}
 
 .pk_mt_lane{
 	position:absolute;
-	left:0;
-	right:0;
+	left:0;right:0;
 	height:88px;
-	border-bottom:1px solid #202525;
+	border-bottom:1px solid #1a1a1a;
 	box-sizing:border-box;
 }
 
 .pk_mt_lane.pk_mt_sel{
-	background:rgba(153,194,198,0.06);
+	background:#1a2122;
 }
 
 .pk_mt_clip{
@@ -765,8 +763,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	min-width:36px;
 	border:1px solid #2f7b75;
 	border-radius:4px;
-	background:#071010;
-	box-shadow:0 1px 0 rgba(255,255,255,0.08) inset;
+	background:#0a1414;
+	box-shadow:inset 0 1px 0 rgba(255,255,255,0.08);
 	overflow:hidden;
 	cursor:grab;
 }
@@ -779,7 +777,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_clip.pk_mt_clip_sel{
 	border-color:#f0d878;
-	box-shadow:0 0 0 1px rgba(240,216,120,0.55) inset;
+	box-shadow:inset 0 0 0 1px rgba(240,216,120,0.55);
 	z-index:7;
 }
 
@@ -791,26 +789,19 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_trim{
 	position:absolute;
-	top:0;
-	bottom:0;
+	top:0;bottom:0;
 	width:8px;
 	z-index:2;
 	cursor:ew-resize;
 }
 
-.pk_mt_trim_l{
-	left:0;
-}
-
-.pk_mt_trim_r{
-	right:0;
-}
+.pk_mt_trim_l{left:0}
+.pk_mt_trim_r{right:0}
 
 .pk_mt_trim:after{
 	content:"";
 	position:absolute;
-	top:8px;
-	bottom:10px;
+	top:8px;bottom:10px;
 	left:3px;
 	border-left:1px solid rgba(240,216,120,0.68);
 	opacity:0;
@@ -823,13 +814,12 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_clip span{
 	position:absolute;
-	left:5px;
-	right:5px;
+	left:5px;right:5px;
 	bottom:1px;
 	overflow:hidden;
 	white-space:nowrap;
 	text-overflow:ellipsis;
-	color:#dceeee;
+	color:#eee;
 	font-size:10px;
 	line-height:11px;
 	text-shadow:0 1px 0 #000;
@@ -854,29 +844,27 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_clip.pk_mt_rec_clip{
 	border-color:#e13030;
-	background:#101008;
+	background:#1a0a0a;
 	box-shadow:0 0 7px rgba(225,48,48,0.45);
 	pointer-events:none;
 }
 
-.pk_mt_playhead{
+.pk_mt_playhead,
+.pk_mt_marker{
 	position:absolute;
-	top:24px;
-	bottom:0;
+	top:24px;bottom:0;
 	width:1px;
-	background:#ff8c35;
 	pointer-events:none;
+}
+
+.pk_mt_playhead{
+	background:#ff8c35;
 	z-index:4;
 }
 
 .pk_mt_marker{
-	position:absolute;
-	top:24px;
-	bottom:0;
-	width:1px;
 	margin-left:-2px;
 	border-right:1px dashed gold;
-	pointer-events:none;
 	z-index:5;
 }
 
@@ -912,11 +900,11 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	z-index:7;
 	width:520px;
 	height:118px;
-	margin:15px 15px 12px 15px;
-	border:1px solid #444;
+	margin:15px;
+	border:1px solid #777;
 	border-radius:3px;
 	background:#111;
-	color:#dceeee;
+	color:#eee;
 	font-family:Arial, sans-serif;
 }
 
@@ -924,8 +912,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:20px;
 	line-height:20px;
 	padding-left:7px;
-	background:#1b1e1e;
-	border-bottom:1px solid #333;
+	background:#363636;
+	border-bottom:1px solid #000;
 	font-size:12px;
 	color:#99c2c6;
 }
@@ -936,9 +924,14 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:18px;
 	margin:1px 2px 0 0;
 	border:0;
+	border-radius:3px;
 	background:#301010;
 	color:#ddd;
 	cursor:pointer;
+}
+
+.pk_mt_mix_head button:hover{
+	box-shadow:0 0 6px #7799ff;
 }
 
 .pk_mt_mix_body{
@@ -955,15 +948,15 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:84px;
 	margin-right:6px;
 	padding:4px;
-	border:1px solid #2b3030;
+	border:1px solid #333;
 	border-radius:3px;
-	background:#151717;
+	background:#1a1a1a;
 	vertical-align:top;
 }
 
 .pk_mt_strip.pk_mt_sel{
-	background:#1d2525;
-	border-color:#3b7773;
+	background:#262626;
+	border-color:#99c2c6;
 }
 
 .pk_mt_strip strong{
@@ -974,44 +967,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	text-overflow:ellipsis;
 	font-size:11px;
 	font-weight:normal;
-	color:#e7eeee;
-}
-
-.pk_mt_strip button{
-	width:21px;
-	height:19px;
-	margin:4px 3px 0 0;
-	border:1px solid #333;
-	border-radius:3px;
-	background:#090a0a;
-	color:#b8c5c5;
-	font-size:10px;
-	cursor:pointer;
-	position:relative;
-}
-
-.pk_mt_strip button.pk_act{
-	background:#99c2c6;
-	color:#071010;
-	border-color:#99c2c6;
-}
-
-.pk_mt_strip button.pk_mt_mute.pk_act{
-	background:#691515;
-	color:#fff;
-	border-color:#a12a2a;
-}
-
-.pk_mt_strip button.pk_mt_solo.pk_act{
-	background:#28c8f0;
-	color:#041014;
-	border-color:#6fe6ff;
-}
-
-.pk_mt_strip button.pk_mt_rec.pk_act{
-	background:#e13030;
-	color:#fff;
-	border-color:#ef6868;
+	color:#eee;
 }
 
 .pk_mt_strip .pk_mt_knob{
@@ -1023,7 +979,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	position:absolute;
 	right:4px;
 	bottom:4px;
-	color:#556;
+	color:#777;
 	font-size:8px;
 }
 
@@ -1031,8 +987,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	position:relative;
 	height:4px;
 	margin-top:4px;
-	background:#050606;
-	border:1px solid #242929;
+	background:#000;
+	border:1px solid #333;
 	overflow:hidden;
 }
 
@@ -1046,6 +1002,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_mt_master{
 	border-color:#4a4330;
 }
+/** ENDOF MULTITRACK **/
 
 #pk_prgwv{
 	position: absolute;
