@@ -334,6 +334,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_ftr .pk_btn span,
 .pk_tb .pk_btn span,
 .pk_mt_track button span,
+.pk_mt_strip button span,
+.pk_mt_strip .pk_mt_knob span,
 .pk_mt_knob span {
     display: block;
     -ms-user-select: none;
@@ -368,6 +370,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_ftr .pk_btn:hover span,
 .pk_tb .pk_btn:hover span,
 .pk_mt_track button:hover span,
+.pk_mt_strip button:hover span,
+.pk_mt_strip .pk_mt_knob:hover span,
 .pk_mt_knob:hover span{
     visibility:visible;
     opacity:1;
@@ -425,6 +429,17 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	display:flex;
 }
 
+.pk_mt_on .pk_zoombtn .pk_zoom_out_v,
+.pk_mt_on .pk_zoombtn .pk_zoom_in_v{
+	display:block !important;
+	z-index:12;
+}
+
+.pk_mt_on .pk_ftr{
+	position:relative;
+	z-index:12;
+}
+
 .pk_mt_side{
 	width:178px;
 	flex:0 0 178px;
@@ -433,6 +448,16 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	overflow:visible;
 	position:relative;
 	z-index:6;
+}
+
+.pk_mt_tracks_wrap{
+	position:absolute;
+	top:25px;
+	left:0;
+	right:0;
+	bottom:0;
+	overflow-x:hidden;
+	overflow-y:auto;
 }
 
 .pk_mt_head{
@@ -463,7 +488,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_track{
 	box-sizing:border-box;
-	height:76px;
+	height:88px;
 	padding:7px 6px;
 	border-bottom:1px solid #2b3030;
 	background:#151717;
@@ -539,6 +564,20 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	top:7px;
 	margin:0;
 	color:#c99999;
+}
+
+.pk_mt_track.pk_mt_compact input{
+	margin-bottom:4px;
+}
+
+.pk_mt_track.pk_mt_compact .pk_mt_knob:after{
+	display:none;
+}
+
+.pk_mt_track.pk_mt_tiny .pk_mt_knob,
+.pk_mt_track.pk_mt_tiny .pk_mt_rec,
+.pk_mt_track.pk_mt_tiny .pk_mt_del{
+	display:none;
 }
 
 .pk_mt_knob{
@@ -618,7 +657,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_main{
 	flex:1 1 auto;
-	overflow:hidden;
+	overflow-x:hidden;
+	overflow-y:auto;
 	position:relative;
 	background:#050606;
 	outline:0;
@@ -709,7 +749,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	position:absolute;
 	left:0;
 	right:0;
-	height:76px;
+	height:88px;
 	border-bottom:1px solid #202525;
 	box-sizing:border-box;
 }
@@ -733,13 +773,14 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_mt_clip.pk_drag{
 	cursor:grabbing;
-	z-index:5;
+	z-index:8;
 	box-shadow:0 0 8px rgba(153,194,198,0.55);
 }
 
 .pk_mt_clip.pk_mt_clip_sel{
 	border-color:#f0d878;
 	box-shadow:0 0 0 1px rgba(240,216,120,0.55) inset;
+	z-index:7;
 }
 
 .pk_mt_clip canvas{
@@ -794,6 +835,30 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	text-shadow:0 1px 0 #000;
 }
 
+.pk_mt_clip em{
+	position:absolute;
+	top:2px;
+	right:3px;
+	padding:0 3px;
+	border-radius:2px;
+	background:#f0d878;
+	color:#171303;
+	font-style:normal;
+	font-size:9px;
+	line-height:12px;
+}
+
+.pk_mt_clip.pk_mt_clip_xf{
+	border-color:#d5b64c;
+}
+
+.pk_mt_clip.pk_mt_rec_clip{
+	border-color:#e13030;
+	background:#101008;
+	box-shadow:0 0 7px rgba(225,48,48,0.45);
+	pointer-events:none;
+}
+
 .pk_mt_playhead{
 	position:absolute;
 	top:24px;
@@ -819,7 +884,8 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	vertical-align:top;
 }
 
-.pk_tb .pk_btn.pk_mt_btn:before{
+.pk_tb .pk_btn.pk_mt_btn:before,
+.pk_tb .pk_btn.pk_mt_mix_btn:before{
 	content:"MT";
 	font-family:Helvetica, Arial, sans-serif;
 	font-size:12px;
@@ -828,10 +894,157 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	height:1px;
 }
 
-.pk_tb .pk_btn.pk_mt_btn.pk_act{
+.pk_tb .pk_btn.pk_mt_mix_btn:before{
+	content:"MIX";
+	font-size:10px;
+}
+
+.pk_tb .pk_btn.pk_mt_btn.pk_act,
+.pk_tb .pk_btn.pk_mt_mix_btn.pk_act{
 	background:#99c2c6;
 	color:#071010;
 	box-shadow:0 0 8px rgba(153,194,198,0.45);
+}
+
+.pk_mt_mixer{
+	position:absolute;
+	top:0;
+	z-index:7;
+	width:520px;
+	height:118px;
+	margin:15px 15px 12px 15px;
+	border:1px solid #444;
+	border-radius:3px;
+	background:#111;
+	color:#dceeee;
+	font-family:Arial, sans-serif;
+}
+
+.pk_mt_mix_head{
+	height:20px;
+	line-height:20px;
+	padding-left:7px;
+	background:#1b1e1e;
+	border-bottom:1px solid #333;
+	font-size:12px;
+	color:#99c2c6;
+}
+
+.pk_mt_mix_head button{
+	float:right;
+	width:21px;
+	height:18px;
+	margin:1px 2px 0 0;
+	border:0;
+	background:#301010;
+	color:#ddd;
+	cursor:pointer;
+}
+
+.pk_mt_mix_body{
+	white-space:nowrap;
+	overflow:hidden;
+	padding:7px 6px;
+}
+
+.pk_mt_strip{
+	display:inline-block;
+	position:relative;
+	box-sizing:border-box;
+	width:82px;
+	height:84px;
+	margin-right:6px;
+	padding:4px;
+	border:1px solid #2b3030;
+	border-radius:3px;
+	background:#151717;
+	vertical-align:top;
+}
+
+.pk_mt_strip.pk_mt_sel{
+	background:#1d2525;
+	border-color:#3b7773;
+}
+
+.pk_mt_strip strong{
+	display:block;
+	height:14px;
+	overflow:hidden;
+	white-space:nowrap;
+	text-overflow:ellipsis;
+	font-size:11px;
+	font-weight:normal;
+	color:#e7eeee;
+}
+
+.pk_mt_strip button{
+	width:21px;
+	height:19px;
+	margin:4px 3px 0 0;
+	border:1px solid #333;
+	border-radius:3px;
+	background:#090a0a;
+	color:#b8c5c5;
+	font-size:10px;
+	cursor:pointer;
+	position:relative;
+}
+
+.pk_mt_strip button.pk_act{
+	background:#99c2c6;
+	color:#071010;
+	border-color:#99c2c6;
+}
+
+.pk_mt_strip button.pk_mt_mute.pk_act{
+	background:#691515;
+	color:#fff;
+	border-color:#a12a2a;
+}
+
+.pk_mt_strip button.pk_mt_solo.pk_act{
+	background:#28c8f0;
+	color:#041014;
+	border-color:#6fe6ff;
+}
+
+.pk_mt_strip button.pk_mt_rec.pk_act{
+	background:#e13030;
+	color:#fff;
+	border-color:#ef6868;
+}
+
+.pk_mt_strip .pk_mt_knob{
+	margin-top:6px;
+	margin-right:4px;
+}
+
+.pk_mt_strip small{
+	position:absolute;
+	right:4px;
+	bottom:4px;
+	color:#556;
+	font-size:8px;
+}
+
+.pk_mt_meter{
+	position:relative;
+	height:4px;
+	margin-top:4px;
+	background:#050606;
+	border:1px solid #242929;
+	overflow:hidden;
+}
+
+.pk_mt_meter i{
+	display:block;
+	width:0;
+	height:100%;
+	background:linear-gradient(to right, #99c2c6 0%,#6ecc87 60%,#d6af22 86%,#d15110 100%);
+}
+
+.pk_mt_master{
+	border-color:#4a4330;
 }
 
 #pk_prgwv{

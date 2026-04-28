@@ -97,7 +97,7 @@
 			e.preventDefault ();
 			e.stopPropagation ();
 
-			w.parent.PKAudioEditor.ui.Dock ('RequestDragI', 'sp');
+			w.parent.PKAudioEditor.ui.Dock ('RequestDragI', 'sp', [e.screenX, e.screenY]);
 		};
 
 		w.dock = function () {

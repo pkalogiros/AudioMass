@@ -2468,6 +2468,24 @@
 
 			UI.fireEvent( 'RequestSkipFront', jump );
 		}, [39]);
+		function mtMoveChannelKey ( diff, ev ) {
+			var mt_on = activeMultitrackFor ( app );
+			var target = ev && ev.target;
+			if (!mt_on ||
+				UI.InteractionHandler.on ||
+				(UI.TopHeader.getOpenElement && UI.TopHeader.getOpenElement ()) ||
+				(target && /INPUT|TEXTAREA|SELECT/.test (target.tagName))) return ;
+
+			ev && ev.preventDefault ();
+			ev && ev.stopPropagation ();
+			UI.fireEvent ('RequestChannelMove', diff);
+		}
+		UI.KeyHandler.addCallback ('KeyMtChannelUp', function ( key, c, ev ) {
+			mtMoveChannelKey ( -1, ev );
+		}, [38]);
+		UI.KeyHandler.addCallback ('KeyMtChannelDown', function ( key, c, ev ) {
+			mtMoveChannelKey ( 1, ev );
+		}, [40]);
 		UI.KeyHandler.addCallback ('KeyShiftArrowBack', function ( key ) {
 			var mt_on = activeMultitrackFor ( app );
 			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;

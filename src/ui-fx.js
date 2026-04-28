@@ -1654,7 +1654,7 @@
 			eq_win = {};
 		});
 
-		app.listenFor ('RequestDragI', function ( url ) {
+		app.listenFor ('RequestDragI', function ( url, start ) {
 			if (app.isMobile) {
 				alert ('unsupported on mobile');
 				return ;
@@ -1667,16 +1667,21 @@
 			cur_win.el.style.pointerEvents = 'none';
 			cur_win.el.style.zIndex = '9';
 
-			cur_win.win.document.body.classList.add ('c');
+			if (cur_win.win && cur_win.win.document && cur_win.win.document.body)
+				cur_win.win.document.body.classList.add ('c');
 
 			var el_back = document.createElement ('div');
 			el_back.className = 'pk_modal_back';
 			document.body.appendChild (el_back);
 
 			var is_drag = true;
-			var x = 0;
-			var y = 0;
+			var x = start && start[0] !== undefined ? start[0] : null;
+			var y = start && start[1] !== undefined ? start[1] : null;
 			var moved = 2;
+			var did_undock = false;
+			var drag_docs = [];
+			var child_doc = cur_win.win && cur_win.win.document;
+			if (child_doc && child_doc !== d) drag_docs.push ( child_doc );
 
 			var top = parseInt (cur_win.el.style.top) || 0;
 			var left = parseInt (cur_win.el.style.left) || 0;
@@ -1694,19 +1699,56 @@
 				}
 			}, 60);
 
-			el_back.onmousemove = function ( e ) {
-				if (!is_drag) return ;
+			var evPos = function ( e ) {
+				return [
+					e.screenX === undefined ? e.pageX : e.screenX,
+					e.screenY === undefined ? e.pageY : e.screenY
+				];
+			};
 
-				if (x === 0 && y === 0)
+			var atViewEdge = function ( e ) {
+				var win_x = window.screenLeft || window.screenX || 0;
+				var win_y = window.screenTop || window.screenY || 0;
+
+				if (e.screenX !== undefined && (
+					e.screenX <= win_x + 3 ||
+					e.screenX >= win_x + window.innerWidth - 3 ||
+					e.screenY <= win_y + 3 ||
+					e.screenY >= win_y + window.innerHeight - 3
+				)) return true;
+
+				return e.view === window && (
+					e.clientX <= 3 || e.clientY <= 3 ||
+					e.clientX >= window.innerWidth - 3 ||
+					e.clientY >= window.innerHeight - 3
+				);
+			};
+
+			var outOfView = function () {
+				var rect = cur_win.el && cur_win.el.getBoundingClientRect ();
+				return rect && (
+					rect.left <= -3 ||
+					rect.top <= -3 ||
+					rect.right >= window.innerWidth + 3 ||
+					rect.bottom >= window.innerHeight + 3
+				);
+			};
+
+			var move = function ( e ) {
+				if (!is_drag) return ;
+				var pos = evPos ( e );
+
+				if (x === null)
 				{
-					x = e.pageX;
-					y = e.pageY;
+					x = pos[0];
+					y = pos[1];
 
 					return ;
 				}
 
-				var dist_x = e.pageX - x;
-				var dist_y = e.pageY - y;
+				var dist_x = pos[0] - x;
+				var dist_y = pos[1] - y;
+				if (!dist_x && !dist_y) return ;
 
 				top  += dist_y;
 				left += dist_x;
@@ -1714,22 +1756,36 @@
 				cur_win.el.style.top  = top + 'px';
 				cur_win.el.style.left = left + 'px';
 
-				x = e.pageX;
-				y = e.pageY;
+				x = pos[0];
+				y = pos[1];
 
 				--moved;
+
+				if (atViewEdge ( e ) || outOfView ()) {
+					undock ( e );
+				}
 			};
 
-			el_back.onmouseup = function ( e ) {
+			var up = function ( e ) {
+				if (!el_back) return ;
 				is_drag = false;
 
-				cur_win.win.document.body.classList.remove ('c');
-				cur_win.el.style.pointerEvents = '';
-				cur_win.el.style.zIndex = '7';
+				if (cur_win && cur_win.win && cur_win.win.document && cur_win.win.document.body)
+					cur_win.win.document.body.classList.remove ('c');
+				if (cur_win && cur_win.el) {
+					cur_win.el.style.pointerEvents = '';
+					cur_win.el.style.zIndex = '7';
+				}
 
 				app.ui.InteractionHandler.on = false;
 
-				document.body.removeChild (el_back);
+				for (var di = 0; di < drag_docs.length; ++di) {
+					drag_docs[di].removeEventListener ('mousemove', move);
+					drag_docs[di].removeEventListener ('mouseup', up);
+				}
+
+				if (el_back && el_back.parentNode)
+					document.body.removeChild (el_back);
 
 				if (e.type === 'mouseup')
 				{
@@ -1757,10 +1813,46 @@
 				el_back = null;
 			};
 
-			el_back.onmouseleave = function ( e ) {
-				el_back.onmouseup ( e );
-				app.fireEvent ('RequestShowFreqAn', url, [ [(window.screenLeft + e.pageX)||0, (window.screenTop + e.pageY)||0], 0]);
+			var eventOutOfView = function ( e ) {
+				var x = e.clientX;
+				var y = e.clientY;
+				if (x === undefined || y === undefined) return true;
+				return x <= 0 || y <= 0 ||
+					x >= window.innerWidth ||
+					y >= window.innerHeight;
 			};
+
+			var leavesWindow = function ( e ) {
+				return !e.relatedTarget && !e.toElement;
+			};
+
+			var screenPos = function ( e ) {
+				return [
+					e.screenX === undefined ? (window.screenLeft + (e.pageX || e.clientX || 0)) : e.screenX,
+					e.screenY === undefined ? (window.screenTop + (e.pageY || e.clientY || 0)) : e.screenY
+				];
+			};
+
+			var undock = function ( e ) {
+				if (did_undock) return ;
+				did_undock = true;
+
+				var pos = screenPos ( e );
+				up ( e );
+				app.fireEvent ('RequestShowFreqAn', url, [ pos, 0]);
+			};
+
+			el_back.onmousemove = move;
+			el_back.onmouseup = up;
+			el_back.onmouseleave = function ( e ) {
+				if (!eventOutOfView ( e ) && !leavesWindow ( e )) return ;
+				undock ( e );
+			};
+
+			for (var di = 0; di < drag_docs.length; ++di) {
+				drag_docs[di].addEventListener ('mousemove', move, false);
+				drag_docs[di].addEventListener ('mouseup', up, false);
+			}
 		});
 
 		app.listenFor ('RequestShowFreqAn', function ( url, args_arr ) {
@@ -1770,6 +1862,7 @@
 				return ;
 			}
 
+			args_arr = args_arr || [];
 			var toggle = args_arr[ 0 ];
 			var type   = args_arr[ 1 ];
 			var title = 'Frequency Analysis';
@@ -1793,7 +1886,7 @@
 			}
 
 			var freq_cb = function (_, freq) {
-				curr_win && curr_win.win.update && curr_win.win.update (freq);
+				curr_win && curr_win.win && curr_win.win.update && curr_win.win.update (freq);
 			};
 
 			var setEvents = function ( obj, _url ) {

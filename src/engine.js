@@ -647,9 +647,17 @@
 		}, [16, 86]);
 		app.ui.KeyHandler.addCallback ('KeyShiftCut' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
-			
+
 			app.fireEvent( 'RequestActionCut', 1);
 		}, [16, 88]);
+		app.ui.KeyHandler.addCallback ('KeyCrossfade' + app.id, function ( key, map, e ) {
+			var target = e && e.target;
+			if (app.ui.InteractionHandler.on ||
+				map[16] === 1 ||
+				(target && /INPUT|TEXTAREA|SELECT/.test (target.tagName))) return ;
+
+			app.fireEvent( 'RequestActionCrossfade');
+		}, [88]);
 		app.ui.KeyHandler.addCallback ('KeyDel' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
 

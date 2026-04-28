@@ -12,20 +12,27 @@
 		var selected_clip = null;
 		var editing_clip = null;
 		var default_px_per_sec = 86;
-		var default_row_h = 76;
-		var min_track_h = 44;
-		var max_track_h = 220;
+		var default_row_h = 88;
+		var min_track_h = 58;
+		var max_track_h = 240;
 		var px_per_sec = 86;
-		var row_h = 76;
+		var row_h = 88;
 		var cursor = 0;
 		var marker = 0;
 		var region = null;
+		var xfades = {};
+		var master_vol = 1;
 		var raf = 0;
 		var play_sync = 0;
 		var throttle_wheel = 0;
+		var rec_raf = 0;
+		var rec_redraw = 0;
+		var scroll_sync = false;
+		var did_init_zoom = false;
 
 		var el = null;
 		var side = null;
+		var tracks_wrap = null;
 		var tracks_el = null;
 		var main = null;
 		var ruler = null;
@@ -35,10 +42,15 @@
 		var playhead = null;
 		var marker_el = null;
 		var btn_toggle = null;
+		var btn_mixer = null;
+		var mixer_el = null;
+		var mixer_on = false;
+		var mixer_meters = null;
 		var lane_by_track = {};
 
 		var play = null;
 		var rec = null;
+		var rec_el = null;
 
 		function audioCtx () {
 			var wv = app.engine && app.engine.wavesurfer;
@@ -70,6 +82,8 @@
 				marker: marker,
 				px_per_sec: px_per_sec,
 				row_h: row_h,
+				master_vol: master_vol,
+				xfades: cloneXfades (),
 				tracks: tracks.map (function ( t ) {
 					return {
 						id: t.id,
@@ -103,6 +117,13 @@
 				mt: prev,
 				data: app.engine.wavesurfer.backend.buffer
 			});
+		}
+
+		function cloneXfades () {
+			var ret = {};
+			for (var k in xfades)
+				if (xfades[k]) ret[k] = 1;
+			return ret;
 		}
 
 		function restoreState ( state ) {
@@ -140,12 +161,11 @@
 			marker = state.marker === undefined ? cursor : state.marker;
 			px_per_sec = state.px_per_sec || default_px_per_sec;
 			row_h = state.row_h || default_row_h;
+			master_vol = state.master_vol === undefined ? 1 : state.master_vol;
+			xfades = state.xfades || {};
+			cleanXfades ();
 			render ();
-			if (selected_clip) app.fireEvent ('DidSelectClip', findClip ( selected_clip ));
-			else app.fireEvent ('DidDeselectClip');
-			updatePlayhead ();
-			fireZoom ();
-			app.fireEvent ('DidUpdateMultitrack');
+			emitState ();
 		}
 
 		function nextNum ( arr, pref ) {
@@ -268,6 +288,34 @@
 			if (main) main.focus ();
 		}
 
+		function emitEditorState () {
+			var wv = app.engine && app.engine.wavesurfer;
+			if (!wv) return ;
+			app.fireEvent ('DidUpdateLen', wv.getDuration ? wv.getDuration () : 0);
+			if (wv.regions && wv.regions.list[0])
+				app.fireEvent ('DidCreateRegion', wv.regions.list[0]);
+			else
+				app.fireEvent ('DidDestroyRegion');
+			app.fireEvent ('DidAudioProcess', [
+				wv.getCurrentTime ? wv.getCurrentTime () : 0,
+				null,
+				w.performance.now ()
+			]);
+		}
+
+		function emitState () {
+			updatePlayhead ();
+			app.fireEvent ('DidUpdateLen', duration ());
+			if (region) app.fireEvent ('DidCreateRegion', region);
+			else app.fireEvent ('DidDestroyRegion');
+			app.fireEvent ('DidSetLoop', region && region.loop);
+			if (selected_clip) app.fireEvent ('DidSelectClip', findClip ( selected_clip ));
+			else app.fireEvent ('DidDeselectClip');
+			app.fireEvent ('DidAudioProcess', [cursor, null, w.performance.now ()]);
+			fireZoom ();
+			app.fireEvent ('DidUpdateMultitrack');
+		}
+
 		function build () {
 			var footer = app.el.getElementsByClassName ('pk_ftr')[0];
 			el = d.createElement ('div');
@@ -275,7 +323,7 @@
 			el.innerHTML =
 				'<div class="pk_mt_side">' +
 					'<div class="pk_mt_head"><button tabIndex="-1">+</button><span>Channels</span></div>' +
-					'<div class="pk_mt_tracks"></div>' +
+					'<div class="pk_mt_tracks_wrap"><div class="pk_mt_tracks"></div></div>' +
 				'</div>' +
 				'<div class="pk_mt_main">' +
 					'<div class="pk_mt_ruler"></div>' +
@@ -288,6 +336,7 @@
 			app.el.insertBefore ( el, footer );
 
 			side = el.getElementsByClassName ('pk_mt_side')[0];
+			tracks_wrap = el.getElementsByClassName ('pk_mt_tracks_wrap')[0];
 			tracks_el = el.getElementsByClassName ('pk_mt_tracks')[0];
 			main = el.getElementsByClassName ('pk_mt_main')[0];
 			main.tabIndex = -1;
@@ -310,10 +359,13 @@
 				selected_track = tr.id;
 				pushState ( prev, 'Add Channel' );
 				render ();
+				app.fireEvent ('DidUpdateMultitrack');
 			};
 
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
+			main.addEventListener ('scroll', syncScroll, false);
 			main.addEventListener ('mousedown', startRangeSelect, false);
+			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
 			attachToolbarButton ();
 			render ();
@@ -332,6 +384,19 @@
 				this.blur ();
 			};
 			actions.appendChild ( btn_toggle );
+
+			/*
+			btn_mixer = d.createElement ('button');
+			btn_mixer.setAttribute ('tabIndex', -1);
+			btn_mixer.className = 'pk_btn pk_mt_mix_btn';
+			btn_mixer.innerHTML = '<span>Multitrack Mixer</span>';
+			btn_mixer.onclick = function () {
+				if (!IsOn ()) Toggle ( true );
+				ToggleMixer ();
+				this.blur ();
+			};
+			actions.appendChild ( btn_mixer );
+			*/
 		}
 
 		function IsOn () {
@@ -342,21 +407,44 @@
 			on = force === undefined ? !IsOn () : !!force;
 			app.el.classList[on ? 'add' : 'remove'] ('pk_mt_on');
 			if (btn_toggle) btn_toggle.classList[on ? 'add' : 'remove'] ('pk_act');
+
 			if (!on) {
 				Stop ();
+				HideMixer ();
+				emitEditorState ();
 			}
-				else {
-					syncEditingClip ();
-					app.engine.wavesurfer.pause ();
-				main.scrollTop = 0;
-				tracks_el.style.transform = 'translateY(0)';
-				render ();
-				updatePlayhead ();
-					fireZoom ();
+			else {
+				syncEditingClip ();
+				app.engine.wavesurfer.pause ();
+				if (!did_init_zoom) {
+					did_init_zoom = true;
+					resetHorizontalZoom ();
 				}
-				app.fireEvent ('DidUpdateMultitrack');
-				app.fireEvent ('RequestResize');
+				main.scrollTop = 0;
+				tracks_wrap.scrollTop = 0;
+				render ();
+				emitState ();
 			}
+			app.fireEvent ('RequestResize');
+		}
+
+		function syncScroll () {
+			if (!main) return ;
+			if (!scroll_sync && tracks_wrap && tracks_wrap.scrollTop !== main.scrollTop) {
+				scroll_sync = true;
+				tracks_wrap.scrollTop = main.scrollTop;
+				scroll_sync = false;
+			}
+			redrawRuler ();
+		}
+
+		function syncTrackScroll () {
+			if (!main || !tracks_wrap || scroll_sync) return ;
+			scroll_sync = true;
+			main.scrollTop = tracks_wrap.scrollTop;
+			scroll_sync = false;
+			redrawRuler ();
+		}
 
 		function addTip ( el, text ) {
 			var s = d.createElement ('span');
@@ -390,6 +478,9 @@
 			if (!el) return ;
 
 			lane_by_track = {};
+			cleanXfades ();
+			var old_top = main ? main.scrollTop : 0;
+			rec_el = null;
 			tracks_el.innerHTML = '';
 			lanes.innerHTML = '';
 
@@ -407,12 +498,21 @@
 				top += h;
 			}
 
-			for (var j = 0; j < clips.length; ++j) {
-				renderClip ( clips[j] );
+			var ordered = clips.slice (0).sort (function ( a, b ) {
+				if (a.id === selected_clip) return 1;
+				if (b.id === selected_clip) return -1;
+				return clipLen ( b ) - clipLen ( a );
+			});
+			for (var j = 0; j < ordered.length; ++j) {
+				renderClip ( ordered[j] );
 			}
+			renderRecPreview ();
 
+			if (main) main.scrollTop = old_top;
+			syncScroll ();
 			renderRegion ();
 			updatePlayhead ();
+			renderMixer ();
 			fireZoom ();
 		}
 
@@ -460,7 +560,10 @@
 
 		function renderTrack ( track, top, h ) {
 			var row = d.createElement ('div');
-			row.className = 'pk_mt_track' + (track.id === selected_track ? ' pk_mt_sel' : '');
+			row.className = 'pk_mt_track' +
+				(track.id === selected_track ? ' pk_mt_sel' : '') +
+				(h < 72 ? ' pk_mt_compact' : '') +
+				(h < 62 ? ' pk_mt_tiny' : '');
 			row.setAttribute ('data-track', track.id);
 			row.style.height = h + 'px';
 
@@ -551,8 +654,12 @@
 			};
 			row.onmousedown = function ( e ) {
 				var rect = row.getBoundingClientRect ();
-				if (rect.bottom - e.clientY < 12)
+				if (rect.bottom - e.clientY < 12) {
 					startTrackResize ( e, track );
+					return ;
+				}
+				if (!isTrackControl ( e.target ))
+					startTrackReorder ( e, track );
 			};
 			row.addEventListener ('dragover', stopDrag, false);
 			row.addEventListener ('drop', function ( e ) {
@@ -614,11 +721,27 @@
 				if (clips[j].track === track.id) clips.splice (j, 1);
 			if (selected_track === track.id)
 				selected_track = tracks[0] && tracks[0].id;
-				pushState ( prev, 'Remove Channel' );
-				queuePlayRefresh ( true );
-				render ();
-				app.fireEvent ('DidUpdateMultitrack');
+			cleanXfades ();
+			pushState ( prev, 'Remove Channel' );
+			queuePlayRefresh ( true );
+			render ();
+			app.fireEvent ('DidUpdateMultitrack');
+		}
+
+		function isTrackControl ( node ) {
+			while (node && node !== tracks_el) {
+				if (/INPUT|BUTTON/.test (node.tagName || '') ||
+					(node.classList && (
+						node.classList.contains ('pk_mt_knob') ||
+						node.classList.contains ('pk_mt_resize')
+					)))
+					return true;
+				if (node.classList && node.classList.contains ('pk_mt_track'))
+					return false;
+				node = node.parentNode;
 			}
+			return false;
+		}
 
 		function updateKnob ( el, val ) {
 			el.getElementsByTagName ('i')[0].style.transform =
@@ -716,6 +839,212 @@
 			}
 		}
 
+		function ToggleMixer ( force ) {
+			mixer_on = force === undefined ? !mixer_on : !!force;
+			if (!mixer_on) {
+				HideMixer ();
+				return ;
+			}
+			ShowMixer ();
+		}
+
+		function dockLeft () {
+			var ch = app.ui.BarBtm.el.childNodes;
+			var lw = 0;
+			for (var i = 0; i < ch.length; ++i)
+				lw += ch[i].clientWidth + 18;
+			return lw;
+		}
+
+		function reflowDock () {
+			var ch = app.ui.BarBtm.el.childNodes;
+			var lw = 0;
+			for (var i = 0; i < ch.length; ++i) {
+				if (!ch[i] || !ch[i].parentNode) continue;
+				ch[i].style.top = '0px';
+				ch[i].style.left = lw + 'px';
+				lw += ch[i].clientWidth + 18;
+			}
+			if (!ch.length) app.ui.BarBtm.Hide ();
+		}
+
+		function ShowMixer () {
+			if (!app.ui || !app.ui.BarBtm) return ;
+			if (!mixer_el) {
+				mixer_el = d.createElement ('div');
+				mixer_el.className = 'pk_mt_mixer';
+				mixer_el.style.left = dockLeft () + 'px';
+				mixer_el.innerHTML =
+					'<div class="pk_mt_mix_head">Mixer<button tabIndex="-1">x</button></div>' +
+					'<div class="pk_mt_mix_body"></div>';
+				mixer_el.getElementsByTagName ('button')[0].onclick = function () {
+					HideMixer ();
+					this.blur ();
+				};
+				app.ui.BarBtm.el.appendChild ( mixer_el );
+			}
+			mixer_on = true;
+			if (btn_mixer) btn_mixer.classList.add ('pk_act');
+			app.ui.BarBtm.Show ();
+			renderMixer ();
+		}
+
+		function HideMixer () {
+			mixer_on = false;
+			mixer_meters = null;
+			if (btn_mixer) btn_mixer.classList.remove ('pk_act');
+			if (mixer_el && mixer_el.parentNode) {
+				mixer_el.parentNode.removeChild ( mixer_el );
+				mixer_el = null;
+				reflowDock ();
+			}
+		}
+
+		function renderMixer () {
+			if (!mixer_on || !mixer_el) return ;
+
+			var body = mixer_el.getElementsByClassName ('pk_mt_mix_body')[0];
+			body.innerHTML = '';
+			mixer_meters = {};
+
+			for (var i = 0; i < tracks.length; ++i)
+				body.appendChild ( makeMixerStrip ( tracks[i] ) );
+			body.appendChild ( makeMasterStrip () );
+		}
+
+		function makeMixerStrip ( track ) {
+			var strip = d.createElement ('div');
+			strip.className = 'pk_mt_strip' + (track.id === selected_track ? ' pk_mt_sel' : '');
+
+			var name = d.createElement ('strong');
+			name.textContent = track.name;
+			strip.appendChild ( name );
+
+			var meter = d.createElement ('div');
+			meter.className = 'pk_mt_meter';
+			meter.innerHTML = '<i></i>';
+			mixer_meters[track.id] = meter.getElementsByTagName ('i')[0];
+			strip.appendChild ( meter );
+
+			var mute = makeButton ('M', 'Mute', track.mute, 'pk_mt_mute');
+			var solo = makeButton ('S', 'Solo', track.solo, 'pk_mt_solo');
+			var arm = makeButton ('R', 'Rec Trigger', track.rec, 'pk_mt_rec');
+			mute.onclick = function ( e ) {
+				e.stopPropagation ();
+				setTrackFlag ( track, 'mute', !track.mute, 'Mute Channel' );
+			};
+			solo.onclick = function ( e ) {
+				e.stopPropagation ();
+				setTrackFlag ( track, 'solo', !track.solo, 'Solo Channel' );
+			};
+			arm.onclick = function ( e ) {
+				e.stopPropagation ();
+				setRecordArm ( track, !track.rec );
+			};
+			strip.appendChild ( mute );
+			strip.appendChild ( solo );
+			strip.appendChild ( arm );
+
+			var vol = d.createElement ('div');
+			vol.className = 'pk_mt_knob pk_mt_vol';
+			vol.title = 'Volume';
+			vol.appendChild ( d.createElement ('i') );
+			addTip ( vol, 'Volume' );
+			updateVolume ( vol, track.vol === undefined ? 1 : track.vol );
+			bindVolume ( vol, track );
+			strip.appendChild ( vol );
+
+			var pan = d.createElement ('div');
+			pan.className = 'pk_mt_knob pk_mt_pan';
+			pan.title = 'Pan L/R';
+			pan.appendChild ( d.createElement ('i') );
+			addTip ( pan, 'Pan L/R' );
+			updateKnob ( pan, track.pan );
+			bindPan ( pan, track );
+			strip.appendChild ( pan );
+
+			var fx = d.createElement ('small');
+			fx.textContent = 'FX  SEND';
+			strip.appendChild ( fx );
+			strip.onclick = function () {
+				selected_track = track.id;
+				render ();
+			};
+			return strip;
+		}
+
+		function makeMasterStrip () {
+			var strip = d.createElement ('div');
+			strip.className = 'pk_mt_strip pk_mt_master';
+			strip.innerHTML = '<strong>Master</strong><div class="pk_mt_meter"><i></i></div>';
+			mixer_meters.master = strip.getElementsByTagName ('i')[0];
+
+			var vol = d.createElement ('div');
+			vol.className = 'pk_mt_knob pk_mt_vol';
+			vol.title = 'Master Volume';
+			vol.appendChild ( d.createElement ('i') );
+			addTip ( vol, 'Master Volume' );
+			updateVolume ( vol, master_vol );
+			bindMasterVolume ( vol );
+			strip.appendChild ( vol );
+
+			var fx = d.createElement ('small');
+			fx.textContent = 'FX  SEND';
+			strip.appendChild ( fx );
+			return strip;
+		}
+
+		function bindMasterVolume ( knob ) {
+			var start_y = 0;
+			var start_vol = 1;
+			var prev = null;
+			var moved = false;
+
+			knob.onmousedown = function ( e ) {
+				e.preventDefault ();
+				e.stopPropagation ();
+				prev = cloneState ();
+				start_y = e.clientY;
+				start_vol = master_vol;
+				moved = false;
+				d.addEventListener ('mousemove', move, false);
+				d.addEventListener ('mouseup', up, false);
+			};
+			knob.ondblclick = function ( e ) {
+				e.preventDefault ();
+				e.stopPropagation ();
+				if (master_vol === 1) return ;
+				var p = cloneState ();
+				master_vol = 1;
+				if (play && play.master) play.master.gain.value = master_vol;
+				pushState ( p, 'Master Volume' );
+				renderMixer ();
+			};
+
+			function move ( e ) {
+				var val = Math.max (0, Math.min (1, start_vol - ((e.clientY - start_y) / 90)));
+				if (Math.abs (val - master_vol) > 0.001) moved = true;
+				master_vol = val;
+				if (play && play.master) play.master.gain.value = master_vol;
+				updateVolume ( knob, val );
+			}
+
+			function up () {
+				d.removeEventListener ('mousemove', move);
+				d.removeEventListener ('mouseup', up);
+				if (moved) pushState ( prev, 'Master Volume' );
+			}
+		}
+
+		function updateMixerMeters ( vals, master ) {
+			if (!mixer_meters) return ;
+			for (var k in mixer_meters) {
+				var db = k === 'master' ? master : (vals && vals[k]);
+				var pct = db === undefined ? 0 : Math.max (0, Math.min (100, db + 80) / 80 * 100);
+				mixer_meters[k].style.width = pct + '%';
+			}
+		}
+
 		function startTrackResize ( e, track ) {
 			var start_y = 0;
 			var start_h = 0;
@@ -746,18 +1075,184 @@
 			}
 		}
 
+		function startTrackReorder ( e, track ) {
+			var start_y = e.clientY;
+			var start_i = trackIndex ( track.id );
+			var prev = cloneState ();
+			var moved = false;
+
+			if (!app.ui.InteractionHandler.checkAndSet ('multitrack-order')) return false;
+			selected_track = track.id;
+			d.addEventListener ('mousemove', move, false);
+			d.addEventListener ('mouseup', up, false);
+
+			function move ( ev ) {
+				var dy = Math.abs ( ev.clientY - start_y );
+				if (!moved && dy < 6) return ;
+				var rect = tracks_wrap.getBoundingClientRect ();
+				var index = trackIndexAt (ev.clientY - rect.top + main.scrollTop);
+				var old = trackIndex ( track.id );
+
+				ev.preventDefault ();
+				moved = true;
+				if (index === old) return ;
+
+				tracks.splice (old, 1);
+				tracks.splice (index, 0, track);
+				render ();
+			}
+
+			function up () {
+				d.removeEventListener ('mousemove', move);
+				d.removeEventListener ('mouseup', up);
+				app.ui.InteractionHandler.forceUnset ('multitrack-order');
+				if (moved && trackIndex ( track.id ) !== start_i) {
+					pushState ( prev, 'Reorder Channel' );
+					app.fireEvent ('DidUpdateMultitrack');
+				}
+			}
+		}
+
+		function scrollTrackIntoView ( id ) {
+			if (!main) return ;
+
+			var top = trackTop ( id );
+			var h = trackHeight ( findTrack ( id ) );
+			var view = main.clientHeight - 24;
+			if (top < main.scrollTop)
+				main.scrollTop = top;
+			else if (top + h > main.scrollTop + view)
+				main.scrollTop = top + h - view;
+
+			syncScroll ();
+		}
+
+		function moveSelectedTrack ( diff ) {
+			if (!selected_track || tracks.length < 2) return true;
+
+			var old = trackIndex ( selected_track );
+			var index = old + diff;
+			if (index < 0 || index >= tracks.length) return true;
+
+			var prev = cloneState ();
+			var track = tracks[old];
+			tracks.splice (old, 1);
+			tracks.splice (index, 0, track);
+			pushState ( prev, diff < 0 ? 'Move Channel Up' : 'Move Channel Down' );
+			render ();
+			scrollTrackIntoView ( track.id );
+			app.fireEvent ('DidUpdateMultitrack');
+			return true;
+		}
+
 		function bindTrackResize ( handle, track ) {
 			handle.onmousedown = function ( e ) {
 				startTrackResize ( e, track );
 			};
 		}
 
+		function pairKey ( a, b ) {
+			var x = typeof a === 'string' ? a : a.id;
+			var y = typeof b === 'string' ? b : b.id;
+			return x < y ? x + ':' + y : y + ':' + x;
+		}
+
+		function activeXfade ( a, b ) {
+			return !!xfades[pairKey ( a, b )];
+		}
+
+		function clipEnd ( clip ) {
+			return clip.start + clipLen ( clip );
+		}
+
+		function overlapOf ( a, b ) {
+			if (!a || !b || a.track !== b.track) return null;
+			var start = Math.max (a.start, b.start);
+			var end = Math.min (clipEnd ( a ), clipEnd ( b ));
+			return end - start > 0.005 ? [start, end] : null;
+		}
+
+		function cleanXfades () {
+			var keep = {};
+			for (var i = 0; i < clips.length; ++i)
+				keep[clips[i].id] = 1;
+
+			for (var k in xfades) {
+				var ids = k.split (':');
+				if (!keep[ids[0]] || !keep[ids[1]])
+					delete xfades[k];
+			}
+		}
+
+		function clipHasXfade ( clip ) {
+			for (var i = 0; i < clips.length; ++i) {
+				if (clips[i] === clip) continue;
+				if (activeXfade (clip, clips[i]) && overlapOf (clip, clips[i]))
+					return true;
+			}
+			return false;
+		}
+
+		function xfadeGainAt ( clip, time ) {
+			var gain = 1;
+			for (var i = 0; i < clips.length; ++i) {
+				var other = clips[i];
+				if (other === clip || !activeXfade (clip, other)) continue;
+
+				var ov = overlapOf ( clip, other );
+				if (!ov || time < ov[0] || time > ov[1]) continue;
+
+				var p = (time - ov[0]) / Math.max (0.0001, ov[1] - ov[0]);
+				var first = clip.start < other.start ||
+					(clip.start === other.start && clip.id < other.id);
+				gain *= first ?
+					Math.cos (p * Math.PI * 0.5) :
+					Math.sin (p * Math.PI * 0.5);
+			}
+			return gain;
+		}
+
+		function toggleXfade () {
+			var clip = findClip ( selected_clip );
+			if (!clip) return false;
+
+			var pairs = [];
+			var all_on = true;
+			for (var i = 0; i < clips.length; ++i) {
+				var other = clips[i];
+				if (other === clip || !overlapOf (clip, other)) continue;
+
+				var key = pairKey ( clip, other );
+				pairs.push ( key );
+				if (!xfades[key]) all_on = false;
+			}
+
+			if (!pairs.length) {
+				OneUp ('No overlap on this channel', 1200);
+				return true;
+			}
+
+			var prev = cloneState ();
+			for (i = 0; i < pairs.length; ++i) {
+				if (all_on) delete xfades[pairs[i]];
+				else xfades[pairs[i]] = 1;
+			}
+			pushState ( prev, all_on ? 'Remove Crossfade' : 'Crossfade Clip' );
+			queuePlayRefresh ( true );
+			render ();
+			OneUp (all_on ? 'Removed Crossfade' : 'Crossfade Clip', 900);
+			return true;
+		}
+
 		function renderClip ( clip ) {
 			var lane = lane_by_track[clip.track];
 			if (!lane) return ;
 
+			var has_xf = clipHasXfade ( clip );
 			var ce = d.createElement ('div');
-			ce.className = 'pk_mt_clip' + (clip.id === selected_clip ? ' pk_mt_clip_sel' : '');
+			ce.className = 'pk_mt_clip' +
+				(clip.id === selected_clip ? ' pk_mt_clip_sel' : '') +
+				(has_xf ? ' pk_mt_clip_xf' : '');
 			ce.setAttribute ('data-clip', clip.id);
 			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 			ce.style.width = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0) + 'px';
@@ -776,6 +1271,11 @@
 			ce.appendChild ( trim_l );
 			ce.appendChild ( trim_r );
 			ce.appendChild ( label );
+			if (has_xf) {
+				var xf = d.createElement ('em');
+				xf.textContent = 'XF';
+				ce.appendChild ( xf );
+			}
 			lane.appendChild ( ce );
 
 			drawWave ( clip, canvas );
@@ -1032,6 +1532,7 @@
 				var target = regionNodeAtEvent ( ev );
 				var track = regionTrack ({target: target});
 				if (track) selected_track = track;
+				clearSelectedClip ( true );
 				clearRegion ();
 				setCursorTime ( timeFromEvent ( ev ) );
 				render ();
@@ -1065,6 +1566,57 @@
 				var off = from + x * step;
 				for (var j = 0; j < step; j += 24) {
 					var v = data[off + j] || 0;
+					if (v > max) max = v;
+					else if (v < min) min = v;
+				}
+				ctx.fillRect (x, mid - (max * mid), 1, Math.max (1, (max - min) * mid));
+			}
+		}
+
+		function renderRecPreview () {
+			if (!rec || !rec.buffers.length) return ;
+
+			var lane = lane_by_track[rec.track];
+			if (!lane) return ;
+
+			if (!rec_el || !rec_el.parentNode) {
+				rec_el = d.createElement ('div');
+				rec_el.className = 'pk_mt_clip pk_mt_rec_clip';
+				rec_el.innerHTML = '<canvas></canvas><span>Recording</span>';
+				lane.appendChild ( rec_el );
+			}
+
+			var seconds = rec.buffers.length * rec.size / rec.ctx.sampleRate;
+			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
+			rec_el.style.width = Math.max (36, (seconds * px_per_sec) >> 0) + 'px';
+			rec_el.style.height = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16) + 'px';
+			drawRecWave ( rec.buffers, rec_el.getElementsByTagName ('canvas')[0] );
+		}
+
+		function drawRecWave ( buffers, canvas ) {
+			var wdt = Math.min (1000, Math.max (64, canvas.parentNode.offsetWidth || 64));
+			var hgt = Math.max (22, canvas.parentNode.offsetHeight - 8);
+			var total = buffers.length ? buffers.length * buffers[0].length : 1;
+			var step = Math.max (1, (total / wdt) >> 0);
+			var mid = hgt >> 1;
+
+			canvas.width = wdt;
+			canvas.height = hgt;
+
+			var ctx = canvas.getContext ('2d', {alpha:false});
+			ctx.fillStyle = '#101008';
+			ctx.fillRect (0, 0, wdt, hgt);
+			ctx.fillStyle = '#e13030';
+
+			for (var x = 0; x < wdt; ++x) {
+				var max = 0;
+				var min = 0;
+				var off = x * step;
+
+				for (var j = 0; j < step; j += 24) {
+					var pos = off + j;
+					var b = buffers[(pos / buffers[0].length) >> 0];
+					var v = b ? b[pos % buffers[0].length] || 0 : 0;
 					if (v > max) max = v;
 					else if (v < min) min = v;
 				}
@@ -1224,9 +1776,13 @@
 
 		function canRangeSelect ( e ) {
 			if (e.button !== undefined && e.button !== 0) return false;
-			if (e.target === main || e.target === lanes || e.target === ruler)
+			if (e.target === main || e.target === lanes || e.target === ruler ||
+				e.target === ruler_canvas)
 				return true;
-			if (e.target.classList && e.target.classList.contains ('pk_mt_tick'))
+			if (e.target.classList && (
+				e.target.classList.contains ('pk_mt_tick') ||
+				e.target.classList.contains ('pk_mt_timeline')
+			))
 				return true;
 			return !!(e.target.classList && e.target.classList.contains ('pk_mt_lane'));
 		}
@@ -1276,6 +1832,7 @@
 						setCursorTime ( start );
 				}
 				else {
+					clearSelectedClip ( true );
 					clearRegion ();
 					setCursorTime ( start );
 				}
@@ -1335,12 +1892,13 @@
 			function done () {
 				if (--pending > 0) return ;
 				app.fireEvent ('DidDownloadFile');
-					if (added) {
-						pushState ( prev, 'Add Clip' );
-						queuePlayRefresh ( true );
-						app.fireEvent ('DidUpdateMultitrack');
-						OneUp ('Added ' + added + ' clip' + (added === 1 ? '' : 's'));
-					}
+
+				if (added) {
+					pushState ( prev, 'Add Clip' );
+					queuePlayRefresh ( true );
+					app.fireEvent ('DidUpdateMultitrack');
+					OneUp ('Added ' + added + ' clip' + (added === 1 ? '' : 's'));
+				}
 				else {
 					OneUp ('Could not decode audio', 1200);
 				}
@@ -1390,6 +1948,81 @@
 			return a + ((b - a) * frac);
 		}
 
+		function clipTimelineStart ( clip, offset ) {
+			return clip.start + offset - clipIn ( clip );
+		}
+
+		function applyClipEnvelope ( param, clip, base, when, offset, play_len ) {
+			var start = clipTimelineStart ( clip, offset );
+			var end = start + play_len;
+			var points = [{t: start, v: base * xfadeGainAt (clip, start)}];
+
+			param.cancelScheduledValues ( when );
+
+			for (var i = 0; i < clips.length; ++i) {
+				var other = clips[i];
+				if (other === clip || !activeXfade (clip, other)) continue;
+
+				var ov = overlapOf (clip, other);
+				if (!ov) continue;
+
+				var from = Math.max (start, ov[0]);
+				var to = Math.min (end, ov[1]);
+				if (to <= from) continue;
+
+				var steps = Math.max (4, Math.min (24, ((to - from) / 0.03) >> 0));
+				for (var j = 0; j <= steps; ++j) {
+					var t = from + ((to - from) * j / steps);
+					points.push ({t: t, v: base * xfadeGainAt (clip, t)});
+				}
+			}
+
+			points.sort (function ( a, b ) {
+				return a.t - b.t;
+			});
+
+			param.setValueAtTime ( points[0].v, when );
+			for (i = 1; i < points.length; ++i) {
+				if (points[i].t <= points[i - 1].t + 0.0001) continue;
+				param.linearRampToValueAtTime (
+					points[i].v,
+					when + (points[i].t - start)
+				);
+			}
+		}
+
+		function meterAt ( time ) {
+			var solo = hasSolo ();
+			var vals = {};
+			for (var i = 0; i < clips.length; ++i) {
+				var clip = clips[i];
+				var tr = findTrack ( clip.track );
+				var gain = trackGain ( tr, solo );
+				if (!tr || gain <= 0 || time < clip.start || time > clipEnd ( clip ))
+					continue;
+
+				var src = clipIn ( clip ) + time - clip.start;
+				var pan = tr.pan || 0;
+				var gl = gain * (pan > 0 ? 1 - pan : 1);
+				var gr = gain * (pan < 0 ? 1 + pan : 1);
+				var env = xfadeGainAt (clip, time);
+				var l = mixSample ( clip.buffer, 0, src ) * gl * env;
+				var r = mixSample (
+					clip.buffer,
+					clip.buffer.numberOfChannels > 1 ? 1 : 0,
+					src
+				) * gr * env;
+
+				vals[tr.id] = Math.max (vals[tr.id] || 0, Math.sqrt ((l * l + r * r) / 2));
+			}
+
+			for (var k in vals)
+				vals[k] = vals[k] > 0.00001 ?
+					20 * Math.log (vals[k]) / Math.LN10 :
+					-100;
+			return vals;
+		}
+
 		function Mixdown ( selection ) {
 			if (!clips.length) return null;
 
@@ -1425,12 +2058,13 @@
 
 				for (var j = 0; j < len; ++j) {
 					var t = src + (j / rate);
-					left[off + j] += mixSample ( clip.buffer, 0, t ) * gl;
+					var env = xfadeGainAt ( clip, start + (j / rate) ) * master_vol;
+					left[off + j] += mixSample ( clip.buffer, 0, t ) * gl * env;
 					right[off + j] += mixSample (
 						clip.buffer,
 						clip.buffer.numberOfChannels > 1 ? 1 : 0,
 						t
-					) * gr;
+					) * gr * env;
 				}
 			}
 			return out;
@@ -1457,11 +2091,11 @@
 			clearRegion ();
 			setCursorTime ( clip.start );
 			pushState ( prev, 'Silence' );
-				queuePlayRefresh ( true );
-				render ();
-				app.fireEvent ('DidUpdateMultitrack');
-				app.fireEvent ('DidSelectClip', clip);
-				OneUp ('Inserted Silence');
+			queuePlayRefresh ( true );
+			render ();
+			app.fireEvent ('DidUpdateMultitrack');
+			app.fireEvent ('DidSelectClip', clip);
+			OneUp ('Inserted Silence');
 			return true;
 		}
 
@@ -1583,6 +2217,7 @@
 			var master = ctx.createGain ();
 			var meter = new Float32Array (128);
 			analyser.fftSize = 256;
+			master.gain.value = master_vol;
 			master.connect ( analyser );
 			analyser.connect ( ctx.destination );
 
@@ -1614,8 +2249,9 @@
 					source.connect ( gain );
 				}
 				gain.connect ( master );
+				applyClipEnvelope ( gain.gain, clip, trackGain ( tr, solo ), when, offset, play_len );
 				source.start ( when, offset, play_len );
-				nodes.push ({src: source, gain: gain, pan: pan, track: tr.id});
+				nodes.push ({src: source, gain: gain, pan: pan, track: tr.id, clip: clip});
 			}
 
 			play = {
@@ -1689,6 +2325,7 @@
 			var rms = Math.sqrt (sum / play.meter.length);
 			var db = rms > 0.00001 ? 20 * Math.log (rms) / Math.LN10 : -100;
 			app.fireEvent ('DidAudioProcess', [cursor, [db, db], w.performance.now ()]);
+			updateMixerMeters ( meterAt (cursor), db );
 			updatePlayhead ();
 			raf = w.requestAnimationFrame ( tick );
 		}
@@ -1704,6 +2341,7 @@
 			play = null;
 			app.fireEvent ('DidAudioProcess', [cursor, null, w.performance.now ()]);
 			app.fireEvent ('DidStopPlay');
+			updateMixerMeters ( null );
 			updatePlayhead ();
 			fireZoom ();
 		}
@@ -1721,6 +2359,7 @@
 			cursor = marker;
 			app.fireEvent ('DidAudioProcess', [cursor, null, w.performance.now ()]);
 			app.fireEvent ('DidStopPlay');
+			updateMixerMeters ( null );
 			updatePlayhead ();
 			fireZoom ();
 		}
@@ -1754,6 +2393,7 @@
 		function refreshMix () {
 			if (!play) return ;
 			var solo = hasSolo ();
+			if (play.master) play.master.gain.value = master_vol;
 			for (var i = 0; i < play.nodes.length; ++i) {
 				var node = play.nodes[i];
 				var tr = findTrack ( node.track );
@@ -1808,6 +2448,15 @@
 			else if (main.scrollLeft > max) main.scrollLeft = max;
 		}
 
+		function resetHorizontalZoom () {
+			if (!main || !main.clientWidth) {
+				px_per_sec = default_px_per_sec;
+				return ;
+			}
+			px_per_sec = main.clientWidth / Math.max (0.001, duration ());
+			main.scrollLeft = 0;
+		}
+
 		function zoomTo ( next_pps, center_time, where ) {
 			next_pps = Math.max (12, Math.min (1200, next_pps));
 			if (!main) {
@@ -1843,7 +2492,7 @@
 			}
 
 			if (type === 'v') {
-				row_h = Math.max (44, Math.min (130, row_h * (val < 0 ? 1.15 : 1 / 1.15)));
+				row_h = Math.max (min_track_h, Math.min (130, row_h * (val < 0 ? 1.15 : 1 / 1.15)));
 				render ();
 				fireZoom ();
 			}
@@ -1921,6 +2570,14 @@
 						return ;
 					}
 					buffers.push ( ev.inputBuffer.getChannelData (0).slice (0) );
+					if (++rec_redraw > 3) {
+						rec_redraw = 0;
+						if (!rec_raf)
+							rec_raf = w.requestAnimationFrame (function () {
+								rec_raf = 0;
+								renderRecPreview ();
+							});
+					}
 				};
 
 				rec = {
@@ -1944,6 +2601,10 @@
 			if (!rec) return ;
 			var r = rec;
 			rec = null;
+			if (rec_raf) {
+				w.cancelAnimationFrame ( rec_raf );
+				rec_raf = 0;
+			}
 
 			if (r.node) {
 				r.node.onaudioprocess = null;
@@ -1959,7 +2620,11 @@
 			}
 
 			app.fireEvent ('DidActionRecordStop', !!r.buffers.length);
-			if (!r.buffers.length) return ;
+			if (!r.buffers.length) {
+				rec_el = null;
+				render ();
+				return ;
+			}
 
 			var prev = cloneState ();
 			var len = r.buffers.length * r.size;
@@ -1970,11 +2635,12 @@
 				off += r.buffers[i].length;
 			}
 
-				clips.push ( makeClip ( r.track, r.start, buffer, 'Recording' ) );
-				pushState ( prev, 'Record Clip' );
-				render ();
-				app.fireEvent ('DidUpdateMultitrack');
-				OneUp ('Recorded clip', 1000);
+			clips.push ( makeClip ( r.track, r.start, buffer, 'Recording' ) );
+			pushState ( prev, 'Record Clip' );
+			render ();
+			rec_el = null;
+			app.fireEvent ('DidUpdateMultitrack');
+			OneUp ('Recorded clip', 1000);
 		}
 
 		function deleteSelectedClip () {
@@ -1992,11 +2658,11 @@
 			if (editing_clip === selected_clip) editing_clip = null;
 			selected_clip = null;
 			app.fireEvent ('DidDeselectClip');
-				pushState ( prev, 'Delete Clip' );
-				queuePlayRefresh ( true );
-				render ();
-				app.fireEvent ('DidUpdateMultitrack');
-				return true;
+			pushState ( prev, 'Delete Clip' );
+			queuePlayRefresh ( true );
+			render ();
+			app.fireEvent ('DidUpdateMultitrack');
+			return true;
 		}
 
 		function splitSelectedClip () {
@@ -2059,6 +2725,7 @@
 		q.RecordToggle = RecordToggle;
 		q.RecordStart = RecordStart;
 		q.RecordStop = RecordStop;
+		q.ToggleMixer = ToggleMixer;
 		q.Propagate = function ( id, arg1, arg2 ) {
 			if (!IsOn () && id !== 'RequestActionRecordStop') return false;
 
@@ -2108,6 +2775,13 @@
 			if (id === 'RequestViewCenterToCursor') {
 				CenterToCursor ();
 				return true;
+			}
+			if (id === 'RequestMixerToggle') {
+				ToggleMixer ();
+				return true;
+			}
+			if (id === 'RequestChannelMove') {
+				return moveSelectedTrack ( arg1 || 0 );
 			}
 			if (id === 'RequestLoadPickedFiles') {
 				var track = selected_track || (tracks[0] && tracks[0].id);
@@ -2170,6 +2844,9 @@
 				deleteSelectedClip ();
 				return true;
 			}
+			if (id === 'RequestActionCrossfade') {
+				return toggleXfade ();
+			}
 			if (id === 'RequestActionRecordToggle') {
 				RecordToggle ();
 				return true;
@@ -2191,6 +2868,16 @@
 			restoreState ( state.mt );
 			if (undo) OneUp ('Undo ' + state.desc);
 			else OneUp ('Redo ' + state.desc);
+		});
+		app.listenFor ('RequestResize', function () {
+			if (!el) return ;
+			var h = w.innerHeight;
+			var bottom = app.ui && app.ui.BarBtm && app.ui.BarBtm.on ?
+				app.ui.BarBtm.height :
+				0;
+			el.style.height = ((h < 280 ? 280 : h) - 168 - bottom) + 'px';
+			syncScroll ();
+			redrawRuler ();
 		});
 		app.listenFor ('DidUpdateLen', syncEditingClip);
 		app.listenFor ('DidUnloadFile', function () {
