@@ -7,6 +7,7 @@ var FLAC_INITIALIZED = false;
 var sample_rate = 44100;
 var compression = 5; // Default compression (0-8)
 var channels = 1;
+var total_samples = 0;
 var buffers = [];
 var bufIndex = 0;
 var first_buffer = true;
@@ -21,8 +22,8 @@ function convert(n) {
 function initFLAC() {
     if (FLAC_INITIALIZED) return true;
     
-    //                                        SAMPLERATE, CHANNELS, BPS, COMPRESSION, 0, VERIFY, BLOCK_SIZE);
-    flacEncoder = Flac.create_libflac_encoder(sample_rate, channels, 16, compression, 0, true, 0);
+    //                                        SAMPLERATE, CHANNELS, BPS, COMPRESSION, SAMPLES, VERIFY, BLOCK_SIZE);
+    flacEncoder = Flac.create_libflac_encoder(sample_rate, channels, 16, compression, total_samples, true, 0);
     if (flacEncoder != 0) {
         var status = Flac.init_encoder_stream(flacEncoder, function(buffer, bytes) {
             buffers.push(new Uint8Array(buffer));
@@ -58,6 +59,7 @@ onmessage = function(ev) {
         sample_rate = ev.data.sample_rate / 1;
         compression = ev.data.flac_compression;
         channels = ev.data.channels / 1;
+        total_samples = ev.data.samples / 1 || 0;
         
         initFLAC();
         return;

@@ -16,6 +16,15 @@
 		var events = {};
 
 		q.fireEvent = function ( eventName, value, value2 ) {
+			if (q.multitrack &&
+				typeof eventName === 'string' &&
+				eventName.substr (0, 7) === 'Request' &&
+				q.multitrack.Propagate &&
+				q.multitrack.Propagate ( eventName, value, value2 ))
+			{
+				return (true);
+			}
+
 			var group = events[eventName];
 			if (!group) return (false);
 
@@ -61,9 +70,10 @@
 			// init libraries
 			q.ui     = new q._deps.ui ( q ); q._deps.uifx ( q );
 			q.engine = new q._deps.engine ( q );
-			q.state  = new q._deps.state ( 4, q );
+			q.state  = new q._deps.state ( 24, q );
 			q.rec    = new q._deps.rec ( q );
 			q.fls    = new q._deps.fls ( q );
+			q.multitrack = q._deps.multitrack ? new q._deps.multitrack ( q ) : null;
 
 			if (w.location.href.split('local=')[1]) {
 				var sess = w.location.href.split('local=')[1];

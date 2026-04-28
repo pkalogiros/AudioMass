@@ -1,8 +1,58 @@
 (function ( w, d, PKAE ) {
 	'use strict';
 
-	// 
+	//
 	// MAIN UI CLASS
+	function activeMultitrackFor ( app ) {
+		var mt = (app && app.multitrack) || (PKAE && PKAE.multitrack);
+		var root = (app && app.el) || (PKAE && PKAE.el);
+		return mt &&
+			mt.IsOn &&
+			(mt.IsOn () || (root && root.classList.contains ('pk_mt_on'))) ?
+			mt :
+			null;
+	}
+
+	function activeCursorTimeFor ( app ) {
+		var mt = activeMultitrackFor ( app );
+		var ws = app.engine && app.engine.wavesurfer;
+		return mt ? mt.GetCursor () : (ws ? ws.getCurrentTime () : 0);
+	}
+
+	function activeDurationFor ( app ) {
+		var mt = activeMultitrackFor ( app );
+		var ws = app.engine && app.engine.wavesurfer;
+		return mt ? mt.GetDuration () : (ws ? ws.getDuration () : 0);
+	}
+
+	function activeRegionFor ( app ) {
+		var mt = activeMultitrackFor ( app );
+		var ws = app.engine && app.engine.wavesurfer;
+		return mt && mt.GetRegion ? mt.GetRegion () :
+			(ws && ws.regions ? ws.regions.list[0] : null);
+	}
+
+	function activeZoomFor ( app ) {
+		var mt = activeMultitrackFor ( app );
+		var ws = app.engine && app.engine.wavesurfer;
+		return mt ?
+			(mt.GetSeekZoomFactor ? mt.GetSeekZoomFactor () : mt.GetZoomFactor ()) :
+			(ws ? ws.ZoomFactor : 1);
+	}
+
+	function activeSeekRampFor ( app ) {
+		return activeMultitrackFor ( app ) ? 0.15 : 0.05;
+	}
+
+	function activeSeekWarmupFor ( app ) {
+		return activeMultitrackFor ( app ) ? 2 : 4;
+	}
+
+	function activeReadyFor ( app ) {
+		return !!activeMultitrackFor ( app ) ||
+			!!(app.engine && app.engine.is_ready);
+	}
+
 	var PKUI = function( app ) {
 		var q = this;
 
@@ -91,6 +141,9 @@
 		this.Dock      = function ( id, arg1, arg2 ) {
 			app.fireEvent (id, arg1, arg2);
 		};
+		this.GetActiveCursor = function () {
+			return activeCursorTimeFor ( app );
+		};
 
 		app.listenFor ('ShowError', function( message ) {
 			new PKSimpleModal ({
@@ -164,7 +217,7 @@
 													{
 														if (radios[l].value === 'sel')
 														{
-															var region = app.engine.wavesurfer.regions.list[0];
+															var region = activeRegionFor ( app );
 															if (!region) export_sel = false;
 															else export_sel = [region.start, region.end];
 														}
@@ -231,21 +284,23 @@
 									'<input type="radio" class="pk_check" id="k5" name="xport" value="sel">'+
 									'<label class="pk_lblmp3" for="k5">Export Selection Only</label></div>',
 									
-								  setup:function( q ) {
-								  		var wv = PKAudioEditor.engine.wavesurfer;
-								  		//console.log( document.getElementById('frmtex') );
+									  setup:function( q ) {
+											var wv = PKAudioEditor.engine.wavesurfer;
+											var mt_on = activeMultitrackFor ( app );
+											//console.log( document.getElementById('frmtex') );
 
 								  		// if no region
-										var region = wv.regions.list[0];
+										var region = activeRegionFor ( app );
 										if (!region) {
 											var lbl = q.el_body.getElementsByClassName('pk_lblmp3')[0];
 											lbl.className = 'pk_dis';
 										}
 
-										var chan_num = wv.backend.buffer.numberOfChannels;
-										if (chan_num === 2) {
-											q.el_body.getElementsByClassName('pk_stereo')[0].checked = true;
-										}
+											var chan_num = mt_on ? 2 :
+												(wv.backend.buffer ? wv.backend.buffer.numberOfChannels : 1);
+											if (chan_num === 2) {
+												q.el_body.getElementsByClassName('pk_stereo')[0].checked = true;
+											}
 
 								  		app.fireEvent ('RequestPause');
 										app.ui.InteractionHandler.checkAndSet ('modal');
@@ -297,19 +352,26 @@
 										},20);
 								  }
 								}).Show();
-						},
-						clss: 'pk_inact',
-						setup: function ( obj ) {
-							obj.setAttribute('data-id', 'dl');
+							},
+							clss: 'pk_inact',
+							setup: function ( obj ) {
+								obj.setAttribute('data-id', 'dl');
 
-							app.listenFor ('DidUnloadFile', function () {
-								obj.classList.add ('pk_inact');
-							});
-							app.listenFor ('DidLoadFile', function () {
-								obj.classList.remove ('pk_inact');
-							});
-						}
-					},
+								function setExportReady () {
+									var mt = activeMultitrackFor ( app );
+									if ((mt && mt.HasClips && mt.HasClips ()) ||
+										(app.engine && app.engine.is_ready))
+										obj.classList.remove ('pk_inact');
+									else
+										obj.classList.add ('pk_inact');
+								}
+
+								app.listenFor ('DidUnloadFile', setExportReady);
+								app.listenFor ('DidLoadFile', setExportReady);
+								app.listenFor ('DidUpdateMultitrack', setExportReady);
+								setExportReady ();
+							}
+						},
 
 					{
 						name: 'Load from Computer',
@@ -322,8 +384,9 @@
 					{
 						name: 'Load Sample File',
 						action: function ( e ) {
-							app.engine.LoadSample ();
-						}	
+							if (app.fireEvent ('RequestLoadSampleFile') !== true)
+								app.engine.LoadSample ();
+						}
 					},
 					
 					{
@@ -364,7 +427,8 @@
 											if (isURL (value))
 											{
 												// LOAD FROM URL....
-												app.engine.LoadURL ( value );
+												if (app.fireEvent ('RequestLoadURL', value) !== true)
+													app.engine.LoadURL ( value );
 												q.Destroy ();
 											}
 											else
@@ -1897,15 +1961,17 @@
 					wavepoint_visible = false;
 				}
 			} else {
-
 				if (!wavepoint_visible)
 				{
 					wavepoint.style.display = 'block';
-					var perc = app.engine.wavesurfer.getCurrentTime() / app.engine.wavesurfer.getDuration ();
-					// wavepoint.style.left = ((perc * 100).toFixed(2)/1) + '%';
-					wavepoint.style.left = ((perc * 10000)>>0)/100 + '%';
 					wavepoint_visible = true;
 				}
+
+				var perc = (v[3] !== undefined) ?
+					v[3] :
+					app.engine.wavesurfer.getCurrentTime() / app.engine.wavesurfer.getDuration ();
+				// wavepoint.style.left = ((perc * 100).toFixed(2)/1) + '%';
+				wavepoint.style.left = ((perc * 10000)>>0)/100 + '%';
 			}
 
 			// get zoom value and left...
@@ -1947,6 +2013,13 @@
 				clx = e.touches[0].clientX;
 			}
 
+			if (drag_mode === 2)
+			{
+				var rect = wavezoom.getBoundingClientRect ();
+				UI.fireEvent ('RequestPan', Math.max (0, Math.min (wavezoom.clientWidth, clx - rect.left)), 2);
+				return ;
+			}
+
 			var diff = -startingX + clx;
 			if (drag_mode === 0)
 				UI.fireEvent ('RequestPan', diff, 1);
@@ -1979,7 +2052,9 @@
 		};
 
 		var mdown = function ( e ) {
-			if (!PKAudioEditor.engine.is_ready) return ;
+			var mt_on = activeMultitrackFor ( app );
+			if (!PKAudioEditor.engine.is_ready && !mt_on) return ;
+			if (e.target === wavezoom && !mt_on) return ;
 
 			if (e.target === wavedrag) {
 				drag_mode = 0;
@@ -1988,10 +2063,16 @@
 			} else if ( e.target === wavedrag_right) {
 				drag_mode = 1;
 			}
-			
+			else if (mt_on) {
+				drag_mode = 2;
+			}
+			else return ;
+
+			e.stopPropagation(); e.preventDefault();
 			wavedrag.className += ' pk_drag';
 
 			startingX = e.clientX;
+			if (drag_mode === 2) waveScrollMouseMove ( e );
 			PKAudioEditor.engine.wavesurfer.Interacting |= (1 << 1);
 
 			if (e.is_touch)
@@ -2006,7 +2087,7 @@
 			}
 		};
 
-		wavedrag.addEventListener ('mousedown', mdown, false);
+		wavezoom.addEventListener ('mousedown', mdown, false);
 
 		if ('ontouchstart' in window) {
 			wavedrag.addEventListener ('touchstart', function ( e ) {
@@ -2185,8 +2266,8 @@
 					btn_back_tm = null;
 				}
 
-				var big_step = PKAudioEditor.engine.wavesurfer.getDuration () / 20;
-				var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+				var big_step = activeDurationFor ( app ) / 20;
+				var zoom = activeZoomFor ( app );
 				big_step /= ((zoom/2)+0.5);
 				if (big_step > 1) big_step = big_step << 0;
 
@@ -2218,8 +2299,8 @@
 
 					var block = 4450;
 
-					var middle_step = PKAudioEditor.engine.wavesurfer.getDuration () / block;
-					var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+					var middle_step = activeDurationFor ( app ) / block;
+					var zoom = activeZoomFor ( app );
 					middle_step /= zoom;
 
 					if (count < 12) {
@@ -2233,8 +2314,8 @@
 			};
 			btn_back_tm = setTimeout(function(){
 
-				var small = PKAudioEditor.engine.wavesurfer.getDuration () / 2000;
-				var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+				var small = activeDurationFor ( app ) / 2000;
+				var zoom = activeZoomFor ( app );
 				small /= zoom;
 
 				if (small < 0.01) {
@@ -2262,8 +2343,8 @@
 					btn_frnt_tm = null;
 				}
 
-				var big_step = PKAudioEditor.engine.wavesurfer.getDuration () / 20;
-				var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+				var big_step = activeDurationFor ( app ) / 20;
+				var zoom = activeZoomFor ( app );
 				big_step /= ((zoom/2)+0.5);
 				if (big_step > 1) big_step = big_step << 0;
 
@@ -2293,8 +2374,8 @@
 
 					var block = 4450;
 
-					var middle_step = PKAudioEditor.engine.wavesurfer.getDuration () / block;
-					var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+					var middle_step = activeDurationFor ( app ) / block;
+					var zoom = activeZoomFor ( app );
 					middle_step /= zoom;
 
 					if (count < 12) {
@@ -2308,8 +2389,8 @@
 			};
 			btn_frnt_tm = setTimeout(function(){
 
-				var small = PKAudioEditor.engine.wavesurfer.getDuration () / 2000;
-				var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
+				var small = activeDurationFor ( app ) / 2000;
+				var zoom = activeZoomFor ( app );
 				small /= zoom;
 
 				if (small < 0.01) {
@@ -2326,25 +2407,27 @@
 		var k_arr_bck_mult = 1;
 		var k_arr_bck_skip_frames = 4;
 		UI.KeyHandler.addCallback ('KeyArrowBack', function ( key, c, ev ) {
-			if (UI.InteractionHandler.on || !PKAudioEditor.engine.is_ready) return ;
+			var mt_on = activeMultitrackFor ( app );
+			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (mt_on && ev) ev.preventDefault ();
 
-			var time = ev.timeStamp;
+			var time = ev ? ev.timeStamp : w.performance.now ();
 			var diff = time - k_arr_bck_time;
 
 			if (diff > 158) {
 				k_arr_bck_mult = 1;
-				k_arr_bck_skip_frames = 4;
+				k_arr_bck_skip_frames = mt_on ? activeSeekWarmupFor ( app ) : 4;
 			} else {
 				if (--k_arr_bck_skip_frames < 0 && k_arr_bck_mult < 6.0)
-					k_arr_bck_mult += 0.05;
+					k_arr_bck_mult += mt_on ? activeSeekRampFor ( app ) : 0.05;
 			}
 
 			k_arr_bck_time = time;
 
 			// get zoom factor
 			var jump = 0.5;
-			var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
-			var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();			
+			var zoom = mt_on ? activeZoomFor ( app ) : PKAudioEditor.engine.wavesurfer.ZoomFactor;
+			var total_dur = mt_on ? activeDurationFor ( app ) : PKAudioEditor.engine.wavesurfer.getDuration ();
 
 			jump = Math.max(total_dur / 200, 0.05);
 			jump /= zoom;
@@ -2357,24 +2440,26 @@
 		var k_arr_frnt_mult = 1;
 		var k_arr_frnt_skip_frames = 4;
 		UI.KeyHandler.addCallback ('KeyArrowFront', function ( key, c, ev ) {
-			if (UI.InteractionHandler.on || !PKAudioEditor.engine.is_ready) return ;
+			var mt_on = activeMultitrackFor ( app );
+			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (mt_on && ev) ev.preventDefault ();
 
-			var time = ev.timeStamp;
+			var time = ev ? ev.timeStamp : w.performance.now ();
 			var diff = time - k_arr_frnt_time;
 
 			if (diff > 158) {
 				k_arr_frnt_mult = 1;
-				k_arr_frnt_skip_frames = 4;
+				k_arr_frnt_skip_frames = mt_on ? activeSeekWarmupFor ( app ) : 4;
 			} else {
 				if (--k_arr_frnt_skip_frames < 0 && k_arr_frnt_mult < 6.0)
-					k_arr_frnt_mult += 0.05;
+					k_arr_frnt_mult += mt_on ? activeSeekRampFor ( app ) : 0.05;
 			}
 
 			k_arr_frnt_time = time;
 
 			var jump = 0.5;
-			var zoom = PKAudioEditor.engine.wavesurfer.ZoomFactor;
-			var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();			
+			var zoom = mt_on ? activeZoomFor ( app ) : PKAudioEditor.engine.wavesurfer.ZoomFactor;
+			var total_dur = mt_on ? activeDurationFor ( app ) : PKAudioEditor.engine.wavesurfer.getDuration ();
 
 			jump = Math.max(total_dur / 200, 0.05);
 
@@ -2384,7 +2469,30 @@
 			UI.fireEvent( 'RequestSkipFront', jump );
 		}, [39]);
 		UI.KeyHandler.addCallback ('KeyShiftArrowBack', function ( key ) {
-			if (UI.InteractionHandler.on || !PKAudioEditor.engine.is_ready) return ;
+			var mt_on = activeMultitrackFor ( app );
+			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (mt_on) {
+				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
+				if (mt_region)
+				{
+					var mt_pos = mt_on.GetMarker ? mt_on.GetMarker () : mt_on.GetCursor ();
+					var mt_total = mt_on.GetDuration ();
+					var mt_durr = mt_region.end / mt_total;
+					if (mt_pos > (mt_region.end + 0.004))
+					{
+						UI.fireEvent( 'RequestSeekTo', mt_durr - 0.0001 );
+						return ;
+					}
+					mt_durr = mt_region.start / mt_total;
+					if (mt_pos > (mt_region.start + 0.004))
+					{
+						UI.fireEvent( 'RequestSeekTo', mt_durr );
+						return ;
+					}
+				}
+				UI.fireEvent( 'RequestSeekTo', 0 );
+				return ;
+			}
 
 			var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
 			if (region)
@@ -2412,7 +2520,30 @@
 			UI.fireEvent( 'RequestSeekTo', 0 );
 		}, [16, 37]);
 		UI.KeyHandler.addCallback ('KeyShiftArrowFront', function ( key ) {
-			if (UI.InteractionHandler.on || !PKAudioEditor.engine.is_ready) return ;
+			var mt_on = activeMultitrackFor ( app );
+			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (mt_on) {
+				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
+				if (mt_region)
+				{
+					var mt_pos = mt_on.GetMarker ? mt_on.GetMarker () : mt_on.GetCursor ();
+					var mt_total = mt_on.GetDuration ();
+					var mt_durr = mt_region.start / mt_total;
+					if (mt_pos < (mt_region.start - 0.004))
+					{
+						UI.fireEvent( 'RequestSeekTo', mt_durr );
+						return ;
+					}
+					mt_durr = mt_region.end / mt_total;
+					if (mt_pos < (mt_region.end - 0.004))
+					{
+						UI.fireEvent( 'RequestSeekTo', mt_durr - 0.0001 );
+						return ;
+					}
+				}
+				UI.fireEvent( 'RequestSeekTo', 0.994 );
+				return ;
+			}
 
 			// if region skip to the region
 			var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
@@ -2500,7 +2631,7 @@
 		});
 
 		UI.KeyHandler.addCallback ('KeyTab', function ( key ) {
-			if (UI.InteractionHandler.on || !PKAudioEditor.engine.is_ready) return ;
+			if (UI.InteractionHandler.on || !activeReadyFor ( app )) return ;
 
 			UI.fireEvent ('RequestViewCenterToCursor');
 		}, [9]);
@@ -2702,6 +2833,93 @@
 			return time_s + ':' + ((miliseconds*1000)>>0); // (miliseconds+'').substr(2, 3);
 		}
 		UI.formatTime = formatTime;
+
+		function formatTimelineTime ( time, format ) {
+			var time_s = time >> 0;
+			var miliseconds = time - time_s;
+
+			if (time_s < 10)
+				time_s = '00:0' + time_s;
+			else if (time_s < 60)
+				time_s = '00:' + time_s;
+			else
+			{
+				var m = (time_s / 60) >> 0;
+				var s = (time_s % 60);
+				time_s = ((m<10)?'0':'') + m + ':' + (s < 10 ? '0'+s : s);
+			}
+
+			if (format === 1)
+				return time_s + ':' + (miliseconds+'').substr(2, 2);
+
+			return time_s;
+		}
+		UI.formatTimelineTime = formatTimelineTime;
+
+		function timelineRuler ( total, width, left_offset, visible_width ) {
+			var data = {step: 0, ticks: [], halves: []};
+			if (!total || !width) return data;
+
+			var pixel_distance = width / total;
+			if (pixel_distance < 60)
+				pixel_distance = 60;
+			else if (pixel_distance > 160)
+				pixel_distance /= ((pixel_distance / 160) >> 0) + 1;
+
+			data.step = pixel_distance;
+			left_offset = left_offset || 0;
+			visible_width = visible_width || width;
+
+			var step_time = pixel_distance / width * total;
+			var format = step_time < 1.0 ? 1 : (step_time < 60 ? 2 : 3);
+			var x = Math.max (0, (((left_offset - 2) / pixel_distance) >> 0) * pixel_distance);
+			var end = left_offset + visible_width + 2;
+
+			for (; x <= end && x < width - 2; x += pixel_distance)
+			{
+				if (x >= left_offset - 2)
+					data.ticks.push ({
+						x: x,
+						time: x / width * total,
+						label: formatTimelineTime ( x / width * total, format )
+					});
+			}
+
+			x = Math.max (pixel_distance / 2,
+				((((left_offset - 2 - pixel_distance / 2) / pixel_distance) >> 0) * pixel_distance) + pixel_distance / 2);
+			for (; x <= end && x < width - 2; x += pixel_distance)
+				if (x >= left_offset - 2) data.halves.push ( x );
+
+			return data;
+		}
+		UI.timelineRuler = timelineRuler;
+
+		function drawTimelineRuler ( ctx, total, width, left_offset, visible_width ) {
+			var data = timelineRuler ( total, width, left_offset, visible_width );
+			ctx.fillStyle = '#111';
+			ctx.fillRect (0, 0, visible_width, 24);
+			ctx.fillStyle = '#aaa';
+			ctx.strokeStyle = '#aaa';
+			ctx.textAlign = 'center';
+
+			for (var i = 0; i < data.ticks.length; ++i)
+				ctx.fillText ( data.ticks[i].label, data.ticks[i].x - left_offset, 12 );
+
+			ctx.beginPath ();
+			for (i = 0; i < data.ticks.length; ++i) {
+				var x = data.ticks[i].x - left_offset;
+				ctx.moveTo (x, 16);
+				ctx.lineTo (x, 24);
+			}
+			for (i = 0; i < data.halves.length; ++i) {
+				x = data.halves[i] - left_offset;
+				ctx.moveTo (x, 19);
+				ctx.lineTo (x, 24);
+			}
+			ctx.stroke ();
+			return data;
+		}
+		UI.drawTimelineRuler = drawTimelineRuler;
 		
 		var volume1 = 0;
 		var volume2 = 0;
@@ -2751,9 +2969,16 @@
 				}
 
 				
-				if (PKAudioEditor.engine.wavesurfer.ZoomFactor > 1)
+				var mt_on = activeMultitrackFor ( app );
+				var zoomed = mt_on ?
+					mt_on.GetZoomFactor () > 1 :
+					PKAudioEditor.engine.wavesurfer.ZoomFactor > 1;
+
+				if (zoomed)
 				{
-					var perc = time / PKAudioEditor.engine.wavesurfer.getDuration ();
+					var perc = mt_on ?
+						mt_on.GetCursorPercent () :
+						time / PKAudioEditor.engine.wavesurfer.getDuration ();
 
 					if (!wvpnt) wvpnt = document.querySelector('.pk_wavepoint');
 					wvpnt.style.left = ((perc * 10000)>>0)/100 + '%';
@@ -2778,7 +3003,8 @@
 				// UI.footer.volumeGaugeInner.style.width = '0%';
 				volume1 = 100;
 
-				UI.footer.volumeGaugePeaker.setAttribute ('title', 'Peak at ' + PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(2) );
+				var peak_time = activeCursorTimeFor ( app );
+				UI.footer.volumeGaugePeaker.setAttribute ('title', 'Peak at ' + peak_time.toFixed(2) );
 				if (loudness[1] > 0) {
 					UI.footer.volumeGaugePeaker2.className = 'pk_peaker pk_act';
 					
@@ -2786,7 +3012,7 @@
 					// UI.footer.volumeGaugeInner2.style.width = '0%';
 					volume2 = 100;
 
-					UI.footer.volumeGaugePeaker2.setAttribute ('title', 'Peak at ' + PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(2) );
+					UI.footer.volumeGaugePeaker2.setAttribute ('title', 'Peak at ' + peak_time.toFixed(2) );
 				}
 			}
 			else if (loudness[1] > 0) {
@@ -2796,7 +3022,8 @@
 				// UI.footer.volumeGaugeInner2.style.width = '0%';
 				volume2 = 100;
 
-				UI.footer.volumeGaugePeaker2.setAttribute ('title', 'Peak at ' + PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(2) );
+				var peak_time2 = activeCursorTimeFor ( app );
+				UI.footer.volumeGaugePeaker2.setAttribute ('title', 'Peak at ' + peak_time2.toFixed(2) );
 			}
 			else
 			{
@@ -2866,6 +3093,13 @@
 			UI.fireEvent( 'RequestActionCut', 1);
 			this.blur();
 		};
+		UI.listenFor ('DidSelectClip', function () {
+			cut_btn.classList.remove ('pk_inact');
+			btn_clear_selection.classList.remove ('pk_inact');
+		});
+		UI.listenFor ('DidDeselectClip', function () {
+			cut_btn.classList.add ('pk_inact');
+		});
 		
 		var silence_btn = d.createElement ('button');
 		silence_btn.setAttribute('tabIndex', -1);
@@ -2902,8 +3136,16 @@
 
 		var sel_spans = selection.getElementsByClassName('pk_dat');
 		UI.listenFor ('DidCreateRegion', function ( region ) {
-			copy_btn.classList.remove ('pk_inact');
-			cut_btn.classList.remove ('pk_inact');
+			if (region && region.mt)
+			{
+				copy_btn.classList.add ('pk_inact');
+				cut_btn.classList.add  ('pk_inact');
+			}
+			else
+			{
+				copy_btn.classList.remove ('pk_inact');
+				cut_btn.classList.remove ('pk_inact');
+			}
 			btn_clear_selection.classList.remove  ('pk_inact');
 			
 			if (region)

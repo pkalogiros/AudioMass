@@ -13,6 +13,20 @@
 		var undo_state_list = [];
 		var redo_state_list = [];
 
+		function currentStateFor ( state ) {
+			var current = {
+				data: app.engine.wavesurfer.backend.buffer
+			};
+			if (state.type === 'multitrack' && app.multitrack)
+				current.mt = app.multitrack.getState ();
+			return current;
+		}
+
+		function updateStateData ( state, current ) {
+			state.data = current.data;
+			if (current.mt) state.mt = current.mt;
+		}
+
 		q.getLastUndoState = function () {
 			return (undo_state_list [ undo_state_list.length - 1]);
 		};
@@ -52,10 +66,11 @@
 						redo_state_list = [];
 				}
 
-				var temp = app.engine.wavesurfer.backend.buffer;
+				var current = currentStateFor ( last_state );
+
 				_fireEvent ( 'StateDidPop', last_state, 1 );
-				
-				last_state.data = temp; 
+
+				updateStateData ( last_state, current );
 				redo_state_list.unshift (last_state);
 
 				_fireEvent ( 'DidStateChange', undo_state_list, redo_state_list);
@@ -74,10 +89,11 @@
 						undo_state_list = [];
 				}
 
-				var temp = app.engine.wavesurfer.backend.buffer;
+				var current = currentStateFor ( last_state );
+
 				_fireEvent ( 'StateDidPop', last_state, 0 );
 
-				last_state.data = temp; 
+				updateStateData ( last_state, current );
 				undo_state_list.push (last_state);
 
 				_fireEvent ( 'DidStateChange', undo_state_list, redo_state_list);

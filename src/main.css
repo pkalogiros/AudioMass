@@ -332,7 +332,9 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 }
 
 .pk_ftr .pk_btn span,
-.pk_tb .pk_btn span {
+.pk_tb .pk_btn span,
+.pk_mt_track button span,
+.pk_mt_knob span {
     display: block;
     -ms-user-select: none;
     user-select: none;
@@ -364,7 +366,9 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 }
 
 .pk_ftr .pk_btn:hover span,
-.pk_tb .pk_btn:hover span{
+.pk_tb .pk_btn:hover span,
+.pk_mt_track button:hover span,
+.pk_mt_knob:hover span{
     visibility:visible;
     opacity:1;
 }
@@ -401,6 +405,433 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_av wave{
 	cursor:text;
+}
+
+.pk_mt{
+	display:none;
+	height:calc(100vh - 168px);
+	min-height:280px;
+	background:#080909;
+	border-bottom:1px solid #000;
+	overflow:hidden;
+	position:relative;
+}
+
+.pk_mt_on .pk_av_cont{
+	display:none;
+}
+
+.pk_mt_on .pk_mt{
+	display:flex;
+}
+
+.pk_mt_side{
+	width:178px;
+	flex:0 0 178px;
+	background:#181a1a;
+	border-right:1px solid #303535;
+	overflow:visible;
+	position:relative;
+	z-index:6;
+}
+
+.pk_mt_head{
+	height:24px;
+	line-height:24px;
+	background:#242828;
+	border-bottom:1px solid #303535;
+	color:#99c2c6;
+	font-size:12px;
+}
+
+.pk_mt_head button{
+	float:left;
+	width:28px;
+	height:20px;
+	margin:2px 8px 0 6px;
+	border:1px solid #3b7773;
+	background:#050707;
+	color:#99c2c6;
+	border-radius:3px;
+	cursor:pointer;
+}
+
+.pk_mt_tracks{
+	position:relative;
+	will-change:transform;
+}
+
+.pk_mt_track{
+	box-sizing:border-box;
+	height:76px;
+	padding:7px 6px;
+	border-bottom:1px solid #2b3030;
+	background:#151717;
+	position:relative;
+}
+
+.pk_mt_track.pk_mt_sel{
+	background:#1d2525;
+}
+
+.pk_mt_track input{
+	display:block;
+	box-sizing:border-box;
+	width:calc(100% - 31px);
+	height:20px;
+	margin:0 0 7px;
+	padding:0 4px;
+	border:1px solid #2c3f3f;
+	border-radius:3px;
+	background:#070808;
+	color:#e7eeee;
+	outline:0;
+	font-size:12px;
+	cursor:text;
+	-webkit-user-select:text;
+	user-select:text;
+}
+
+.pk_mt_track button{
+	width:25px;
+	height:24px;
+	margin-right:5px;
+	border:1px solid #333;
+	border-radius:3px;
+	background:#090a0a;
+	color:#b8c5c5;
+	font-size:11px;
+	cursor:pointer;
+	position:relative;
+	overflow:visible;
+}
+
+.pk_mt_track button.pk_act{
+	background:#99c2c6;
+	color:#071010;
+	border-color:#99c2c6;
+}
+
+.pk_mt_track button.pk_mt_mute.pk_act{
+	background:#691515;
+	color:#fff;
+	border-color:#a12a2a;
+	box-shadow:0 0 6px #682020;
+}
+
+.pk_mt_track button.pk_mt_solo.pk_act{
+	background:#28c8f0;
+	color:#041014;
+	border-color:#6fe6ff;
+	box-shadow:0 0 6px #1d95b3;
+}
+
+.pk_mt_track button.pk_mt_rec.pk_act{
+	background:#e13030;
+	color:#fff;
+	border-color:#ef6868;
+	box-shadow:0 0 6px #d44;
+}
+
+.pk_mt_track .pk_mt_del{
+	position:absolute;
+	right:4px;
+	top:7px;
+	margin:0;
+	color:#c99999;
+}
+
+.pk_mt_knob{
+	display:inline-block;
+	width:23px;
+	height:23px;
+	margin-right:5px;
+	vertical-align:bottom;
+	border:1px solid #3b7773;
+	border-radius:50%;
+	background:#060808;
+	position:relative;
+	cursor:ew-resize;
+}
+
+.pk_mt_knob.pk_mt_vol{
+	border-color:#7c8dbe;
+	cursor:ns-resize;
+}
+
+.pk_mt_knob:before{
+	position:absolute;
+	left:0;
+	right:0;
+	bottom:3px;
+	text-align:center;
+	font-size:6px;
+	line-height:6px;
+	color:#789;
+	pointer-events:none;
+}
+
+.pk_mt_pan:before{
+	content:"L/R";
+	color:#8ac4c0;
+}
+
+.pk_mt_vol:before{
+	content:"VOL";
+	color:#b9c6ff;
+}
+
+.pk_mt_knob:after{
+	content:attr(data-val);
+	position:absolute;
+	left:-9px;
+	top:25px;
+	width:42px;
+	text-align:center;
+	font-size:9px;
+	color:#667;
+}
+
+.pk_mt_knob i{
+	position:absolute;
+	left:10px;
+	top:3px;
+	width:2px;
+	height:9px;
+	background:#99c2c6;
+	transform-origin:1px 9px;
+}
+
+.pk_mt_vol i{
+	background:#b9c6ff;
+}
+
+.pk_mt_resize{
+	position:absolute;
+	left:0;
+	right:0;
+	bottom:0;
+	height:9px;
+	cursor:ns-resize;
+	z-index:3;
+}
+
+.pk_mt_main{
+	flex:1 1 auto;
+	overflow:hidden;
+	position:relative;
+	background:#050606;
+	outline:0;
+}
+
+.pk_mt_ruler{
+	position:sticky;
+	top:0;
+	height:24px;
+	background:#111;
+	border-bottom:1px solid #2c3030;
+	z-index:3;
+}
+
+.pk_mt_timeline{
+	position:absolute;
+	top:0;
+	pointer-events:none;
+}
+
+.pk_mt_tick{
+	position:absolute;
+	top:0;
+	height:24px;
+	box-sizing:border-box;
+	color:#aaa;
+	font-size:10px;
+	line-height:12px;
+	text-align:center;
+	min-width:54px;
+	transform:translateX(-50%);
+	pointer-events:none;
+}
+
+.pk_mt_tick:after{
+	content:"";
+	position:absolute;
+	left:50%;
+	top:16px;
+	height:8px;
+	border-left:1px solid #aaa;
+}
+
+.pk_mt_tick_half{
+	top:19px;
+	width:0;
+	min-width:0;
+	height:5px;
+	line-height:0;
+	border-left:1px solid #aaa;
+	transform:none;
+}
+
+.pk_mt_tick_half:after{
+	display:none;
+}
+
+.pk_mt_lanes{
+	position:relative;
+	background:
+		repeating-linear-gradient(to right, rgba(255,255,255,0.05) 0, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 86px);
+}
+
+.pk_mt_region{
+	display:none;
+	position:absolute;
+	top:24px;
+	bottom:0;
+	cursor:move;
+	z-index:2;
+}
+
+.pk_mt_region .wavesurfer-handle{
+	cursor:col-resize;
+	position:absolute;
+	left:0;
+	top:0;
+	width:1%;
+	max-width:4px;
+	height:100%;
+}
+
+.pk_mt_region .wavesurfer-handle-end{
+	left:100%;
+}
+
+.pk_mt_lane{
+	position:absolute;
+	left:0;
+	right:0;
+	height:76px;
+	border-bottom:1px solid #202525;
+	box-sizing:border-box;
+}
+
+.pk_mt_lane.pk_mt_sel{
+	background:rgba(153,194,198,0.06);
+}
+
+.pk_mt_clip{
+	position:absolute;
+	top:8px;
+	height:60px;
+	min-width:36px;
+	border:1px solid #2f7b75;
+	border-radius:4px;
+	background:#071010;
+	box-shadow:0 1px 0 rgba(255,255,255,0.08) inset;
+	overflow:hidden;
+	cursor:grab;
+}
+
+.pk_mt_clip.pk_drag{
+	cursor:grabbing;
+	z-index:5;
+	box-shadow:0 0 8px rgba(153,194,198,0.55);
+}
+
+.pk_mt_clip.pk_mt_clip_sel{
+	border-color:#f0d878;
+	box-shadow:0 0 0 1px rgba(240,216,120,0.55) inset;
+}
+
+.pk_mt_clip canvas{
+	display:block;
+	width:100%;
+	height:calc(100% - 8px);
+}
+
+.pk_mt_trim{
+	position:absolute;
+	top:0;
+	bottom:0;
+	width:8px;
+	z-index:2;
+	cursor:ew-resize;
+}
+
+.pk_mt_trim_l{
+	left:0;
+}
+
+.pk_mt_trim_r{
+	right:0;
+}
+
+.pk_mt_trim:after{
+	content:"";
+	position:absolute;
+	top:8px;
+	bottom:10px;
+	left:3px;
+	border-left:1px solid rgba(240,216,120,0.68);
+	opacity:0;
+}
+
+.pk_mt_clip:hover .pk_mt_trim:after,
+.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim:after{
+	opacity:1;
+}
+
+.pk_mt_clip span{
+	position:absolute;
+	left:5px;
+	right:5px;
+	bottom:1px;
+	overflow:hidden;
+	white-space:nowrap;
+	text-overflow:ellipsis;
+	color:#dceeee;
+	font-size:10px;
+	line-height:11px;
+	text-shadow:0 1px 0 #000;
+}
+
+.pk_mt_playhead{
+	position:absolute;
+	top:24px;
+	bottom:0;
+	width:1px;
+	background:#ff8c35;
+	pointer-events:none;
+	z-index:4;
+}
+
+.pk_mt_marker{
+	position:absolute;
+	top:24px;
+	bottom:0;
+	width:1px;
+	margin-left:-2px;
+	border-right:1px dashed gold;
+	pointer-events:none;
+	z-index:5;
+}
+
+.pk_tb .pk_btn.pk_mt_btn{
+	vertical-align:top;
+}
+
+.pk_tb .pk_btn.pk_mt_btn:before{
+	content:"MT";
+	font-family:Helvetica, Arial, sans-serif;
+	font-size:12px;
+	font-weight:bold;
+	display:inline-block;
+	height:1px;
+}
+
+.pk_tb .pk_btn.pk_mt_btn.pk_act{
+	background:#99c2c6;
+	color:#071010;
+	box-shadow:0 0 8px rgba(153,194,198,0.45);
 }
 
 #pk_prgwv{

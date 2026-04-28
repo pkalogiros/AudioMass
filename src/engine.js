@@ -223,10 +223,23 @@
 							// ----					
 				}
 			}
-		};
+			};
 
 		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
-			if (!q.is_ready) return ;
+			var mt_buffer = null;
+			if (app.multitrack &&
+				app.multitrack.IsOn &&
+				app.multitrack.IsOn () &&
+				app.multitrack.Mixdown)
+			{
+				mt_buffer = app.multitrack.Mixdown ( selection );
+				if (!mt_buffer) {
+					OneUp ('Nothing to export', 1200);
+					return ;
+				}
+				selection = false;
+			}
+			else if (!q.is_ready) return ;
 
 			app.fireEvent ('WillDownloadFile');
 
@@ -248,7 +261,7 @@
 					}
 					else
 						app.fireEvent ('DidProgressModal', val);
-				});
+				}, mt_buffer);
 			}, 220);
 		}
 		this.LoadSample = function () {
@@ -502,6 +515,21 @@
 			app.fireEvent ('RequestActionRecordStop');
 			wavesurfer.pause();
 		});
+		app.listenFor ('RequestTransportToggle', function ( mode ) {
+			if (mode === 'pause') {
+				wavesurfer.playPause();
+				return ;
+			}
+
+			if (wavesurfer.isPlaying())
+			{
+				app.fireEvent ('RequestStop');
+			}
+			else
+			{
+				app.fireEvent ('RequestPlay');
+			}
+		});
 
 		app.listenFor ('RequestSetLoop', function () {
 			if (!q.is_ready) return ;
@@ -589,20 +617,13 @@
 
 		app.ui.KeyHandler.addCallback ('KeyShiftSpace' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
-			wavesurfer.playPause();
+			app.fireEvent ('RequestTransportToggle', 'pause');
 		}, [16, 32]);
 		app.ui.KeyHandler.addCallback ('KeySpace' + app.id, function ( key, map ) {
-			if (app.ui.InteractionHandler.on) return ;			
+			if (app.ui.InteractionHandler.on) return ;
 			if (map[16] === 1) return ;
 
-			if (PKAudioEditor.engine.wavesurfer.isPlaying())
-			{
-				app.fireEvent ('RequestStop');
-			}
-			else
-			{
-				app.fireEvent ('RequestPlay');
-			}
+			app.fireEvent ('RequestTransportToggle', 'stop');
 		}, [32]);
 		app.ui.KeyHandler.addCallback ('KeyShiftCopy' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
@@ -634,6 +655,13 @@
 
 			app.fireEvent( 'RequestActionCut');
 		}, [8]);
+		app.ui.KeyHandler.addCallback ('KeyDelete' + app.id, function ( key, map, e ) {
+			var target = e && e.target;
+			if (app.ui.InteractionHandler.on ||
+				(target && /INPUT|TEXTAREA|SELECT/.test (target.tagName))) return ;
+
+			app.fireEvent( 'RequestActionCut');
+		}, [46]);
 		app.ui.KeyHandler.addCallback ('KeyShiftSelectAll' + app.id, function ( key ) {
 			if (app.ui.InteractionHandler.on) return ;
 			app.fireEvent ('RequestSelect');
@@ -702,28 +730,29 @@
 		(function() {
 			var input = null;
 			app.listenFor ('RequestLoadLocalFile', function () {
-					wavesurfer.pause();
-					
-					if (input)
-					{
-						input.parentNode.removeChild( input );
-						input.onchange = null;
-					}
+				wavesurfer.pause();
 
-					input = d.createElement( 'input' );
-					input.setAttribute ('type', 'file');
-					input.setAttribute ('accept', 'audio/*');
-					input.className = 'pk_inpfile';
-					input.onchange = function () {
+				if (input)
+				{
+					input.parentNode.removeChild( input );
+					input.onchange = null;
+				}
+
+				input = d.createElement( 'input' );
+				input.setAttribute ('type', 'file');
+				input.setAttribute ('accept', 'audio/*');
+				input.className = 'pk_inpfile';
+				input.onchange = function () {
+					if (app.fireEvent ('RequestLoadPickedFiles', input.files) !== true)
 						q.LoadFile ( input );
 
-						input.parentNode.removeChild( input );
-						input.onchange = null;
-						input = null;
-					};
-					app.el.appendChild ( input ); // maybe not append?
+					input.parentNode.removeChild( input );
+					input.onchange = null;
+					input = null;
+				};
+				app.el.appendChild ( input ); // maybe not append?
 
-					input.click ();
+				input.click ();
 			});
 		})();
 		
@@ -2548,6 +2577,7 @@
 		});
 		
 		app.listenFor ('StateDidPop', function ( state, undo ) {
+			if (state.type === 'multitrack') return ;
 			if (!q.is_ready) return ;
 			app.fireEvent ('RequestPause');
 

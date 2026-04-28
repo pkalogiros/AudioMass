@@ -805,9 +805,10 @@
 			}
 		}
 
-		function DownloadFile( with_name, format, kbps, selection, stereo, callback ) {
-			if (wavesurfer && wavesurfer.backend && wavesurfer.backend.buffer){}
-			else {
+		function DownloadFile( with_name, format, kbps, selection, stereo, callback, source_buffer ) {
+			var originalBuffer = source_buffer ||
+				(wavesurfer && wavesurfer.backend && wavesurfer.backend.buffer);
+			if (!originalBuffer) {
 				return false;
 			}
 			
@@ -822,7 +823,6 @@
 				worker = new Worker('wav.js');
 			}
 
-			var originalBuffer = wavesurfer.backend.buffer;
 			var sample_rate = originalBuffer.sampleRate;
 
 			var channels = originalBuffer.numberOfChannels;
@@ -832,7 +832,7 @@
 			if (channels === 2)
 				data_right = originalBuffer.getChannelData ( 1 );
 
-			if (!stereo && channels === 2)
+			if (!source_buffer && !stereo && channels === 2)
 			{
 				if (!wavesurfer.ActiveChannels[0] && wavesurfer.ActiveChannels[1])
 				{
@@ -904,7 +904,8 @@
 				sample_rate: sample_rate,
 				kbps:!kbps ? 128 : kbps,
 				flac_compression: kbps,
-				channels: channels
+				channels: channels,
+				samples: len
 			});
 			worker.postMessage ( dataAsInt16ArrayLeft.buffer, [dataAsInt16ArrayLeft.buffer] );
 			if (data_right)

@@ -98,6 +98,12 @@
 
 		var custom_presets = new PK_FX_PRESETS ();
 
+		function activeCursor () {
+			return UI.GetActiveCursor ?
+				UI.GetActiveCursor () :
+				PKAudioEditor.engine.wavesurfer.getCurrentTime ();
+		}
+
 
 		app.listenFor ('DidCloseFX_UI', function () {
 			curr_filter_ui = null;
@@ -519,7 +525,7 @@
 						var offset = 0;
 
 						if (radios[1].checked)
-							offset = PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(3)/1;
+							offset = activeCursor ().toFixed(3)/1;
 
 						if (value > 0.001)
 							UI.fireEvent ('RequestActionSilence', offset, value);
@@ -536,7 +542,7 @@
 				'<span class="pk_val">5s</span></div>',
 			  setup:function( q ) {
 					var cursor_pos_el = q.el_body.getElementsByClassName('pkcdpk')[0];
-					cursor_pos_el.innerHTML = PKAudioEditor.engine.wavesurfer.getCurrentTime().toFixed(2) + 's';
+					cursor_pos_el.innerHTML = activeCursor ().toFixed(2) + 's';
 
 					var range = q.el_body.getElementsByClassName('pk_horiz')[0];
 					var span = q.el_body.getElementsByClassName('pk_val')[0];
