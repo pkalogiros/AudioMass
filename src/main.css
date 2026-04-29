@@ -876,30 +876,62 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	z-index:12;
 }
 
-.pk_tb .pk_btn.pk_mt_btn{
-	vertical-align:top;
-}
-
-.pk_tb .pk_btn.pk_mt_btn:before,
-.pk_tb .pk_btn.pk_mt_mix_btn:before{
-	content:"MT";
+.pk_mt_topbtn{
+	position:absolute;
+	right:20px;
+	top:11px;
+	height:26px;
+	padding:0 14px;
+	border:1px solid #3b7773;
+	border-radius:14px;
+	background:linear-gradient(180deg, #1e2c2e 0%, #0d1718 100%);
+	color:#cce6e8;
 	font-family:Helvetica, Arial, sans-serif;
 	font-size:12px;
 	font-weight:bold;
+	letter-spacing:0.3px;
+	white-space:nowrap;
+	cursor:pointer;
+	outline:0;
+	transition:box-shadow 200ms, color 200ms, border-color 200ms, background 200ms;
+}
+
+.pk_mt_topbtn:hover{
+	color:#fff;
+	border-color:#99c2c6;
+	box-shadow:0 0 14px rgba(153,194,198,0.5), inset 0 0 10px rgba(153,194,198,0.18);
+}
+
+.pk_mt_topbtn:active{
+	transform:translateY(1px);
+}
+
+.pk_mt_topbtn.pk_act{
+	color:#071010;
+	background:linear-gradient(180deg, #b8d6d9 0%, #7fb0b4 100%);
+	border-color:#99c2c6;
+	box-shadow:0 0 14px rgba(153,194,198,0.6), inset 0 1px 0 rgba(255,255,255,0.25);
+}
+
+.pk_mt_topbtn em{
 	display:inline-block;
-	height:1px;
-}
-
-.pk_tb .pk_btn.pk_mt_mix_btn:before{
-	content:"MIX";
-	font-size:10px;
-}
-
-.pk_tb .pk_btn.pk_mt_btn.pk_act,
-.pk_tb .pk_btn.pk_mt_mix_btn.pk_act{
+	margin-left:8px;
+	padding:1px 5px 0;
+	border-radius:3px;
 	background:#99c2c6;
 	color:#071010;
-	box-shadow:0 0 8px rgba(153,194,198,0.45);
+	font-style:normal;
+	font-size:8px;
+	font-weight:bold;
+	letter-spacing:1px;
+	line-height:11px;
+	text-transform:uppercase;
+	vertical-align:1px;
+}
+
+.pk_mt_topbtn.pk_act em{
+	background:#071010;
+	color:#99c2c6;
 }
 
 .pk_mt_mixer{
@@ -2107,6 +2139,17 @@ input.pk_horiz.pk_w180{
 	.pk_total_dur, .pk_hover_dur{
     	font-size:13px
     }
+	.pk_mt_topbtn{
+		position:relative;
+		top:-4px;
+		margin:10px;
+		padding:0 10px;
+		font-size:11px;
+		letter-spacing:0;
+	}
+	.pk_mt_topbtn em{
+		display:none;
+	}
 	.pk_hdr .pk_btn{
     	margin:2px 10px 0 10px
 	}

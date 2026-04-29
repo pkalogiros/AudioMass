@@ -444,13 +444,13 @@
 		}
 
 		function attachToolbarButton () {
-			var actions = app.el.getElementsByClassName ('pk_ctns')[0];
+			var actions = app.el.getElementsByClassName ('pk_tb')[0];
 			if (!actions) return ;
 
 			btn_toggle = d.createElement ('button');
 			btn_toggle.setAttribute ('tabIndex', -1);
-			btn_toggle.className = 'pk_btn pk_mt_btn';
-			btn_toggle.innerHTML = '<span>Multitrack Mode</span>';
+			btn_toggle.className = 'pk_mt_topbtn';
+			btn_toggle.innerHTML = 'MultiTrack<em>Beta</em>';
 			btn_toggle.onclick = function () {
 				Toggle ();
 				this.blur ();
