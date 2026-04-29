@@ -24,6 +24,7 @@
 		var master_vol = 1;
 		var raf = 0;
 		var play_sync = 0;
+		var render_raf = 0;
 		var throttle_wheel = 0;
 		var rec_raf = 0;
 		var rec_redraw = 0;
@@ -54,6 +55,8 @@
 		var rec_el = null;
 		var fx_preview = null;
 		var fx_preview_on = true;
+		var wave_peak_step = 128;
+		var wave_peaks = w.WeakMap ? new w.WeakMap () : null;
 
 		function setActiveDrag ( fn ) {
 			cancelActiveDrag ();
@@ -71,12 +74,62 @@
 			fn ();
 		}
 
+		function cancelRender () {
+			if (!render_raf) return ;
+			w.cancelAnimationFrame ( render_raf );
+			render_raf = 0;
+		}
+
+		function requestRender () {
+			if (render_raf) return ;
+			render_raf = w.requestAnimationFrame (function () {
+				render_raf = 0;
+				render ();
+			});
+		}
+
 		function audioCtx () {
 			var wv = app.engine && app.engine.wavesurfer;
 			if (wv && wv.backend && wv.backend.ac) return wv.backend.ac;
 			if (!w.WaveSurferAudioContext)
 				w.WaveSurferAudioContext = new (w.AudioContext || w.webkitAudioContext)();
 			return w.WaveSurferAudioContext;
+		}
+
+		function getWavePeaks ( buffer ) {
+			var cache = wave_peaks ? wave_peaks.get ( buffer ) : buffer._pk_mt_peaks;
+			if (cache && cache.len === buffer.length && cache.step === wave_peak_step)
+				return cache;
+
+			var data = buffer.getChannelData (0);
+			var size = Math.ceil (data.length / wave_peak_step);
+			var min = new Float32Array (size);
+			var max = new Float32Array (size);
+
+			for (var i = 0; i < size; ++i) {
+				var from = i * wave_peak_step;
+				var to = Math.min (data.length, from + wave_peak_step);
+				var mn = 0;
+				var mx = 0;
+
+				for (var j = from; j < to; ++j) {
+					var v = data[j] || 0;
+					if (v > mx) mx = v;
+					else if (v < mn) mn = v;
+				}
+				min[i] = mn;
+				max[i] = mx;
+			}
+
+			cache = {
+				len: data.length,
+				step: wave_peak_step,
+				min: min,
+				max: max
+			};
+			if (wave_peaks) wave_peaks.set ( buffer, cache );
+			else try { buffer._pk_mt_peaks = cache; } catch (e) {}
+			return cache;
 		}
 
 		function makeTrack ( name ) {
@@ -428,6 +481,7 @@
 			if (btn_toggle) btn_toggle.classList[on ? 'add' : 'remove'] ('pk_act');
 
 			if (!on) {
+				cancelRender ();
 				cancelActiveDrag ();
 				stopFxPreview ( true );
 				Stop ();
@@ -496,6 +550,7 @@
 		}
 
 		function render () {
+			cancelRender ();
 			if (!el) return ;
 
 			lane_by_track = {};
@@ -1094,7 +1149,7 @@
 				var h = Math.max (min_track_h, Math.min (max_track_h, start_h + e.clientY - start_y));
 				if (Math.abs (h - start_h) > 1) moved = true;
 				track.h = h / row_h;
-				render ();
+				requestRender ();
 			}
 
 			function up () {
@@ -1131,7 +1186,7 @@
 
 				tracks.splice (old, 1);
 				tracks.splice (index, 0, track);
-				render ();
+				requestRender ();
 			}
 
 			function up () {
@@ -1618,18 +1673,39 @@
 			var step = Math.max (1, (len / wdt) >> 0);
 			var mid = hgt >> 1;
 
-			ctx.beginPath ();
-			ctx.moveTo (0, mid);
-			for (var x = 0; x < wdt; ++x) {
-				var max = 0;
-				var min = 0;
-				var off = from + x * step;
-				for (var j = 0; j < step; j += 24) {
-					var v = data[off + j] || 0;
-					if (v > max) max = v;
-					else if (v < min) min = v;
+			if (step >= wave_peak_step) {
+				var peaks = getWavePeaks ( buffer );
+				var peak_max = peaks.max;
+				var peak_min = peaks.min;
+				var peak_last = peak_max.length - 1;
+
+				for (var x = 0; x < wdt; ++x) {
+					var max = 0;
+					var min = 0;
+					var off = from + x * step;
+					var end = Math.min (to, off + step);
+					var p0 = Math.min (peak_last, (off / wave_peak_step) >> 0);
+					var p1 = Math.min (peak_last, ((end - 1) / wave_peak_step) >> 0);
+
+					for (var p = p0; p <= p1; ++p) {
+						if (peak_max[p] > max) max = peak_max[p];
+						if (peak_min[p] < min) min = peak_min[p];
+					}
+					ctx.fillRect (x, mid - (max * mid), 1, Math.max (1, (max - min) * mid));
 				}
-				ctx.fillRect (x, mid - (max * mid), 1, Math.max (1, (max - min) * mid));
+				return ;
+			}
+
+			for (var x2 = 0; x2 < wdt; ++x2) {
+				var max2 = 0;
+				var min2 = 0;
+				var off2 = from + x2 * step;
+				for (var j2 = 0; j2 < step; j2 += 24) {
+					var v2 = data[off2 + j2] || 0;
+					if (v2 > max2) max2 = v2;
+					else if (v2 < min2) min2 = v2;
+				}
+				ctx.fillRect (x2, mid - (max2 * mid), 1, Math.max (1, (max2 - min2) * mid));
 			}
 		}
 
@@ -1698,6 +1774,8 @@
 			var old_in = 0;
 			var old_out = 0;
 			var drag_mode = 0;
+			var trim_canvas = null;
+			var trim_cw = 0;
 			var prev = null;
 			var moved = false;
 			var did_move = false;
@@ -1722,10 +1800,37 @@
 				did_move = false;
 				if (!app.ui.InteractionHandler.checkAndSet ('multitrack')) return (false);
 				ce.classList.add ('pk_drag');
+				if (drag_mode) startTrimView ();
+				else ce.style.willChange = 'transform';
 				d.addEventListener ('mousemove', move, false);
 				d.addEventListener ('mouseup', up, false);
 				setActiveDrag ( up );
 			};
+
+			function startTrimView () {
+				trim_canvas = ce.getElementsByTagName ('canvas')[0];
+				if (!trim_canvas) return ;
+				trim_cw = ce.offsetWidth || Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
+				trim_canvas.style.width = trim_cw + 'px';
+				trim_canvas.style.maxWidth = 'none';
+				trim_canvas.style.transformOrigin = '0 0';
+			}
+
+			function updateTrimView () {
+				if (!trim_canvas) return ;
+				trim_canvas.style.transform = 'translate3d(' +
+					(((old_in - clipIn ( clip )) * px_per_sec) >> 0) +
+					'px,0,0)';
+			}
+
+			function clearTrimView () {
+				if (!trim_canvas) return ;
+				trim_canvas.style.width = '';
+				trim_canvas.style.maxWidth = '';
+				trim_canvas.style.transform = '';
+				trim_canvas.style.transformOrigin = '';
+				trim_canvas = null;
+			}
 
 			function move ( e ) {
 				var dx = e.clientX - down_x;
@@ -1737,16 +1842,17 @@
 				if (drag_mode) {
 					trimClip ( dx / px_per_sec );
 					var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
-					var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
 					ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 					ce.style.width = cw + 'px';
-					drawWave ( clip, ce.getElementsByTagName ('canvas')[0], cw, ch );
+					updateTrimView ();
 					queuePlayRefresh ();
 					return ;
 				}
 
 				clip.start = Math.max (0, old_start + dx / px_per_sec);
-				ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
+				ce.style.transform = 'translate3d(' +
+					(((clip.start - old_start) * px_per_sec) >> 0) +
+					'px,0,0)';
 
 				var new_index = trackIndexAt ( old_top + (old_h / 2) + dy );
 				if (tracks[new_index] && tracks[new_index].id !== clip.track) {
@@ -1763,6 +1869,9 @@
 				d.removeEventListener ('mouseup', up);
 				clearActiveDrag ( up );
 				ce.classList.remove ('pk_drag');
+				ce.style.transform = '';
+				ce.style.willChange = '';
+				clearTrimView ();
 				app.ui.InteractionHandler.forceUnset ('multitrack');
 
 				if (did_move && (
@@ -1777,6 +1886,7 @@
 					return ;
 				}
 
+				if (!e) return ;
 				setCursorTime ( timeFromEvent ( e ) );
 				selectClip ( clip );
 			}
@@ -1964,7 +2074,7 @@
 						file.name || 'Audio'
 					));
 					++added;
-					render ();
+					requestRender ();
 					done ();
 				}, done);
 			});
@@ -2745,9 +2855,11 @@
 
 		function updatePlayhead () {
 			if (playhead)
-				playhead.style.left = ((cursor * px_per_sec) >> 0) + 'px';
+				playhead.style.transform = 'translate3d(' +
+					((cursor * px_per_sec) >> 0) + 'px,0,0)';
 			if (marker_el)
-				marker_el.style.left = ((marker * px_per_sec) >> 0) + 'px';
+				marker_el.style.transform = 'translate3d(' +
+					((marker * px_per_sec) >> 0) + 'px,0,0)';
 		}
 
 		function resizeTrackers ( height ) {
@@ -2795,17 +2907,22 @@
 			else if (main.scrollLeft > max) main.scrollLeft = max;
 		}
 
+		function fitHorizontalPxPerSec () {
+			if (!main || !main.clientWidth) return default_px_per_sec;
+			return main.clientWidth / Math.max (0.001, duration ());
+		}
+
 		function resetHorizontalZoom () {
 			if (!main || !main.clientWidth) {
 				px_per_sec = default_px_per_sec;
 				return ;
 			}
-			px_per_sec = main.clientWidth / Math.max (0.001, duration ());
+			px_per_sec = fitHorizontalPxPerSec ();
 			main.scrollLeft = 0;
 		}
 
 		function zoomTo ( next_pps, center_time, where ) {
-			next_pps = Math.max (12, Math.min (1200, next_pps));
+			next_pps = Math.max (main ? fitHorizontalPxPerSec () : 12, Math.min (1200, next_pps));
 			if (!main) {
 				px_per_sec = next_pps;
 				return ;
