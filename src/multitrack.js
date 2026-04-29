@@ -52,6 +52,8 @@
 		var play = null;
 		var rec = null;
 		var rec_el = null;
+		var fx_preview = null;
+		var fx_preview_on = true;
 
 		function setActiveDrag ( fn ) {
 			cancelActiveDrag ();
@@ -427,6 +429,7 @@
 
 			if (!on) {
 				cancelActiveDrag ();
+				stopFxPreview ( true );
 				Stop ();
 				HideMixer ();
 				emitEditorState ();
@@ -504,10 +507,12 @@
 
 			var dur = duration ();
 			var width = Math.max (800, (dur * px_per_sec) >> 0);
+			var height = tracksHeight ();
 			var top = 0;
 			lanes.style.width = width + 'px';
-			lanes.style.height = tracksHeight () + 'px';
+			lanes.style.height = height + 'px';
 			ruler.style.width = width + 'px';
+			resizeTrackers ( height );
 			drawRuler ( dur, width );
 
 			for (var i = 0; i < tracks.length; ++i) {
@@ -1347,6 +1352,7 @@
 
 		function clearSelectedClip ( silent ) {
 			if (!selected_clip) return false;
+			stopFxPreview ( true );
 			selected_clip = null;
 			app.fireEvent ('DidDeselectClip');
 			if (!silent) app.fireEvent ('DidDestroyRegion');
@@ -2018,6 +2024,208 @@
 			return true;
 		}
 
+		function replaceBufferSegment ( src, from, old_len, rendered ) {
+			var len = Math.max (1, src.length - old_len + rendered.length);
+			var out = audioCtx ().createBuffer (
+				src.numberOfChannels,
+				len,
+				src.sampleRate
+			);
+
+			for (var i = 0; i < src.numberOfChannels; ++i) {
+				var src_data = src.getChannelData (i);
+				var out_data = out.getChannelData (i);
+				var fx_data = rendered.getChannelData (
+					Math.min (i, rendered.numberOfChannels - 1)
+				);
+
+				out_data.set ( src_data.subarray (0, from) );
+				out_data.set ( fx_data, from );
+				out_data.set (
+					src_data.subarray (from + old_len),
+					from + rendered.length
+				);
+			}
+			return out;
+		}
+
+		function disconnectFx ( filter ) {
+			if (!filter) return ;
+			if (filter.length !== undefined) {
+				for (var i = 0; i < filter.length; ++i)
+					try { filter[i].disconnect (); } catch (e) {}
+				return ;
+			}
+			try { filter.disconnect && filter.disconnect (); } catch (e2) {}
+		}
+
+		function selectedFxClip () {
+			var clip = findClip ( selected_clip );
+			if (!clip) OneUp ('Select a waveform box first', 1200);
+			return clip;
+		}
+
+		function fxName ( id ) {
+			var map = {
+				GAIN: 'Gain',
+				FadeIn: 'FadeIn',
+				FadeOut: 'FadeOut',
+				HardLimit: 'HardLimit',
+				PARAMEQ: 'ParametricEQ',
+				Compressor: 'Compressor',
+				Normalize: 'Normalize',
+				DELAY: 'Delay',
+				DISTORT: 'Distortion',
+				REVERB: 'Reverb',
+				Reverse: 'Reverse',
+				Invert: 'Invert',
+				RATE: 'Rate',
+				SPEED: 'Speed'
+			};
+			return map[id];
+		}
+
+		function fxLabel ( name ) {
+			return {
+				Gain: 'Gain',
+				FadeIn: 'Fade In',
+				FadeOut: 'Fade Out',
+				HardLimit: 'Hard Limit',
+				ParametricEQ: 'Parametric EQ',
+				Compressor: 'Compressor',
+				Normalize: 'Normalize',
+				Delay: 'Delay',
+				Distortion: 'Distortion',
+				Reverb: 'Reverb',
+				Reverse: 'Reverse',
+				Invert: 'Invert',
+				Rate: 'Rate',
+				Speed: 'Speed'
+			}[name] || name;
+		}
+
+		function fxEventName ( id, preview ) {
+			var pref = preview ? 'RequestActionFX_PREVIEW_' : 'RequestActionFX_';
+			return id.substr (0, pref.length) === pref ?
+				fxName ( id.substr (pref.length) ) :
+				null;
+		}
+
+		function stopFxPreview ( silent ) {
+			if (!fx_preview) return true;
+			try { fx_preview.source.stop (0); } catch (e) {}
+			try { fx_preview.source.disconnect (); } catch (e2) {}
+			disconnectFx ( fx_preview.filter );
+			fx_preview.fx && fx_preview.fx.destroy && fx_preview.fx.destroy ();
+			fx_preview = null;
+			if (!silent) app.fireEvent ('DidStopPreview');
+			return true;
+		}
+
+		function toggleFxPreview ( val ) {
+			fx_preview_on = val === undefined ? !fx_preview_on : !!val;
+			if (fx_preview && fx_preview.fx.preview)
+				fx_preview.fx.preview ( fx_preview_on, fx_preview.source );
+			app.fireEvent ('DidTogglePreview', fx_preview_on);
+			return true;
+		}
+
+		function previewFx ( name, val ) {
+			var clip = selectedFxClip ();
+			if (!clip) return true;
+			if (fx_preview) return stopFxPreview ();
+
+			var ctx = audioCtx ();
+			var buffer = copyClipBuffer ( clip );
+			var source = ctx.createBufferSource ();
+			var fx = app.engine.GetFX (
+				name,
+				name === 'Rate' ? 1 / Math.max (0.001, val) : val
+			);
+			var filter = null;
+
+			source.buffer = buffer;
+			filter = fx.filter ( ctx, ctx.destination, source, buffer.duration );
+			source.onended = function () {
+				if (fx_preview && fx_preview.source === source)
+					stopFxPreview ();
+			};
+			source.start (0);
+			fx_preview = {
+				source: source,
+				filter: filter,
+				fx: fx,
+				ctx: ctx
+			};
+			app.fireEvent ('DidStartPreview');
+			return true;
+		}
+
+		function updateFxPreview ( val ) {
+			if (!fx_preview || !fx_preview.fx.update) return true;
+			fx_preview.fx.update (
+				fx_preview.filter,
+				fx_preview.ctx,
+				val,
+				fx_preview.source
+			);
+			return true;
+		}
+
+		function applyFx ( name, val ) {
+			var clip = selectedFxClip ();
+			if (!clip || !app.engine.GetFX) return true;
+
+			stopFxPreview ( true );
+			Stop ();
+
+			var prev = cloneState ();
+			var src = clip.buffer;
+			var rate = src.sampleRate;
+			var from = Math.max (0, (clipIn ( clip ) * rate) >> 0);
+			var segment = copyClipBuffer ( clip );
+			var old_len = segment.length;
+			var new_len = old_len;
+			var fx_val = val;
+			var Ctx = w.OfflineAudioContext || w.webkitOfflineAudioContext;
+			if (name === 'Speed' || name === 'Rate')
+				new_len = Math.max (1, (old_len / Math.max (0.001, val)) >> 0);
+			if (name === 'Rate')
+				fx_val = new_len / old_len;
+			var ctx = new Ctx (segment.numberOfChannels, new_len, rate);
+			var source = ctx.createBufferSource ();
+			var fx = app.engine.GetFX ( name, fx_val );
+			var filter = null;
+
+			source.buffer = segment;
+			filter = fx.filter ( ctx, ctx.destination, source, segment.duration );
+			source.start (0);
+
+			function done ( rendered ) {
+				if (findClip ( clip.id ) !== clip) return ;
+
+				clip.buffer = replaceBufferSegment ( src, from, old_len, rendered );
+				clip.out = clipIn ( clip ) + (rendered.length / rate);
+				disconnectFx ( filter );
+				fx.destroy && fx.destroy ();
+				try { source.disconnect (); } catch (e) {}
+				pushState ( prev, 'Apply ' + fxLabel ( name ) + ' (fx)' );
+				queuePlayRefresh ( true );
+				render ();
+				app.fireEvent ('DidUpdateMultitrack');
+				OneUp ('Applied ' + fxLabel ( name ) + ' (fx)');
+			}
+
+			var ret = ctx.startRendering ();
+			if (ret) ret.then ( done ).catch (function ( e ) {
+				console.log ('Rendering failed: ' + e);
+			});
+			else ctx.oncomplete = function ( e ) {
+				done ( e.renderedBuffer );
+			};
+			return true;
+		}
+
 		function pasteClip () {
 			var buffer = app.engine.GetCopyBuff && app.engine.GetCopyBuff ();
 			if (!buffer) return true;
@@ -2542,6 +2750,12 @@
 				marker_el.style.left = ((marker * px_per_sec) >> 0) + 'px';
 		}
 
+		function resizeTrackers ( height ) {
+			height = Math.max (height || 0, main ? main.clientHeight - 24 : 0);
+			if (playhead) playhead.style.height = height + 'px';
+			if (marker_el) marker_el.style.height = height + 'px';
+		}
+
 		function totalPixels () {
 			return Math.max (1, duration () * px_per_sec);
 		}
@@ -2782,6 +2996,7 @@
 
 		function deleteSelectedClip () {
 			if (!selected_clip) return false;
+			stopFxPreview ( true );
 			var removed = false;
 			var prev = cloneState ();
 			for (var i = clips.length - 1; i >= 0; --i) {
@@ -2940,7 +3155,44 @@
 				ZoomUI ( arg1, arg2 );
 				return true;
 			}
+			if (id === 'RequestActionFX_PREVIEW_STOP') {
+				return stopFxPreview ();
+			}
+			if (id === 'RequestActionFX_TOGGLE') {
+				return toggleFxPreview ( arg1 );
+			}
+			if (id === 'RequestActionFX_UPDATE_PREVIEW') {
+				return updateFxPreview ( arg1 );
+			}
+			if (fxEventName (id, true)) {
+				return previewFx ( fxEventName (id, true), arg1 );
+			}
+			if (fxEventName (id, false)) {
+				return applyFx ( fxEventName (id, false), arg1 );
+			}
+			if (id === 'RequestActionFX_NoiseRNN' ||
+				id === 'RequestActionFX_RemSil' ||
+				id === 'RequestActionFX_Flip')
+			{
+				OneUp ('Open this clip in the editor for that effect', 1400);
+				return true;
+			}
+			if (id === 'RequestActionFXUI_Flip') {
+				OneUp ('Open this clip in the editor for channel info', 1400);
+				return true;
+			}
+			if ((id === 'RequestFXUI_Gain' ||
+				id.substr (0, 17) === 'RequestActionFXUI') &&
+				!selected_clip)
+			{
+				OneUp ('Select a waveform box first', 1200);
+				return true;
+			}
 			if (id === 'RequestSelect') {
+				if (arg1 && selected_clip) {
+					app.fireEvent ('DidSelectClip', findClip ( selected_clip ));
+					return true;
+				}
 				clearSelectedClip ( true );
 				setRegion ( 0, duration () );
 				setCursorTime ( 0 );
@@ -3020,6 +3272,7 @@
 				0;
 			el.style.height = ((h < 280 ? 280 : h) - 168 - bottom) + 'px';
 			syncScroll ();
+			resizeTrackers ( tracksHeight () );
 			redrawRuler ();
 		});
 		app.listenFor ('DidUpdateLen', syncEditingClip);
