@@ -719,7 +719,12 @@ var Drawer = function (_util$Observer) {
         value: function drawPeaks(peaks, length, start, end, totalChannels, shift) {
             var _this3 = this;
 
-            requestAnimationFrame(function () {
+            if (this.drawPeaksRaf) {
+                cancelAnimationFrame(this.drawPeaksRaf);
+            }
+
+            this.drawPeaksRaf = requestAnimationFrame(function () {
+                _this3.drawPeaksRaf = 0;
                 _this3.shift = shift;
 
                 //if (shift === 999999999 && !_this3.shiftClear) {
@@ -2021,20 +2026,21 @@ var MultiCanvas = function (_Drawer) {
 
     }, {
         key: 'prepareDraw',
-        value: function prepareDraw (peaks, channelIndex, start, end, fn, totalChannels) {
+        value: function prepareDraw (peaks, channelIndex, start, end, fn, totalChannels, hasMinValsHint) {
             var _this7 = this;
 
             return function () {
                 // Split channels and call this function with the channelIndex set
                 if (peaks[0] instanceof Array || ArrayBuffer.isView(peaks[0])) {
                     var channels = peaks;
+                    hasMinValsHint = hasMinValsHint || channels._hasMinVals === true;
                     if (_this7.params.splitChannels) {
 
                         _this7.setHeight(
                         // channels.length *
                         _this7.params.height * _this7.params.pixelRatio);
                         return channels.forEach(function (channelPeaks, i) {
-                            return _this7.prepareDraw(channelPeaks, i, start, end, fn, totalChannels);
+                            return _this7.prepareDraw(channelPeaks, i, start, end, fn, totalChannels, hasMinValsHint);
                         });
                     }
                     peaks = channels[0];
@@ -2053,9 +2059,12 @@ var MultiCanvas = function (_Drawer) {
 
                 // Bar wave draws the bottom only as a reflection of the top,
                 // so we don't need negative values
-                var hasMinVals = [].some.call(peaks, function (val) {
-                    return val < 0;
-                });
+                var hasMinVals = hasMinValsHint === true;
+                if (!hasMinVals) {
+                    hasMinVals = [].some.call(peaks, function (val) {
+                        return val < 0;
+                    });
+                }
                 var height = _this7.params.height / 2 * _this7.params.pixelRatio;
                 var offsetY = height * channelIndex || 0;
 
@@ -6270,6 +6279,9 @@ var WebAudio = function (_util$Observer) {
             }
 
             this.splitPeaks = [];
+            Object.defineProperty(this.splitPeaks, '_hasMinVals', {
+                value: true
+            });
             this.mergedPeaks = new Float32Array(peakLength);
             var channels = this.buffer ? this.buffer.numberOfChannels : 1;
             var c = void 0;
