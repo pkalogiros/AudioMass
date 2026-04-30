@@ -2026,7 +2026,7 @@ var MultiCanvas = function (_Drawer) {
 
             return function () {
                 // Split channels and call this function with the channelIndex set
-                if (peaks[0] instanceof Array) {
+                if (peaks[0] instanceof Array || ArrayBuffer.isView(peaks[0])) {
                     var channels = peaks;
                     if (_this7.params.splitChannels) {
 
@@ -6262,24 +6262,20 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'setLength',
         value: function setLength(length) {
+            var peakLength = length > 0 ? Math.floor(length * 2) : 0;
+
             // No resize, we can preserve the cached peaks.
-            if (this.mergedPeaks && length * 2 == this.mergedPeaks.length) {
+            if (this.mergedPeaks && peakLength == this.mergedPeaks.length) {
                 return;
             }
 
             this.splitPeaks = [];
-            this.mergedPeaks = [];
-            // Set the last element of the sparse array so the peak arrays are
-            // appropriately sized for other calculations.
+            this.mergedPeaks = new Float32Array(peakLength);
             var channels = this.buffer ? this.buffer.numberOfChannels : 1;
             var c = void 0;
             for (c = 0; c < channels; c++) {
-                this.splitPeaks[c] = [];
-                this.splitPeaks[c][2 * (length - 1)] = 0;
-                this.splitPeaks[c][2 * (length - 1) + 1] = 0;
+                this.splitPeaks[c] = new Float32Array(peakLength);
             }
-            this.mergedPeaks[2 * (length - 1)] = 0;
-            this.mergedPeaks[2 * (length - 1) + 1] = 0;
         }
 
         /**
