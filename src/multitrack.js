@@ -1775,7 +1775,7 @@
 			var old_out = 0;
 			var drag_mode = 0;
 			var trim_canvas = null;
-			var trim_cw = 0;
+			var trim_redraw = 0;
 			var prev = null;
 			var moved = false;
 			var did_move = false;
@@ -1810,20 +1810,24 @@
 			function startTrimView () {
 				trim_canvas = ce.getElementsByTagName ('canvas')[0];
 				if (!trim_canvas) return ;
-				trim_cw = ce.offsetWidth || Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
-				trim_canvas.style.width = trim_cw + 'px';
-				trim_canvas.style.maxWidth = 'none';
-				trim_canvas.style.transformOrigin = '0 0';
+				ce.style.willChange = 'left,width';
 			}
 
 			function updateTrimView () {
 				if (!trim_canvas) return ;
-				trim_canvas.style.transform = 'translate3d(' +
-					(((old_in - clipIn ( clip )) * px_per_sec) >> 0) +
-					'px,0,0)';
+				if (trim_redraw) return ;
+				trim_redraw = w.requestAnimationFrame (function () {
+					trim_redraw = 0;
+					if (!trim_canvas) return ;
+					drawWave ( clip, trim_canvas );
+				});
 			}
 
 			function clearTrimView () {
+				if (trim_redraw) {
+					w.cancelAnimationFrame ( trim_redraw );
+					trim_redraw = 0;
+				}
 				if (!trim_canvas) return ;
 				trim_canvas.style.width = '';
 				trim_canvas.style.maxWidth = '';

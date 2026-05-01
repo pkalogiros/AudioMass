@@ -5351,6 +5351,9 @@ var WaveSurfer = function (_util$Observer) {
                     _this12.decodeArrayBuffer(arraybuffer, function (buffer) {
                         _this12.backend.buffer = buffer;
                         _this12.backend.setPeaks(null);
+                        if (_this12.backend.schedulePeakPyramid) {
+                            _this12.backend.schedulePeakPyramid();
+                        }
                         _this12.drawBuffer(1);
                         _this12.fireEvent('waveform-ready');
                     });
@@ -5874,6 +5877,21 @@ var WebAudio = function (_util$Observer) {
         /** @private */
         _this.explicitDuration = null;
 
+        // #### PK peak pyramid cache.
+        // For long files, zoom/pan redraws should not rescan raw PCM samples
+        // every time.  Build a min/max LOD once, then getPeaks can query the
+        // cached buckets.  The normal path stays as a fallback for short files,
+        // very deep zoom, temp previews, or while the cache is still building.
+        _this.peakPyramid = null;
+        _this.peakPyramidStep = 128;
+        _this.peakPyramidMinDuration = 300;
+        _this.peakPyramidToken = 0;
+        _this.peakPyramidTimer = 0;
+        _this.peakPyramidTimerType = 0;
+        _this.peakPyramidJob = null;
+        _this.peakPyramidBytes = 0;
+        // ---
+
         _this.FreqArr = new Uint8Array(512); // 256
         return _this;
     }
@@ -6263,19 +6281,338 @@ var WebAudio = function (_util$Observer) {
         key: 'setLength',
         value: function setLength(length) {
             var peakLength = length > 0 ? Math.floor(length * 2) : 0;
+            var channels = this.buffer ? this.buffer.numberOfChannels : 1;
 
             // No resize, we can preserve the cached peaks.
-            if (this.mergedPeaks && peakLength == this.mergedPeaks.length) {
+            if (this.mergedPeaks &&
+                peakLength == this.mergedPeaks.length &&
+                this.splitPeaks &&
+                this.splitPeaks.length === channels &&
+                this.splitPeaks[channels - 1] &&
+                this.splitPeaks[channels - 1].length == peakLength) {
                 return;
             }
 
             this.splitPeaks = [];
             this.mergedPeaks = new Float32Array(peakLength);
-            var channels = this.buffer ? this.buffer.numberOfChannels : 1;
             var c = void 0;
             for (c = 0; c < channels; c++) {
                 this.splitPeaks[c] = new Float32Array(peakLength);
             }
+        }
+
+        // #### PK peak pyramid helpers.
+        // Build only for long decoded buffers.  The cache is about 3% of the
+        // raw PCM size at step=128, and it makes long-file getPeaks queries read
+        // min/max buckets instead of walking millions of samples again.
+        // ---
+
+    }, {
+        key: 'resetPeakPyramid',
+        value: function resetPeakPyramid() {
+            this.peakPyramidToken++;
+            this.peakPyramid = null;
+            this.peakPyramidBytes = 0;
+
+            if (this.peakPyramidTimer) {
+                if (this.peakPyramidTimerType === 1 &&
+                    typeof window !== 'undefined' &&
+                    window.cancelIdleCallback) {
+                    window.cancelIdleCallback(this.peakPyramidTimer);
+                }
+                else {
+                    clearTimeout(this.peakPyramidTimer);
+                }
+            }
+
+            this.peakPyramidTimer = 0;
+            this.peakPyramidTimerType = 0;
+            this.peakPyramidJob = null;
+        }
+    }, {
+        key: 'schedulePeakPyramid',
+        value: function schedulePeakPyramid() {
+            var q = this;
+            var token = void 0;
+            var run = void 0;
+
+            this.resetPeakPyramid();
+
+            if (!this.buffer || this.buffer.duration < this.peakPyramidMinDuration) {
+                return;
+            }
+
+            token = this.peakPyramidToken;
+            run = function () {
+                q.peakPyramidTimer = 0;
+                q.peakPyramidTimerType = 0;
+                q.buildPeakPyramid(token);
+            };
+
+            if (typeof window !== 'undefined' && window.requestIdleCallback) {
+                this.peakPyramidTimerType = 1;
+                this.peakPyramidTimer = window.requestIdleCallback(run, {
+                    timeout: 1600
+                });
+            }
+            else {
+                this.peakPyramidTimerType = 2;
+                this.peakPyramidTimer = setTimeout(run, 0);
+            }
+        }
+    }, {
+        key: 'buildPeakPyramid',
+        value: function buildPeakPyramid(token) {
+            var buffer = this.buffer;
+
+            if (token !== this.peakPyramidToken ||
+                !buffer ||
+                buffer.duration < this.peakPyramidMinDuration) {
+                return;
+            }
+
+            this.peakPyramidJob = {
+                token: token,
+                buffer: buffer,
+                baseStep: this.peakPyramidStep,
+                channels: buffer.numberOfChannels,
+                channel: 0,
+                pyramid: [],
+                bytes: 0,
+                phase: 0
+            };
+            this.continuePeakPyramidBuild(this.peakPyramidJob);
+        }
+    }, {
+        key: 'schedulePeakPyramidStep',
+        value: function schedulePeakPyramidStep(job) {
+            var q = this;
+            var run = function (deadline) {
+                q.peakPyramidTimer = 0;
+                q.peakPyramidTimerType = 0;
+                q.continuePeakPyramidBuild(job, deadline);
+            };
+
+            if (typeof window !== 'undefined' && window.requestIdleCallback) {
+                this.peakPyramidTimerType = 1;
+                this.peakPyramidTimer = window.requestIdleCallback(run, {
+                    timeout: 1000
+                });
+            }
+            else {
+                this.peakPyramidTimerType = 2;
+                this.peakPyramidTimer = setTimeout(run, 0);
+            }
+        }
+    }, {
+        key: 'continuePeakPyramidBuild',
+        value: function continuePeakPyramidBuild(job, deadline) {
+            var now = typeof performance !== 'undefined' && performance.now ?
+                function () { return performance.now(); } :
+                function () { return Date.now(); };
+            var started = now();
+            var budget = deadline && deadline.timeRemaining ?
+                Math.max(4, Math.min(10, deadline.timeRemaining())) :
+                6;
+
+            if (!job ||
+                job.token !== this.peakPyramidToken ||
+                job.buffer !== this.buffer) {
+                return;
+            }
+
+            while (job.channel < job.channels) {
+                if (!job.levels) {
+                    var data = job.buffer.getChannelData(job.channel);
+                    var size = Math.ceil(data.length / job.baseStep);
+
+                    job.data = data;
+                    job.levels = [];
+                    job.size = size;
+                    job.min = new Float32Array(size);
+                    job.max = new Float32Array(size);
+                    job.index = 0;
+                    job.phase = 1;
+                }
+
+                if (job.phase === 1) {
+                    while (job.index < job.size) {
+                        var from = job.index * job.baseStep;
+                        var to = Math.min(job.data.length, from + job.baseStep);
+                        var mn = 0;
+                        var mx = 0;
+                        var j = void 0;
+
+                        for (j = from; j < to; ++j) {
+                            var value = job.data[j];
+                            if (value > mx) mx = value;
+                            else if (value < mn) mn = value;
+                        }
+
+                        job.min[job.index] = mn;
+                        job.max[job.index] = mx;
+                        job.index++;
+
+                        if ((job.index & 63) === 0 && now() - started >= budget) {
+                            this.schedulePeakPyramidStep(job);
+                            return;
+                        }
+                    }
+
+                    job.levels.push({
+                        step: job.baseStep,
+                        min: job.min,
+                        max: job.max
+                    });
+                    job.bytes += job.min.byteLength + job.max.byteLength;
+                    job.prev = job.levels[job.levels.length - 1];
+                    job.min = null;
+                    job.max = null;
+                    job.phase = 2;
+                }
+
+                while (job.phase === 2) {
+                    if (job.prev.min.length <= 1) {
+                        job.pyramid[job.channel] = job.levels;
+                        job.channel++;
+                        job.data = null;
+                        job.levels = null;
+                        job.prev = null;
+                        job.min = null;
+                        job.max = null;
+                        job.phase = 0;
+                        break;
+                    }
+
+                    if (!job.min) {
+                        job.size = Math.ceil(job.prev.min.length / 2);
+                        job.min = new Float32Array(job.size);
+                        job.max = new Float32Array(job.size);
+                        job.index = 0;
+                    }
+
+                    while (job.index < job.size) {
+                        var p0 = job.index * 2;
+                        var p1 = p0 + 1;
+                        var mn2 = job.prev.min[p0];
+                        var mx2 = job.prev.max[p0];
+
+                        if (p1 < job.prev.min.length) {
+                            if (job.prev.min[p1] < mn2) mn2 = job.prev.min[p1];
+                            if (job.prev.max[p1] > mx2) mx2 = job.prev.max[p1];
+                        }
+
+                        job.min[job.index] = mn2;
+                        job.max[job.index] = mx2;
+                        job.index++;
+
+                        if ((job.index & 1023) === 0 && now() - started >= budget) {
+                            this.schedulePeakPyramidStep(job);
+                            return;
+                        }
+                    }
+
+                    job.levels.push({
+                        step: job.prev.step * 2,
+                        min: job.min,
+                        max: job.max
+                    });
+                    job.bytes += job.min.byteLength + job.max.byteLength;
+                    job.prev = job.levels[job.levels.length - 1];
+                    job.min = null;
+                    job.max = null;
+                }
+
+                if (now() - started >= budget) {
+                    this.schedulePeakPyramidStep(job);
+                    return;
+                }
+            }
+
+            if (job.token !== this.peakPyramidToken || job.buffer !== this.buffer) {
+                return;
+            }
+
+            this.peakPyramid = {
+                buffer: job.buffer,
+                length: job.buffer.length,
+                sampleRate: job.buffer.sampleRate,
+                channels: job.channels,
+                step: job.baseStep,
+                levels: job.pyramid,
+                bytes: job.bytes
+            };
+            this.peakPyramidBytes = job.bytes;
+            this.peakPyramidJob = null;
+        }
+    }, {
+        key: 'getPeakPyramidLevel',
+        value: function getPeakPyramidLevel(levels, sampleSize) {
+            var target = Math.max(this.peakPyramidStep, sampleSize / 4);
+            var level = levels[0];
+            var i = void 0;
+
+            for (i = 0; i < levels.length; ++i) {
+                if (levels[i].step <= target) level = levels[i];
+                else break;
+            }
+
+            return level;
+        }
+    }, {
+        key: 'getPeaksFromPyramid',
+        value: function getPeaksFromPyramid(length, first, sampleSize) {
+            var cache = this.peakPyramid;
+            var channels = this.buffer ? this.buffer.numberOfChannels : 0;
+            var c = void 0;
+
+            if (!cache ||
+                cache.buffer !== this.buffer ||
+                cache.channels !== channels ||
+                this.extraPeaks ||
+                sampleSize < cache.step) {
+                return false;
+            }
+
+            for (c = 0; c < channels; ++c) {
+                var levels = cache.levels[c];
+                var level = this.getPeakPyramidLevel(levels, sampleSize);
+                var min_arr = level.min;
+                var max_arr = level.max;
+                var step = level.step;
+                var peak_last = min_arr.length - 1;
+                var peaks = this.splitPeaks[c];
+                var i = void 0;
+
+                for (i = 0; i < length; ++i) {
+                    var from = first + i * sampleSize;
+                    var to = from + sampleSize;
+                    var min = 0;
+                    var max = 0;
+                    var p0 = void 0;
+                    var p1 = void 0;
+                    var p = void 0;
+
+                    if (from >= cache.length || to <= 0) {
+                        peaks[2 * i] = 0;
+                        peaks[2 * i + 1] = 0;
+                        continue;
+                    }
+
+                    p0 = Math.max(0, Math.min(peak_last, (from / step) >> 0));
+                    p1 = Math.max(0, Math.min(peak_last, ((to - 1) / step) >> 0));
+
+                    for (p = p0; p <= p1; ++p) {
+                        if (max_arr[p] > max) max = max_arr[p];
+                        if (min_arr[p] < min) min = min_arr[p];
+                    }
+
+                    peaks[2 * i] = max;
+                    peaks[2 * i + 1] = min;
+                }
+            }
+
+            return true;
         }
 
         /**
@@ -6369,6 +6706,14 @@ var WebAudio = function (_util$Observer) {
             //var old_shift = this.shift;
 
             this.shift = 0;
+
+            if (this.peakPyramid && this.getPeaksFromPyramid(length, first, sampleSize)) {
+                this.extraPeakStart = -1;
+                this.extraPeakEnd = -1;
+                this.peaksStart = first;
+                this.peaksEnd = last;
+                return this.splitPeaks;
+            }
 
             if (this.splitPeaks && !force) {
                 // check if there is an overlap in values...
@@ -6627,6 +6972,7 @@ var WebAudio = function (_util$Observer) {
                 this.pause();
             }
             this.unAll();
+            this.resetPeakPyramid();
             this.buffer = null;
             this.disconnectFilters();
             this.disconnectSource();
@@ -6751,6 +7097,8 @@ var WebAudio = function (_util$Observer) {
                     this.createSource();
                     // this.buffer = uberSegment;
             }
+
+            this.schedulePeakPyramid();
         }
 
         /** @private */
