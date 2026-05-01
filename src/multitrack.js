@@ -113,7 +113,7 @@
 				var mx = 0;
 
 				for (var j = from; j < to; ++j) {
-					var v = data[j] || 0;
+					var v = data[j];
 					if (v > mx) mx = v;
 					else if (v < mn) mn = v;
 				}
