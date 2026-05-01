@@ -1453,6 +1453,19 @@
 			return region;
 		}
 
+		function finishRegionUpdate () {
+			if (!region) return ;
+			if (!play) {
+				setCursorTime ( region.start );
+				return ;
+			}
+
+			if (!region.loop) return ;
+			var at = playingCursor ();
+			if (at < region.start || at >= region.end)
+				setCursorTime ( region.start );
+		}
+
 		function clearRegion () {
 			if (!region) return false;
 			region = null;
@@ -1593,7 +1606,7 @@
 				d.removeEventListener ('mouseup', up);
 				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-region');
-				if (moved && region) setCursorTime ( region.start );
+				if (moved) finishRegionUpdate ();
 			}
 		}
 
@@ -1637,7 +1650,7 @@
 				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
-					if (region) setCursorTime ( region.start );
+					finishRegionUpdate ();
 					return ;
 				}
 				if (!ev) return ;
