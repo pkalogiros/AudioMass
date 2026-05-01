@@ -2684,20 +2684,35 @@
 			app.fireEvent ('DidCursorCenter', e, wavesurfer.ZoomFactor);
 		});
 		
-		var wave = wavesurfer.drawer.canvases[0].wave.parentNode;
+			var wave = wavesurfer.drawer.canvases[0].wave.parentNode;
 
-		var drag_x = 0;
-		var drag_move = function ( e ) {
-			
-			var diff = drag_x - e.clientX;
-			
-			// find diff percentage from full width...
-			
-			// drag the waveform now
-			app.fireEvent ('RequestPan', diff );
-			
-			drag_x = e.clientX;
-		};
+			var drag_x = 0;
+			var viewport_draw_raf = 0;
+
+			function queueViewportDraw () {
+				if (viewport_draw_raf) return ;
+
+				viewport_draw_raf = w.requestAnimationFrame (function () {
+					viewport_draw_raf = 0;
+					wavesurfer.ForceDraw ();
+					app.fireEvent ('DidZoom', [
+						wavesurfer.ZoomFactor,
+						(wavesurfer.LeftProgress / wavesurfer.getDuration ()) * 100,
+						wavesurfer.params.verticalZoom
+					]);
+				});
+			}
+
+			var drag_move = function ( e ) {
+				var diff = drag_x - e.clientX;
+
+				// find diff percentage from full width...
+
+				// drag the waveform now
+				app.fireEvent ('RequestPan', diff );
+
+				drag_x = e.clientX;
+			};
 		
 		app.listenFor ('RequestZoom', function ( diff, mode ) {
 			var wv = wavesurfer;
@@ -2767,26 +2782,23 @@
 			
 			// wv.ZoomFactor -= Math.abs (diff / (wv.drawer.width / 2));
 			// console.log( diff + " BLAH " + wv.ZoomFactor + '   ' +  (diff / wv.drawer.width) );
-			wv.ForceDraw ();
-			app.fireEvent ('DidZoom', [wavesurfer.ZoomFactor, (wavesurfer.LeftProgress/wavesurfer.getDuration()) * 100, wavesurfer.params.verticalZoom]);
-		});
-		
-		app.listenFor ('RequestPan', function( diff, mode ) {
-			var wv = wavesurfer;
-			
-			if (mode === 1) diff *= wv.ZoomFactor;
-			else if (mode === 2) {
-				var time_moved = wv.getDuration() * (diff / wv.drawer.width);
-				wv.LeftProgress = time_moved;
+				queueViewportDraw ();
+			});
 
-				wv.ForceDraw ();
-				app.fireEvent ('DidZoom', [wavesurfer.ZoomFactor, (wavesurfer.LeftProgress/wavesurfer.getDuration()) * 100, wavesurfer.params.verticalZoom]);
+			app.listenFor ('RequestPan', function( diff, mode ) {
+				var wv = wavesurfer;
 
-				return ;
-			}
-			
-			if (wv.ZoomFactor > 0)
-			{
+				if (mode === 1) diff *= wv.ZoomFactor;
+				else if (mode === 2) {
+					var time_moved = wv.getDuration() * (diff / wv.drawer.width);
+						wv.LeftProgress = time_moved;
+
+					queueViewportDraw ();
+					return ;
+					}
+
+				if (wv.ZoomFactor > 0)
+				{
 				// drag and draw by X pixels...
 				var time_moved = wv.VisibleDuration * (diff / wv.drawer.width);
 				wv.LeftProgress += time_moved;
@@ -2799,10 +2811,9 @@
 					wv.LeftProgress = 0;
 				}
 
-				wv.ForceDraw ();
-				app.fireEvent ('DidZoom', [wavesurfer.ZoomFactor, (wavesurfer.LeftProgress/wavesurfer.getDuration()) * 100, wavesurfer.params.verticalZoom]);
-			}
-		});
+					queueViewportDraw ();
+				}
+			});
 		
 
 		wave.addEventListener ('mousedown', function( e ) {
