@@ -6561,10 +6561,11 @@ var WebAudio = function (_util$Observer) {
         }
     }, {
         key: 'getPeaksFromPyramid',
-        value: function getPeaksFromPyramid(length, first, sampleSize) {
+        value: function getPeaksFromPyramid(length, first, sampleSize, init) {
             var cache = this.peakPyramid;
             var channels = this.buffer ? this.buffer.numberOfChannels : 0;
             var c = void 0;
+            init = init || 0;
 
             if (!cache ||
                 cache.buffer !== this.buffer ||
@@ -6584,7 +6585,7 @@ var WebAudio = function (_util$Observer) {
                 var peaks = this.splitPeaks[c];
                 var i = void 0;
 
-                for (i = 0; i < length; ++i) {
+                for (i = init; i <= length; ++i) {
                     var from = first + i * sampleSize;
                     var to = from + sampleSize;
                     var min = 0;
@@ -6707,14 +6708,6 @@ var WebAudio = function (_util$Observer) {
 
             this.shift = 0;
 
-            if (this.peakPyramid && this.getPeaksFromPyramid(length, first, sampleSize)) {
-                this.extraPeakStart = -1;
-                this.extraPeakEnd = -1;
-                this.peaksStart = first;
-                this.peaksEnd = last;
-                return this.splitPeaks;
-            }
-
             if (this.splitPeaks && !force) {
                 // check if there is an overlap in values...
                 if (last == this.peaksEnd)
@@ -6782,6 +6775,14 @@ var WebAudio = function (_util$Observer) {
                         }
                     // }
                 }
+            }
+
+            if (this.peakPyramid && this.getPeaksFromPyramid(length, first, sampleSize, init)) {
+                this.extraPeakStart = -1;
+                this.extraPeakEnd = -1;
+                this.peaksStart = first;
+                this.peaksEnd = last;
+                return this.splitPeaks;
             }
 
 
