@@ -43,6 +43,7 @@
 		var region_el = null;
 		var playhead = null;
 		var marker_el = null;
+		var empty_el = null;
 		var btn_toggle = null;
 		var btn_mixer = null;
 		var mixer_el = null;
@@ -57,6 +58,17 @@
 		var fx_preview_on = true;
 		var wave_peak_step = 128;
 		var wave_peaks = w.WeakMap ? new w.WeakMap () : null;
+		var sample_loading = false;
+		var multi_sample_files = [
+			{f:'guitar-lead.mp3', p:0.20},
+			{f:'guitar-rhythm.mp3', p:-0.10},
+			'drums.mp3',
+			'bass.mp3',
+			{f:'piano.mp3', v:0.92},
+			'harp-2.mp3',
+			{f:'picolo-1.mp3', v:0.78},
+			'flute-1.mp3'
+		];
 
 		function setActiveDrag ( fn ) {
 			cancelActiveDrag ();
@@ -400,6 +412,8 @@
 				'<div class="pk_mt_main">' +
 					'<div class="pk_mt_ruler"></div>' +
 					'<div class="pk_mt_lanes"></div>' +
+					'<div class="pk_tmpMsg pk_mt_empty">Drag n drop an Audio File in this window, or click ' +
+					'<a>here to use a sample</a></div>' +
 					'<div class="pk_mt_region wavesurfer-region"></div>' +
 					'<div class="pk_mt_playhead"></div>' +
 					'<div class="pk_mt_marker"></div>' +
@@ -414,10 +428,15 @@
 			main.tabIndex = -1;
 			ruler = el.getElementsByClassName ('pk_mt_ruler')[0];
 			lanes = el.getElementsByClassName ('pk_mt_lanes')[0];
+			empty_el = el.getElementsByClassName ('pk_mt_empty')[0];
 			region_el = el.getElementsByClassName ('pk_mt_region')[0];
 			playhead = el.getElementsByClassName ('pk_mt_playhead')[0];
 			marker_el = el.getElementsByClassName ('pk_mt_marker')[0];
 			addRegionHandles ();
+			empty_el.getElementsByTagName ('a')[0].onclick = function ( e ) {
+				e.preventDefault ();
+				loadMultiSample ();
+			};
 			ruler.onclick = function ( e ) {
 				focusMain ();
 				setCursorTime ( timeFromEvent ( e ) );
@@ -585,6 +604,7 @@
 				renderClip ( ordered[j] );
 			}
 			renderRecPreview ();
+			if (empty_el) empty_el.style.display = clips.length ? 'none' : 'block';
 
 			if (main) main.scrollTop = old_top;
 			syncScroll ();
@@ -2072,6 +2092,7 @@
 				files.push ( file_list[i] );
 
 			var prev = cloneState ();
+			var zoom = captureZoom ();
 			var pending = files.length;
 			var added = 0;
 			var missing_track = false;
@@ -2091,7 +2112,6 @@
 						file.name || 'Audio'
 					));
 					++added;
-					requestRender ();
 					done ();
 				}, done);
 			});
@@ -2101,8 +2121,11 @@
 				app.fireEvent ('DidDownloadFile');
 
 				if (added && findTrack ( track_id )) {
+					applyZoom ( zoom );
 					pushState ( prev, 'Add Clip' );
 					queuePlayRefresh ( true );
+					render ();
+					restoreZoomScroll ( zoom );
 					app.fireEvent ('DidUpdateMultitrack');
 					OneUp ('Added ' + added + ' clip' + (added === 1 ? '' : 's'));
 				}
@@ -2559,17 +2582,126 @@
 		}
 
 		function addURL ( url, name ) {
+			fetchBlob ( url, function ( blob ) {
+				blob.name = fileName ( url, name );
+				addFiles ( [ blob ], selected_track || (tracks[0] && tracks[0].id), cursor );
+			}, function () {
+				OneUp ('Could not load audio', 1200);
+			});
+		}
+
+		function loadMultiSample () {
+			if (sample_loading) return ;
+			sample_loading = true;
+			var prev = cloneState ();
+			var zoom = captureZoom ();
+			var pending = multi_sample_files.length;
+			var items = new Array ( pending );
+			var replace = !clips.length;
+
+			app.fireEvent ('WillDownloadFile');
+
+			for (var i = 0; i < multi_sample_files.length; ++i)
+				loadMultiSampleFile ( i, sampleInfo ( multi_sample_files[i] ), 0 );
+
+			function loadMultiSampleFile ( index, info, retry ) {
+				var url = 'mp3/multi/' + info.f;
+				fetchBlob ( url, function ( blob ) {
+					blob.name = fileName ( url );
+					decodeFile ( blob, function ( buffer ) {
+						items[index] = {
+							buffer: buffer,
+							name: blob.name,
+							vol: info.v,
+							pan: info.p
+						};
+						done ();
+					}, fail);
+				}, fail);
+
+				function fail () {
+					if (retry < 2) loadMultiSampleFile ( index, info, retry + 1 );
+					else done ();
+				}
+			}
+
+			function done () {
+				if (--pending > 0) return ;
+				sample_loading = false;
+				app.fireEvent ('DidDownloadFile');
+				addMultiSampleBuffers ( prev, items, replace, zoom );
+			}
+		}
+
+		function addMultiSampleBuffers ( prev, items, replace, zoom ) {
+			var first = null;
+			var added = 0;
+			for (var n = 0; n < multi_sample_files.length; ++n) {
+				if (items[n]) continue ;
+				OneUp ('Could not load all samples', 1400);
+				return ;
+			}
+
+			if (replace) {
+				tracks = [];
+				selected_track = null;
+			}
+
+			for (var i = 0; i < items.length; ++i) {
+				if (!items[i]) continue ;
+
+				var track = makeTrack ( trackName ( items[i].name ) );
+				if (items[i].vol !== undefined) track.vol = items[i].vol;
+				if (items[i].pan !== undefined) track.pan = items[i].pan;
+				var clip = makeClip ( track.id, 0, items[i].buffer, items[i].name );
+
+				tracks.push ( track );
+				clips.push ( clip );
+				if (!first) first = track.id;
+				++added;
+			}
+
+			if (!added) {
+				OneUp ('Could not load audio', 1200);
+				return ;
+			}
+
+			selected_track = first;
+			selected_clip = null;
+			clearRegion ();
+			setCursorTime ( 0 );
+			applyZoom ( zoom );
+			pushState ( prev, 'Load Multitrack Sample' );
+			queuePlayRefresh ( true );
+			render ();
+			restoreZoomScroll ( zoom );
+			app.fireEvent ('DidUpdateMultitrack');
+			OneUp ('Added ' + added + ' sample tracks');
+		}
+
+		function fetchBlob ( url, ok, bad ) {
 			fetch ( url ).then (function ( res ) {
 				if (!res.ok) throw 1;
 				return res.blob ();
-			}).then (function ( blob ) {
-				blob.name = name ||
-					((url.split ('/').pop () || '').split ('?')[0]) ||
-					'Audio';
-				addFiles ( [ blob ], selected_track || (tracks[0] && tracks[0].id), cursor );
-			}).catch (function () {
-				OneUp ('Could not load audio', 1200);
-			});
+			}).then ( ok ).catch ( bad );
+		}
+
+		function fileName ( url, name ) {
+			return name || ((url.split ('/').pop () || '').split ('?')[0]) || 'Audio';
+		}
+
+		function trackName ( name ) {
+			return name.replace (/\.[^\.]+$/, '').replace (/[-_]+/g, ' ');
+		}
+
+		function sampleInfo ( sample ) {
+			if (typeof sample === 'string') return {f:sample};
+			if (sample.f !== undefined) return sample;
+			return {
+				f: sample.file,
+				v: sample.vol === undefined ? sample.volume : sample.vol,
+				p: sample.pan
+			};
 		}
 
 		function decodeFile ( file, ok, bad ) {
@@ -2589,11 +2721,123 @@
 					called = true;
 					bad && bad ();
 				};
+				var tryAiff = function () {
+					if (called) return ;
+					try {
+						var buffer = decodeAiff ( arr, ctx );
+						if (buffer) done ( buffer );
+						else fail ();
+					}
+					catch (e) {
+						fail ();
+					}
+				};
 
-				var ret = ctx.decodeAudioData ( arr.slice (0), done, fail );
-				if (ret && ret.then) ret.then (done).catch (fail);
+				var ret = ctx.decodeAudioData ( arr.slice (0), done, tryAiff );
+				if (ret && ret.then) ret.then (done).catch (tryAiff);
 			};
 			reader.readAsArrayBuffer ( file );
+		}
+
+		function strAt ( data, off, len ) {
+			var str = '';
+			for (var i = 0; i < len; ++i)
+				str += String.fromCharCode ( data.getUint8 ( off + i ) );
+			return str;
+		}
+
+		function readAiffRate ( data, off ) {
+			var sign = data.getUint8 ( off ) & 0x80 ? -1 : 1;
+			var exp = ((data.getUint8 ( off ) & 0x7F) << 8) | data.getUint8 ( off + 1 );
+			var hi = data.getUint32 ( off + 2, false );
+			var lo = data.getUint32 ( off + 6, false );
+			if (!exp && !hi && !lo) return 0;
+			return sign * (
+				hi * Math.pow (2, exp - 16383 - 31) +
+				lo * Math.pow (2, exp - 16383 - 63)
+			);
+		}
+
+		function readAiffSample ( data, off, bits, little ) {
+			var val = 0;
+			if (bits === 8) return data.getInt8 ( off ) / 128;
+			if (bits === 16) return data.getInt16 ( off, little ) / 32768;
+			if (bits === 24) {
+				if (little)
+					val = data.getUint8 ( off ) |
+						(data.getUint8 ( off + 1 ) << 8) |
+						(data.getUint8 ( off + 2 ) << 16);
+				else
+					val = (data.getUint8 ( off ) << 16) |
+						(data.getUint8 ( off + 1 ) << 8) |
+						data.getUint8 ( off + 2 );
+				if (val & 0x800000) val |= 0xFF000000;
+				return val / 8388608;
+			}
+			if (bits === 32) return data.getInt32 ( off, little ) / 2147483648;
+			return 0;
+		}
+
+		function decodeAiff ( arr, ctx ) {
+			var data = new DataView ( arr );
+			var len = data.byteLength;
+			if (len < 54 || strAt ( data, 0, 4 ) !== 'FORM') return null;
+
+			var kind = strAt ( data, 8, 4 );
+			if (kind !== 'AIFF' && kind !== 'AIFC') return null;
+
+			var channels = 0;
+			var frames = 0;
+			var bits = 0;
+			var rate = 0;
+			var sound = 0;
+			var sound_len = 0;
+			var little = false;
+			var compression = kind === 'AIFF' ? 'NONE' : '';
+			var off = 12;
+
+			while (off + 8 <= len) {
+				var id = strAt ( data, off, 4 );
+				var size = data.getUint32 ( off + 4, false );
+				var start = off + 8;
+				var end = Math.min ( start + size, len );
+
+				if (id === 'COMM' && size >= 18) {
+					channels = data.getUint16 ( start, false );
+					frames = data.getUint32 ( start + 2, false );
+					bits = data.getUint16 ( start + 6, false );
+					rate = readAiffRate ( data, start + 8 );
+					if (kind === 'AIFC' && size >= 22)
+						compression = strAt ( data, start + 18, 4 );
+				}
+				else if (id === 'SSND' && size >= 8) {
+					sound = start + 8 + data.getUint32 ( start, false );
+					sound_len = Math.max (0, end - sound);
+				}
+
+				off = end + (size & 1);
+			}
+
+			if (compression === 'sowt') little = true;
+			else if (compression !== 'NONE') return null;
+
+			var bytes = (bits + 7) >> 3;
+			var frame_size = bytes * channels;
+			if (!channels || !frames || !bytes || !frame_size || !sound_len) return null;
+			if (bits !== 8 && bits !== 16 && bits !== 24 && bits !== 32) return null;
+
+			frames = Math.min ( frames, (sound_len / frame_size) >> 0 );
+			rate = Math.round ( rate ) || ctx.sampleRate;
+
+			var out = ctx.createBuffer ( channels, frames, rate );
+			for (var i = 0; i < frames; ++i) {
+				var pos = sound + i * frame_size;
+				for (var ch = 0; ch < channels; ++ch)
+					out.getChannelData ( ch )[i] =
+						readAiffSample ( data, pos + ch * bytes, bits, little );
+			}
+
+			return out;
 		}
 
 		function loadClip ( clip ) {
@@ -2883,6 +3127,7 @@
 			height = Math.max (height || 0, main ? main.clientHeight - 24 : 0);
 			if (playhead) playhead.style.height = height + 'px';
 			if (marker_el) marker_el.style.height = height + 'px';
+			if (region_el) region_el.style.height = height + 'px';
 		}
 
 		function totalPixels () {
@@ -2915,6 +3160,30 @@
 				row_h / default_row_h,
 				GetCursorPercent ()
 			]);
+		}
+
+		function captureZoom () {
+			if (!main || !main.clientWidth) return null;
+			return {
+				factor: GetZoomFactor (),
+				left: main.scrollLeft / Math.max (0.0001, px_per_sec)
+			};
+		}
+
+		function applyZoom ( zoom ) {
+			if (!zoom || !main || !main.clientWidth) return ;
+			px_per_sec = Math.max (
+				fitHorizontalPxPerSec (),
+				Math.min (1200, fitHorizontalPxPerSec () * Math.max (1, zoom.factor || 1))
+			);
+		}
+
+		function restoreZoomScroll ( zoom ) {
+			if (!zoom || !main) return ;
+			main.scrollLeft = (zoom.left || 0) * px_per_sec;
+			clampScroll ();
+			redrawRuler ();
+			fireZoom ();
 		}
 
 		function clampScroll () {

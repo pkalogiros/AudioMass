@@ -677,6 +677,21 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	outline:0;
 }
 
+.pk_mt_empty{
+	z-index:2;
+	pointer-events:none;
+}
+
+.pk_mt_empty a{
+	white-space:nowrap;
+	border:1px solid;
+	border-radius:23px;
+	padding:5px 18px;
+	font-size:0.94em;
+	margin-left:5px;
+	pointer-events:auto;
+}
+
 .pk_mt_ruler{
 	position:sticky;
 	top:0;
@@ -733,7 +748,6 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	display:none;
 	position:absolute;
 	top:24px;
-	bottom:0;
 	cursor:move;
 	z-index:2;
 }
