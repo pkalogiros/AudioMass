@@ -2684,9 +2684,14 @@
 			app.fireEvent ('DidCursorCenter', e, wavesurfer.ZoomFactor);
 		});
 		
-			var wave = wavesurfer.drawer.canvases[0].wave.parentNode;
+			var wave = wavesurfer.drawer.wrapper || wavesurfer.drawer.canvases[0].wave.parentNode;
 
 			var drag_x = 0;
+			var wheel_axis = 0;
+			var wheel_stamp = 0;
+			var wheel_idle = 520;
+			var wheel_x = 0;
+			var wheel_y = 0;
 			var viewport_draw_raf = 0;
 
 			function queueViewportDraw () {
@@ -2703,6 +2708,111 @@
 				});
 			}
 
+			function waveWhere ( e ) {
+				var rect = wave.getBoundingClientRect ();
+				var x = typeof e.clientX === 'number' ?
+					e.clientX :
+					rect.left + rect.width / 2;
+				var where = (x - rect.left) / Math.max (1, rect.width);
+				return Math.max (0, Math.min (1, where));
+			}
+
+			function zoomAt ( factor, where ) {
+				if (!q.is_ready) return ;
+
+				var dur = wavesurfer.getDuration ();
+				if (!dur) return ;
+				if (where === undefined) where = 0.5;
+
+				var old_vis = wavesurfer.VisibleDuration || dur / wavesurfer.ZoomFactor;
+				var at = wavesurfer.LeftProgress + old_vis * where;
+				var next = Math.max (1, wavesurfer.ZoomFactor * factor);
+				var vis = dur / next;
+
+				if (vis <= 0.5) return ;
+
+				wavesurfer.ZoomFactor = next;
+				wavesurfer.VisibleDuration = vis;
+				wavesurfer.LeftProgress = at - vis * where;
+
+				if (wavesurfer.LeftProgress + vis > dur)
+					wavesurfer.LeftProgress = dur - vis;
+				if (wavesurfer.LeftProgress < 0)
+					wavesurfer.LeftProgress = 0;
+
+				queueViewportDraw ();
+			}
+
+			function waveWheel ( e ) {
+				if (!q.is_ready) return ;
+
+				var info = app.wheelInfo ( e );
+				var now = e.timeStamp || w.performance.now ();
+				e.preventDefault ();
+				e.stopImmediatePropagation ? e.stopImmediatePropagation () : e.stopPropagation ();
+
+				if (now - wheel_stamp > wheel_idle) {
+					wheel_axis = 0;
+					wheel_x = 0;
+					wheel_y = 0;
+				}
+				wheel_stamp = now;
+
+				if (info.pinch) {
+					if (wheel_axis > 0) return ;
+					if (!info.y) return ;
+					zoomAt ( app.wheelZoomFactor ( info.y ), waveWhere ( e ) );
+					return ;
+				}
+
+				var pan = info.x;
+				if (!wheel_axis) {
+					wheel_x += info.x;
+					wheel_y += info.y;
+
+					var ax = Math.abs (wheel_x);
+					var ay = Math.abs (wheel_y);
+
+					if (ax < 14 && ay < 14) return ;
+
+					if (ax > 14 && ax > ay * 1.05) {
+						wheel_axis = 1;
+						pan = wheel_x;
+						wheel_x = 0;
+						wheel_y = 0;
+					}
+					else if (ay > 22 && ay > ax * 1.45) {
+						wheel_axis = -1;
+						wheel_x = 0;
+						wheel_y = 0;
+					}
+					else return ;
+				}
+
+				if (wheel_axis > 0 && pan) {
+					app.fireEvent ('RequestPan', pan);
+				}
+				else if (wheel_axis < 0 && info.y) {
+					zoomAt ( app.wheelZoomFactor ( info.y * 0.78 ), waveWhere ( e ) );
+				}
+			}
+
+			function gestureStart ( e ) {
+				e.preventDefault ();
+				if (wheel_axis > 0 && ((e.timeStamp || w.performance.now ()) - wheel_stamp) < wheel_idle)
+					return ;
+				wave._pk_scale = e.scale || 1;
+			}
+
+			function gestureChange ( e ) {
+				e.preventDefault ();
+				if (wheel_axis > 0 && ((e.timeStamp || w.performance.now ()) - wheel_stamp) < wheel_idle)
+					return ;
+				var scale = e.scale || 1;
+				zoomAt ( scale / (wave._pk_scale || 1), waveWhere ( e ) );
+				wave._pk_scale = scale;
+			}
+
 			var drag_move = function ( e ) {
 				var diff = drag_x - e.clientX;
 
@@ -2713,6 +2823,10 @@
 
 				drag_x = e.clientX;
 			};
+
+			wave.addEventListener ('wheel', waveWheel, {capture:true, passive:false});
+			wave.addEventListener ('gesturestart', gestureStart, {passive:false});
+			wave.addEventListener ('gesturechange', gestureChange, {passive:false});
 		
 		app.listenFor ('RequestZoom', function ( diff, mode ) {
 			var wv = wavesurfer;

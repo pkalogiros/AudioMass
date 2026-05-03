@@ -59,6 +59,27 @@
 			events[eventName] = null;
 		};
 
+		q.wheelInfo = function ( e ) {
+			var m = e.deltaMode === 1 ? 16 : (e.deltaMode === 2 ? w.innerHeight : 1);
+			var x = (e.deltaX || 0) * m;
+			var y = (e.deltaY || 0) * m;
+			if (e.shiftKey && Math.abs (x) < Math.abs (y)) {
+				x = y;
+				y = 0;
+			}
+			return {
+				x: x,
+				y: y,
+				ax: Math.abs (x),
+				ay: Math.abs (y),
+				pinch: !!e.ctrlKey
+			};
+		};
+
+		q.wheelZoomFactor = function ( delta ) {
+			return Math.max (0.2, Math.min (5, Math.pow (1.0025, -delta)));
+		};
+
 		q.init = function ( el_id ) {
 			var el = d.getElementById( el_id );
 			if (!el) {

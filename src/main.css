@@ -24,7 +24,7 @@ body{
 	-webkit-text-size-adjust:100%
 }*/
 
-body,html{height:100%;background:#111;
+body,html{height:100%;background:#111;overscroll-behavior:none;
 	/*overflow:hidden*/
 }
 
@@ -392,6 +392,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 .pk_av_cont{
 	position:relative;
 	touch-action:none;
+	overscroll-behavior:none;
 }
 .pk_av{
 	clear:both;
@@ -404,6 +405,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	background:#000;
 	position:relative;
 	overflow:hidden;
+	overscroll-behavior:none;
 	margin-left: 48px; /*left menu*/
 }
 
@@ -421,6 +423,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	overflow:hidden;
 	position:relative;
 	z-index:0;
+	overscroll-behavior:none;
 }
 
 .pk_mt_on .pk_av_cont{display:none}
@@ -675,6 +678,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	position:relative;
 	background:#000;
 	outline:0;
+	overscroll-behavior:none;
 }
 
 .pk_mt_empty{
@@ -1345,6 +1349,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 	overflow:hidden;
 	position:relative;
 	contain:strict;
+	overscroll-behavior:none;
 }
 
 .pk_wavedrag.pk_drag{

@@ -454,6 +454,8 @@
 			};
 
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
+			main.addEventListener ('gesturestart', gestureStart, {passive:false});
+			main.addEventListener ('gesturechange', gestureChange, {passive:false});
 			main.addEventListener ('scroll', syncScroll, false);
 			main.addEventListener ('mousedown', startRangeSelect, false);
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
@@ -1968,20 +1970,54 @@
 		}
 
 		function wheelZoom ( e ) {
+			var info = app.wheelInfo ( e );
 			e.preventDefault ();
 			e.stopPropagation ();
 
-			if (e.deltaY === 0) return ;
-			if (e.timeStamp - throttle_wheel < 46) return ;
+			if (info.pinch) {
+				if (!info.y) return ;
+				if (e.timeStamp - throttle_wheel < 16) return ;
+				throttle_wheel = e.timeStamp;
+				zoomAtEvent ( e, app.wheelZoomFactor ( info.y * 1.45 ) );
+				return ;
+			}
 
-			throttle_wheel = e.timeStamp;
+			if (info.ax > info.ay) {
+				main.scrollLeft += info.x;
+				clampScroll ();
+				redrawRuler ();
+				fireZoom ();
+				return ;
+			}
+
+			if (!info.y) return ;
+			main.scrollTop += info.y;
+			syncScroll ();
+		}
+
+		function zoomAtEvent ( e, factor ) {
 			var rect = main.getBoundingClientRect ();
-			var where = (e.clientX - rect.left) / Math.max (1, main.clientWidth);
+			var x = typeof e.clientX === 'number' ?
+				e.clientX :
+				rect.left + main.clientWidth / 2;
+			var where = (x - rect.left) / Math.max (1, main.clientWidth);
 			if (where < 0) where = 0;
 			else if (where > 1) where = 1;
-			zoomTo ( px_per_sec * (e.deltaY < 0 ? 1.25 : 0.8),
+			zoomTo ( px_per_sec * factor,
 				(main.scrollLeft + where * main.clientWidth) / px_per_sec,
 				where );
+		}
+
+		function gestureStart ( e ) {
+			e.preventDefault ();
+			main._pk_scale = e.scale || 1;
+		}
+
+		function gestureChange ( e ) {
+			e.preventDefault ();
+			var scale = e.scale || 1;
+			zoomAtEvent ( e, scale / (main._pk_scale || 1) );
+			main._pk_scale = scale;
 		}
 
 		function timeFromEvent ( e ) {
