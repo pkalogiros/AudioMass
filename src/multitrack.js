@@ -454,9 +454,6 @@
 			main.addEventListener ('gesturechange', gestureChange, {passive:false});
 			main.addEventListener ('scroll', syncScroll, false);
 			bindDown ( main, startRangeSelect );
-			main.ondblclick = function ( e ) {
-				if (canRangeSelect ( e )) app.fireEvent ('RequestRegionSet');
-			};
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
 			attachToolbarButton ();
@@ -2211,6 +2208,10 @@
 			focusMain ();
 			if (!e._touch) e.preventDefault ();
 			e.stopPropagation ();
+			if (e.detail === 2) {
+				app.fireEvent ('RequestRegionSet');
+				return true;
+			}
 
 			var track = regionTrack ( e );
 			var start = timeFromEvent ( e );
@@ -3433,9 +3434,10 @@
 
 		function ZoomUI ( type, val ) {
 			if (type === 0) {
+				var top = main ? main.scrollTop / row_h : 0;
 				row_h = default_row_h;
 				resetHorizontalZoom ();
-				main.scrollTop = 0;
+				if (main) main.scrollTop = top * row_h;
 				render ();
 				fireZoom ();
 				return ;
