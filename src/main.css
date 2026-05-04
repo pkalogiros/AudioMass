@@ -88,11 +88,35 @@ body{
 	text-rendering:optimizeLegibility;
 }
 
-button{font:inherit;color:var(--fg-0);background:transparent;-webkit-tap-highlight-color:transparent}
-a{color:var(--ac);cursor:pointer;-webkit-tap-highlight-color:transparent;text-decoration:none}
-a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
+button{
+	font:inherit;color:var(--fg-0);background:transparent;
+	-webkit-tap-highlight-color:transparent;
+	touch-action:manipulation;
+	-webkit-user-select:none;-ms-user-select:none;user-select:none;
+	-webkit-touch-callout:none;
+}
+a{
+	color:var(--ac);cursor:pointer;text-decoration:none;
+	-webkit-tap-highlight-color:transparent;
+	touch-action:manipulation;
+	-webkit-touch-callout:none;
+}
+@media (hover:hover){
+	a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
+}
 
-.pk_noselect{-webkit-touch-callout:none;-ms-user-select:none;user-select:none}
+/* iOS auto-zooms inputs/selects with font-size <16px on focus.
+   Force 16px on mobile so tapping a field doesn't disrupt layout. */
+.pk_mob input,
+.pk_mob select,
+.pk_mob textarea,
+.pk_mob .pk_modal .pk_txt,
+.pk_mob .pk_mt_track input{font-size:16px}
+
+.pk_noselect{
+	-webkit-touch-callout:none;-ms-user-select:none;user-select:none;
+	touch-action:manipulation;
+}
 .pk_app{width:100%;height:100%}
 
 .pk_inact,.pk_app .pk_inact,.pk_btn.pk_inact{opacity:.45;cursor:default}
@@ -229,6 +253,7 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 	color:var(--fg-0);
 }
 .pk_mob .pk_timecontainer{cursor:pointer}
+.pk_mob .pk_timing{font-size:18px;letter-spacing:0;padding:13px 0 0 8px}
 .pk_timing{
 	display:block;position:absolute;z-index:2;
 	padding:9px 0 0 14px;
@@ -917,7 +942,7 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 
 .pk_modal_a_bottom{
 	display:block;float:right;box-sizing:border-box;
-	margin-left:var(--s4);padding:3px 14px;
+	margin-left:var(--s3);padding:3px 10px;
 	color:#eee;
 	border:1px solid var(--bd);border-radius:21px;
 	font:12px/16px var(--ff);text-align:center;
@@ -983,11 +1008,12 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 .pk_row .pk_val{float:right;margin:4px 0}
 .pk_sel{float:left;max-width:92px}
 .pk_sel_edt{
-	display:block;float:left;
-	width:24px;height:22px;margin-left:6px;
-	color:var(--fg-2);background:transparent;
+	display:flex;align-items:center;justify-content:center;float:left;
+	box-sizing:border-box;
+	width:25px;height:25px;margin-left:6px;
+	color:var(--fg-2);background:#000;
 	border:1px solid var(--bd);border-radius:var(--r-md);
-	font-weight:bold;text-align:center;cursor:pointer;
+	font-weight:bold;text-align:center;cursor:pointer;line-height:1;
 	visibility:hidden;opacity:0;position:relative;
 	transition:opacity 620ms;
 }
@@ -1386,4 +1412,133 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 
 @media only screen and (max-width:400px){
 	.pk_hdr .pk_btn{margin:2px 4px 0}
+	.pk_timecontainer{width:124px}
+	.pk_timing{font-size:15px;letter-spacing:0;padding:14px 0 0 6px}
+	/* Canvas is drawn at a fixed 150px in JS — scale it down so all 9
+	   chars fit inside the narrow container without being clipped by
+	   contain:strict on .pk_timecontainer */
+	.pk_timingcnv{transform:scale(.74);transform-origin:0 6px}
+	.pk_total_dur,.pk_hover_dur{font-size:11px;right:6px}
+	.pk_hdr .pk_btn .pk_menu{min-width:160px}
+}
+
+/* =============================================================
+   Touch / mobile primitives
+   - Disables hover visual changes on touch-only devices
+   - Suppresses iOS callout & accidental selection on controls
+   - Prevents double-tap zoom (touch-action:manipulation)
+   - Larger hit targets for fiddly multitrack controls on mobile
+   ============================================================= */
+
+/* On touch-only devices, neutralize hover effects so nothing
+   sticks in a "hovered" state after a tap. */
+@media (hover:none){
+	a:hover,
+	.pk_hdr .pk_btn:hover,
+	.pk_hdr .pk_btn .pk_menu_el:hover button,
+	.pk_prc button:hover,
+	.pk_tb .pk_btn:hover,
+	.pk_mt_head button:hover,
+	.pk_mt_head button.pk_inact:hover,
+	.pk_mt_track button:hover,
+	.pk_mt_strip button:hover,
+	.pk_mt_knob:hover,
+	.pk_mt_topbtn:hover,
+	.pk_mt_mix_head button:hover,
+	.pk_zoombtn button:hover,
+	.pk_modal_a_bottom:hover,
+	.pk_modal_a_red:hover,
+	.pk_modal_cancel:hover,
+	.pk_modal_a_accpt:hover,
+	.pk_pgeq_els:hover,
+	.pk_tbsa:hover,
+	.pk_lcldrf:hover{
+		background:inherit;color:inherit;
+		border-color:inherit;
+		box-shadow:none;text-shadow:none;
+	}
+	.pk_mt_clip:hover .pk_mt_trim:after{opacity:0}
+	*::-webkit-scrollbar-thumb:hover{background:transparent;box-shadow:none}
+	/* Tooltips never appear on touch */
+	.pk_btn:hover span,
+	.pk_mt_head button:hover span,
+	.pk_mt_track button:hover span,
+	.pk_mt_strip button:hover span,
+	.pk_mt_knob:hover span{visibility:hidden;opacity:0}
+	/* Re-assert active states that the hover reset above clobbers
+	   when sticky :hover lingers on touch devices. */
+	.pk_mt_topbtn.pk_act,
+	.pk_mt_topbtn.pk_act:hover{
+		color:var(--ac-ink);border-color:var(--ac);
+		background:linear-gradient(180deg,#a8eef5 0%,#5ac8d2 100%);
+		box-shadow:0 0 16px var(--ac-glow),inset 0 1px 0 rgba(255,255,255,.3);
+	}
+	.pk_hdr .pk_btn.pk_act,
+	.pk_hdr .pk_btn.pk_act:hover{
+		background:var(--ac);color:var(--ac-ink);
+		text-shadow:none;text-decoration:none;
+		box-shadow:0 0 12px var(--ac-glow);
+	}
+}
+
+/* Apply touch-friendly behavior to every interactive surface
+   regardless of UA. Cheap, additive, no visual change on desktop. */
+.pk_btn,
+.pk_mt_head button,
+.pk_mt_track button,
+.pk_mt_strip button,
+.pk_mt_knob,
+.pk_mt_clip,
+.pk_mt_trim,
+.pk_mt_region,
+.pk_mt_ruler,
+.pk_zoombtn button,
+.pk_mt_topbtn,
+.pk_modal_a_bottom,
+.pk_pan_btn,
+.pk_peaker,
+.pk_volpar{
+	touch-action:manipulation;
+	-webkit-touch-callout:none;
+	-webkit-user-select:none;-ms-user-select:none;user-select:none;
+}
+
+/* Inputs are special — keep selectable but suppress callout. */
+input,textarea{-webkit-touch-callout:none}
+
+/* Multitrack track-list sidebar momentum scrolling on iOS. */
+.pk_mt_tracks_wrap{-webkit-overflow-scrolling:touch}
+
+/* ---------- Mobile-only sizing & visibility (.pk_mob) ---------- */
+
+/* Hide multitrack tooltips on mobile (already hidden for tb/ftr). */
+.pk_mob .pk_mt_head button span,
+.pk_mob .pk_mt_track button span,
+.pk_mob .pk_mt_strip button span,
+.pk_mob .pk_mt_strip .pk_mt_knob span,
+.pk_mob .pk_mt_knob span{visibility:hidden;display:none}
+
+/* Larger hit targets for fiddly mt controls on mobile. */
+.pk_mob .pk_mt_head button{width:30px;height:24px;font-size:13px}
+.pk_mob .pk_mt_track button{width:32px;height:30px;font-size:13px}
+.pk_mob .pk_mt_strip button{width:28px;height:26px;font-size:12px}
+.pk_mob .pk_mt_knob{width:32px;height:32px}
+.pk_mob .pk_mt_knob i{left:14px;top:5px}
+.pk_mob .pk_mt_trim{width:18px}
+.pk_mob .pk_mt_region .wavesurfer-handle{max-width:18px}
+
+/* ---------- Narrow viewport: modals, floating windows ---------- */
+@media only screen and (max-width:480px){
+	.pk_modal{min-width:auto;width:calc(100vw - 24px);max-width:100%}
+	.pk_modal.pk_bigger{min-width:auto;width:calc(100vw - 24px)}
+	.pk_modal_cnt{padding:20px 10px}
+	.pk_modal_main{padding:0 10px 48px}
+
+	.pk_frqan,.pk_peq{width:calc(100vw - 32px);max-width:380px}
+	.pk_peq{height:auto}
+	.pk_peq2{width:50%}
+
+	.pk_selection .pk_sellist{width:auto;max-width:calc(100vw - 24px)}
+
+	.pk_mt_side{flex:0 0 132px;width:132px}
 }

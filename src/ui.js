@@ -2101,7 +2101,9 @@
 				var ev = {
 					is_touch : true,
 					target : wavedrag,
-					clientX: e.touches[0].clientX
+					clientX: e.touches[0].clientX,
+					stopPropagation: function(){},
+					preventDefault: function(){}
 				};
 				mdown ( ev );
 			}, false);

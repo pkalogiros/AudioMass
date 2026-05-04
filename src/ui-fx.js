@@ -1592,8 +1592,8 @@
 						btn_update,
 						btn_delete
 					  ],
-					  body:'<label for="k07">Preset Name</label>' + 
-						'<input style="min-width:340px" maxlength="16" placeholder="Please type a name, eg: My Preset" ' + default_txt + ' class="pk_txt" type="text" id="k07" />',
+					  body:'<label for="k07">Preset Name</label>' +
+						'<input style="width:100%;box-sizing:border-box;min-width:0" maxlength="16" placeholder="Please type a name, eg: My Preset" ' + default_txt + ' class="pk_txt" type="text" id="k07" />',
 					  setup:function( q ) {
 					  	  	// app.fireEvent ('RequestPause');
 
