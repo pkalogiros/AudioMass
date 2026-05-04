@@ -1426,10 +1426,10 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_hdr .pk_btn .pk_menu_el:hover button,
 	.pk_prc button:hover,
 	.pk_tb .pk_btn:not(.pk_act):hover,
-	.pk_mt_head button:hover,
+	.pk_mt_head button:not(.pk_act):hover,
 	.pk_mt_head button.pk_inact:hover,
-	.pk_mt_track button:hover,
-	.pk_mt_strip button:hover,
+	.pk_mt_track button:not(.pk_act):hover,
+	.pk_mt_strip button:not(.pk_act):hover,
 	.pk_mt_knob:hover,
 	.pk_mt_topbtn:hover,
 	.pk_mt_mix_head button:hover,
@@ -1496,6 +1496,9 @@ input,textarea{-webkit-touch-callout:none}
 
 /* Multitrack track-list sidebar momentum scrolling on iOS. */
 .pk_mt_tracks_wrap{-webkit-overflow-scrolling:touch}
+.pk_mt_main,.pk_mt_lanes,.pk_mt_lane{touch-action:pan-y}
+.pk_mt_clip.pk_mt_clip_sel,.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,
+.pk_mt_region,.pk_mt_knob,.pk_mt_resize{touch-action:none}
 
 /* ---------- Mobile-only sizing & visibility (.pk_mob) ---------- */
 
@@ -1507,11 +1510,22 @@ input,textarea{-webkit-touch-callout:none}
 .pk_mob .pk_mt_knob span{visibility:hidden;display:none}
 
 /* Larger hit targets for fiddly mt controls on mobile. */
+.pk_mob .pk_mt_side{flex:0 0 154px;width:154px}
+.pk_mob .pk_mt_track{padding:6px 5px}
+.pk_mob .pk_mt_track input{height:26px;margin-bottom:8px;padding:0 5px}
 .pk_mob .pk_mt_head button{width:30px;height:24px;font-size:13px}
-.pk_mob .pk_mt_track button{width:32px;height:30px;font-size:13px}
+.pk_mob .pk_mt_track button{width:28px;height:28px;margin-right:3px;font-size:13px}
 .pk_mob .pk_mt_strip button{width:28px;height:26px;font-size:12px}
 .pk_mob .pk_mt_knob{width:32px;height:32px}
 .pk_mob .pk_mt_knob i{left:14px;top:5px}
+.pk_mob .pk_mt_track .pk_mt_rec{position:absolute;right:5px;top:76px;margin:0}
+.pk_mob .pk_mt_track .pk_mt_del{right:5px;top:6px;margin:0}
+.pk_mob .pk_mt_track .pk_mt_knob{width:34px;height:34px;margin-right:4px}
+.pk_mob .pk_mt_track .pk_mt_knob:before{top:-8px;font-size:6px}
+.pk_mob .pk_mt_track .pk_mt_knob:after{display:block;left:-7px;top:37px;width:48px;font-size:9px}
+.pk_mob .pk_mt_track.pk_mt_compact .pk_mt_knob:after{display:none}
+.pk_mob .pk_mt_track .pk_mt_knob i{left:16px;top:5px;height:12px;transform-origin:1px 11px}
+.pk_mob .pk_mt_resize{height:16px}
 .pk_mob .pk_mt_trim{width:18px}
 .pk_mob .pk_mt_region .wavesurfer-handle{max-width:18px}
 

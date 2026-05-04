@@ -12,11 +12,11 @@
 		var selected_clip = null;
 		var editing_clip = null;
 		var default_px_per_sec = 86;
-		var default_row_h = 88;
-		var min_track_h = 58;
+		var default_row_h = app.isMobile ? 118 : 88;
+		var min_track_h = app.isMobile ? 74 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
-		var row_h = 88;
+		var row_h = default_row_h;
 		var cursor = 0;
 		var marker = 0;
 		var region = null;
@@ -453,7 +453,7 @@
 			main.addEventListener ('gesturestart', gestureStart, {passive:false});
 			main.addEventListener ('gesturechange', gestureChange, {passive:false});
 			main.addEventListener ('scroll', syncScroll, false);
-			main.addEventListener ('mousedown', startRangeSelect, false);
+			bindDown ( main, startRangeSelect );
 			main.ondblclick = function ( e ) {
 				if (canRangeSelect ( e )) app.fireEvent ('RequestRegionSet');
 			};
@@ -600,7 +600,7 @@
 			r.className = 'wavesurfer-handle wavesurfer-handle-end';
 			region_el.appendChild ( l );
 			region_el.appendChild ( r );
-			region_el.onmousedown = startRegionEdit;
+			bindDown ( region_el, startRegionEdit );
 			region_el.ondblclick = passRegionEventToClip;
 		}
 
@@ -786,6 +786,7 @@
 				render ();
 			};
 			row.onmousedown = function ( e ) {
+				if (app.isMobile) return ;
 				var rect = row.getBoundingClientRect ();
 				if (rect.bottom - e.clientY < 12) {
 					startTrackResize ( e, track );
@@ -915,18 +916,18 @@
 			var start_vol = 1;
 			var prev = null;
 			var moved = false;
+			var stop_drag = null;
 
-			knob.onmousedown = function ( e ) {
+			bindDown ( knob, function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
 				prev = cloneState ();
 				start_y = e.clientY;
 				start_vol = track.vol === undefined ? 1 : track.vol;
 				moved = false;
-				d.addEventListener ('mousemove', move, false);
-				d.addEventListener ('mouseup', up, false);
+				stop_drag = bindDrag ( e, move, up );
 				setActiveDrag ( up );
-			};
+			});
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
@@ -947,8 +948,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				if (stop_drag) stop_drag ();
 				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Volume Channel' );
 			}
@@ -959,18 +959,18 @@
 			var start_pan = 0;
 			var prev = null;
 			var moved = false;
+			var stop_drag = null;
 
-			knob.onmousedown = function ( e ) {
+			bindDown ( knob, function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
 				prev = cloneState ();
 				start_x = e.clientX;
 				start_pan = track.pan;
 				moved = false;
-				d.addEventListener ('mousemove', move, false);
-				d.addEventListener ('mouseup', up, false);
+				stop_drag = bindDrag ( e, move, up );
 				setActiveDrag ( up );
-			};
+			});
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
@@ -991,8 +991,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				if (stop_drag) stop_drag ();
 				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Pan Channel' );
 			}
@@ -1155,18 +1154,18 @@
 			var start_vol = 1;
 			var prev = null;
 			var moved = false;
+			var stop_drag = null;
 
-			knob.onmousedown = function ( e ) {
+			bindDown ( knob, function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
 				prev = cloneState ();
 				start_y = e.clientY;
 				start_vol = master_vol;
 				moved = false;
-				d.addEventListener ('mousemove', move, false);
-				d.addEventListener ('mouseup', up, false);
+				stop_drag = bindDrag ( e, move, up );
 				setActiveDrag ( up );
-			};
+			});
 			knob.ondblclick = function ( e ) {
 				e.preventDefault ();
 				e.stopPropagation ();
@@ -1187,8 +1186,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				if (stop_drag) stop_drag ();
 				clearActiveDrag ( up );
 				if (moved) pushState ( prev, 'Master Volume' );
 			}
@@ -1215,8 +1213,7 @@
 			prev = cloneState ();
 			start_y = e.clientY;
 			start_h = trackHeight ( track );
-			d.addEventListener ('mousemove', move, false);
-			d.addEventListener ('mouseup', up, false);
+			var stop_drag = bindDrag ( e, move, up );
 			setActiveDrag ( up );
 
 			function move ( e ) {
@@ -1227,8 +1224,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				stop_drag ();
 				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-resize');
 				if (moved) pushState ( prev, 'Resize Channel' );
@@ -1243,8 +1239,7 @@
 
 			if (!app.ui.InteractionHandler.checkAndSet ('multitrack-order')) return false;
 			selected_track = track.id;
-			d.addEventListener ('mousemove', move, false);
-			d.addEventListener ('mouseup', up, false);
+			var stop_drag = bindDrag ( e, move, up );
 			setActiveDrag ( up );
 
 			function move ( ev ) {
@@ -1264,8 +1259,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				stop_drag ();
 				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-order');
 				if (moved && trackIndex ( track.id ) !== start_i) {
@@ -1324,9 +1318,9 @@
 		}
 
 		function bindTrackResize ( handle, track ) {
-			handle.onmousedown = function ( e ) {
+			bindDown ( handle, function ( e ) {
 				startTrackResize ( e, track );
-			};
+			});
 		}
 
 		function pairKey ( a, b ) {
@@ -1591,7 +1585,7 @@
 		}
 
 		function cloneMouseEvent ( e ) {
-			return new MouseEvent (e.type, {
+			var ev = new MouseEvent (e.type, {
 				bubbles: true,
 				cancelable: true,
 				view: w,
@@ -1607,6 +1601,8 @@
 				button: e.button,
 				buttons: e.buttons
 			});
+			if (e._touch) ev._touch = true;
+			return ev;
 		}
 
 		function isRegionHandleEvent ( e ) {
@@ -1652,8 +1648,7 @@
 			var old_end = region.end;
 			var moved = false;
 
-			d.addEventListener ('mousemove', move, false);
-			d.addEventListener ('mouseup', up, false);
+			var stop_drag = bindDrag ( e, move, up );
 			setActiveDrag ( up );
 
 			function move ( ev ) {
@@ -1676,8 +1671,7 @@
 			}
 
 			function up () {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				stop_drag ();
 				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-region');
 				if (moved) finishRegionUpdate ();
@@ -1695,8 +1689,7 @@
 			var old_end = region.end;
 			var active = false;
 
-			d.addEventListener ('mousemove', move, false);
-			d.addEventListener ('mouseup', up, false);
+			var stop_drag = bindDrag ( e, move, up );
 			setActiveDrag ( up );
 
 			function move ( ev ) {
@@ -1719,8 +1712,7 @@
 			}
 
 			function up ( ev ) {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				stop_drag ();
 				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
@@ -1866,8 +1858,14 @@
 			var prev = null;
 			var moved = false;
 			var did_move = false;
+			var stop_drag = null;
 
-			ce.onmousedown = function ( e ) {
+			bindDown ( ce, function ( e ) {
+				if (e._touch && selected_clip !== clip.id) {
+					startClipTouchPan ( e, clip );
+					return ;
+				}
+
 				focusMain ();
 				e.preventDefault ();
 				e.stopPropagation ();
@@ -1889,10 +1887,43 @@
 				ce.classList.add ('pk_drag');
 				if (drag_mode) startTrimView ();
 				else ce.style.willChange = 'transform';
-				d.addEventListener ('mousemove', move, false);
-				d.addEventListener ('mouseup', up, false);
+				stop_drag = bindDrag ( e, move, up );
 				setActiveDrag ( up );
-			};
+			});
+
+			function startClipTouchPan ( e, clip ) {
+				var down_x = e.clientX;
+				var down_y = e.clientY;
+				var old_left = main.scrollLeft;
+				var old_top = main.scrollTop;
+				var moved = false;
+				var stop_pan = bindDrag ( e, move, up );
+
+				setActiveDrag ( up );
+
+				function move ( ev ) {
+					var dx = ev.clientX - down_x;
+					var dy = ev.clientY - down_y;
+					if (!moved && Math.abs ( dx ) + Math.abs ( dy ) < 7) return ;
+					moved = true;
+					ev.preventDefault ();
+					main.scrollLeft = old_left - dx;
+					main.scrollTop = old_top - dy;
+					clampScroll ();
+					syncScroll ();
+					fireZoom ();
+				}
+
+				function up ( ev ) {
+					stop_pan ();
+					clearActiveDrag ( up );
+					if (moved || !ev) return ;
+					ev.preventDefault ();
+					ev.stopPropagation ();
+					setCursorTime ( timeFromEvent ( ev ) );
+					selectClip ( clip );
+				}
+			}
 
 			function startTrimView () {
 				trim_canvas = ce.getElementsByTagName ('canvas')[0];
@@ -1956,8 +1987,7 @@
 			}
 
 			function up ( e ) {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				if (stop_drag) stop_drag ();
 				clearActiveDrag ( up );
 				ce.classList.remove ('pk_drag');
 				ce.style.transform = '';
@@ -2019,6 +2049,77 @@
 		function stopDrag ( e ) {
 			e.preventDefault ();
 			e.stopPropagation ();
+		}
+
+		function touchDragEvent ( e, end ) {
+			if (!e.touches && !e.changedTouches) return e;
+			var list = end ? e.changedTouches : e.touches;
+			var t = (list && list[0]) ||
+				(e.changedTouches && e.changedTouches[0]) ||
+				(e.touches && e.touches[0]);
+			if (!t) return null;
+			return {
+				_touch: true,
+				type: 'mousedown',
+				target: e.target,
+				button: 0,
+				buttons: 1,
+				detail: 1,
+				clientX: t.clientX,
+				clientY: t.clientY,
+				screenX: t.screenX,
+				screenY: t.screenY,
+				ctrlKey: e.ctrlKey,
+				altKey: e.altKey,
+				shiftKey: e.shiftKey,
+				metaKey: e.metaKey,
+				timeStamp: e.timeStamp,
+				preventDefault: function () { e.preventDefault (); },
+				stopPropagation: function () { e.stopPropagation (); }
+			};
+		}
+
+		function bindDown ( el, fn ) {
+			el.onmousedown = fn;
+			el.addEventListener ('touchstart', function ( e ) {
+				if (e.touches.length !== 1) return ;
+				var ev = touchDragEvent ( e );
+				if (ev) fn ( ev );
+			}, {passive:false});
+		}
+
+		function bindDrag ( e, move, up ) {
+			if (!e._touch) {
+				d.addEventListener ('mousemove', move, false);
+				d.addEventListener ('mouseup', up, false);
+				return function () {
+					d.removeEventListener ('mousemove', move);
+					d.removeEventListener ('mouseup', up);
+				};
+			}
+
+			function touchMove ( ev ) {
+				if (ev.touches.length !== 1) {
+					touchEnd ( ev );
+					return ;
+				}
+				var t = touchDragEvent ( ev );
+				if (t) move ( t );
+			}
+
+			function touchEnd ( ev ) {
+				var t = touchDragEvent ( ev, true );
+				up ( t );
+			}
+
+			d.addEventListener ('touchmove', touchMove, {passive:false});
+			d.addEventListener ('touchend', touchEnd, false);
+			d.addEventListener ('touchcancel', touchEnd, false);
+			return function () {
+				d.removeEventListener ('touchmove', touchMove, false);
+				d.removeEventListener ('touchend', touchEnd, false);
+				d.removeEventListener ('touchcancel', touchEnd, false);
+			};
 		}
 
 		function wheelZoom ( e ) {
@@ -2094,20 +2195,20 @@
 			if (!canRangeSelect ( e )) return ;
 
 			focusMain ();
-			e.preventDefault ();
+			if (!e._touch) e.preventDefault ();
 			e.stopPropagation ();
 
 			var track = regionTrack ( e );
 			var start = timeFromEvent ( e );
 			var down_x = e.clientX;
 			var down_y = e.clientY;
+			var is_touch = e._touch;
 			var active = false;
 			var last = start;
 
 			if (track) selected_track = track;
 
-			d.addEventListener ('mousemove', move, false);
-			d.addEventListener ('mouseup', up, false);
+			var stop_drag = bindDrag ( e, move, up );
 			setActiveDrag ( up );
 
 			function move ( ev ) {
@@ -2115,6 +2216,10 @@
 				var dy = ev.clientY - down_y;
 				if (!active) {
 					if (Math.abs ( dx ) + Math.abs ( dy ) < 5) return ;
+					if (is_touch && Math.abs ( dy ) > Math.abs ( dx )) {
+						up ();
+						return ;
+					}
 					if (!app.ui.InteractionHandler.checkAndSet ('multitrack-region')) {
 						up ( ev );
 						return ;
@@ -2128,8 +2233,7 @@
 			}
 
 			function up ( ev ) {
-				d.removeEventListener ('mousemove', move);
-				d.removeEventListener ('mouseup', up);
+				stop_drag ();
 				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
