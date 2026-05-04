@@ -1335,6 +1335,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 @media only screen and (max-height:438px){
 	.pk_zoombtn .pk_zoom_out_v,
 	.pk_zoombtn .pk_zoom_in_v{display:none!important}
+	.pk_mob .pk_mt{height:calc(100dvh - 168px);min-height:0}
 }
 
 @media only screen and (max-width:1250px){

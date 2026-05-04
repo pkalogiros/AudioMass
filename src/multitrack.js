@@ -2293,20 +2293,30 @@
 
 		function addFiles ( file_list, track_id, start ) {
 			if (!file_list || !file_list.length) return ;
-			if (!findTrack ( track_id )) return ;
 			var files = [];
 			for (var i = 0; i < file_list.length; ++i)
 				files.push ( file_list[i] );
+			var multi = files.length > 1;
+			if (!multi && !findTrack ( track_id )) return ;
 
 			var prev = cloneState ();
 			var zoom = captureZoom ();
 			var pending = files.length;
+			var decoded = multi ? new Array ( files.length ) : null;
 			var added = 0;
 			var missing_track = false;
 			app.fireEvent ('WillDownloadFile');
 
 			files.forEach (function ( file, index ) {
 				decodeFile ( file, function ( buffer ) {
+					if (multi) {
+						decoded[index] = {
+							buffer: buffer,
+							name: file.name || 'Audio'
+						};
+						done ();
+						return ;
+					}
 					if (!findTrack ( track_id )) {
 						missing_track = true;
 						done ();
@@ -2327,14 +2337,35 @@
 				if (--pending > 0) return ;
 				app.fireEvent ('DidDownloadFile');
 
-				if (added && findTrack ( track_id )) {
+				if (multi) {
+					var first = null;
+					for (var i = 0; i < decoded.length; ++i) {
+						if (!decoded[i]) continue ;
+						var track = i === 0 ? findTrack ( track_id ) : null;
+						if (!track) {
+							track = makeTrack ( trackName ( decoded[i].name ) );
+							tracks.push ( track );
+						}
+						clips.push ( makeClip ( track.id, start, decoded[i].buffer, decoded[i].name ) );
+						if (!first) first = track.id;
+						++added;
+					}
+					if (added) {
+						selected_track = first;
+						selected_clip = null;
+					}
+				}
+
+				if (added && (multi || findTrack ( track_id ))) {
 					applyZoom ( zoom );
-					pushState ( prev, 'Add Clip' );
+					pushState ( prev, multi ? 'Add Tracks' : 'Add Clip' );
 					queuePlayRefresh ( true );
 					render ();
 					restoreZoomScroll ( zoom );
 					app.fireEvent ('DidUpdateMultitrack');
-					OneUp ('Added ' + added + ' clip' + (added === 1 ? '' : 's'));
+					OneUp ('Added ' + added + (multi ?
+						' track' + (added === 1 ? '' : 's') :
+						' clip' + (added === 1 ? '' : 's')));
 				}
 				else {
 					OneUp (missing_track ? 'Channel removed' : 'Could not decode audio', 1200);
@@ -3670,6 +3701,10 @@
 		q.IsOn = IsOn;
 		q.AddFilesAuto = function ( file_list ) {
 			if (!file_list || !file_list.length) return false;
+			if (file_list.length > 1) {
+				addFiles ( file_list, null, 0 );
+				return true;
+			}
 			var target = null;
 			for (var i = 0; i < tracks.length; ++i) {
 				var has_clip = false;
