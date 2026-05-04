@@ -12,7 +12,7 @@
 		var selected_clip = null;
 		var editing_clip = null;
 		var default_px_per_sec = 86;
-		var default_row_h = app.isMobile ? 118 : 88;
+		var default_row_h = app.isMobile ? 130 : 88;
 		var min_track_h = app.isMobile ? 74 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
@@ -772,9 +772,13 @@
 			row.appendChild ( input );
 			row.appendChild ( mute );
 			row.appendChild ( solo );
+			if (app.isMobile) {
+				row.appendChild ( arm );
+				row.appendChild ( d.createElement ('br') );
+			}
 			row.appendChild ( vol );
 			row.appendChild ( pan );
-			row.appendChild ( arm );
+			if (!app.isMobile) row.appendChild ( arm );
 			row.appendChild ( del );
 			row.appendChild ( resize );
 			tracks_el.appendChild ( row );
@@ -911,7 +915,12 @@
 			el.setAttribute ('data-val', ((val * 100) >> 0) + '%');
 		}
 
+		function knobDelta ( e, x, y ) {
+			return (e.clientX - x) - (e.clientY - y);
+		}
+
 		function bindVolume ( knob, track ) {
+			var start_x = 0;
 			var start_y = 0;
 			var start_vol = 1;
 			var prev = null;
@@ -922,6 +931,7 @@
 				e.preventDefault ();
 				e.stopPropagation ();
 				prev = cloneState ();
+				start_x = e.clientX;
 				start_y = e.clientY;
 				start_vol = track.vol === undefined ? 1 : track.vol;
 				moved = false;
@@ -940,7 +950,7 @@
 			};
 
 			function move ( e ) {
-				var val = Math.max (0, Math.min (1, start_vol - ((e.clientY - start_y) / 90)));
+				var val = Math.max (0, Math.min (1, start_vol + knobDelta ( e, start_x, start_y ) / 90));
 				if (Math.abs (val - (track.vol === undefined ? 1 : track.vol)) > 0.001) moved = true;
 				track.vol = val;
 				updateVolume ( knob, val );
@@ -956,6 +966,7 @@
 
 		function bindPan ( knob, track ) {
 			var start_x = 0;
+			var start_y = 0;
 			var start_pan = 0;
 			var prev = null;
 			var moved = false;
@@ -966,6 +977,7 @@
 				e.stopPropagation ();
 				prev = cloneState ();
 				start_x = e.clientX;
+				start_y = e.clientY;
 				start_pan = track.pan;
 				moved = false;
 				stop_drag = bindDrag ( e, move, up );
@@ -983,7 +995,7 @@
 			};
 
 			function move ( e ) {
-				var val = Math.max (-1, Math.min (1, start_pan + ((e.clientX - start_x) / 80)));
+				var val = Math.max (-1, Math.min (1, start_pan + knobDelta ( e, start_x, start_y ) / 80));
 				if (Math.abs (val - track.pan) > 0.001) moved = true;
 				track.pan = val;
 				updateKnob ( knob, val );
@@ -1150,6 +1162,7 @@
 		}
 
 		function bindMasterVolume ( knob ) {
+			var start_x = 0;
 			var start_y = 0;
 			var start_vol = 1;
 			var prev = null;
@@ -1160,6 +1173,7 @@
 				e.preventDefault ();
 				e.stopPropagation ();
 				prev = cloneState ();
+				start_x = e.clientX;
 				start_y = e.clientY;
 				start_vol = master_vol;
 				moved = false;
@@ -1178,7 +1192,7 @@
 			};
 
 			function move ( e ) {
-				var val = Math.max (0, Math.min (1, start_vol - ((e.clientY - start_y) / 90)));
+				var val = Math.max (0, Math.min (1, start_vol + knobDelta ( e, start_x, start_y ) / 90));
 				if (Math.abs (val - master_vol) > 0.001) moved = true;
 				master_vol = val;
 				if (play && play.master) play.master.gain.value = master_vol;

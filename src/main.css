@@ -500,11 +500,10 @@ a{
 	background:var(--bg-0);
 	border:1px solid var(--bd);border-radius:50%;
 	box-shadow:var(--inset-hi),inset 0 -1px 2px rgba(0,0,0,.6);
-	cursor:ew-resize;vertical-align:bottom;
+	cursor:move;vertical-align:bottom;
 	transition:border-color var(--tr),box-shadow var(--tr);
 }
 .pk_mt_knob:hover{border-color:var(--bd-h);box-shadow:var(--inset-hi),0 0 8px var(--ac-glow)}
-.pk_mt_knob.pk_mt_vol{cursor:ns-resize}
 .pk_mt_knob:before{
 	position:absolute;left:0;right:0;bottom:3px;
 	font-size:6px;line-height:6px;text-align:center;
@@ -1518,14 +1517,14 @@ input,textarea{-webkit-touch-callout:none}
 .pk_mob .pk_mt_strip button{width:28px;height:26px;font-size:12px}
 .pk_mob .pk_mt_knob{width:32px;height:32px}
 .pk_mob .pk_mt_knob i{left:14px;top:5px}
-.pk_mob .pk_mt_track .pk_mt_rec{position:absolute;right:5px;top:76px;margin:0}
+.pk_mob .pk_mt_track .pk_mt_rec{position:absolute;right:5px;top:40px;margin:0}
 .pk_mob .pk_mt_track .pk_mt_del{right:5px;top:6px;margin:0}
-.pk_mob .pk_mt_track .pk_mt_knob{width:34px;height:34px;margin-right:4px}
+.pk_mob .pk_mt_track .pk_mt_knob{width:34px;height:34px;margin:15px 8px 0 0;vertical-align:top}
 .pk_mob .pk_mt_track .pk_mt_knob:before{top:-8px;font-size:6px}
 .pk_mob .pk_mt_track .pk_mt_knob:after{display:block;left:-7px;top:37px;width:48px;font-size:9px}
 .pk_mob .pk_mt_track.pk_mt_compact .pk_mt_knob:after{display:none}
 .pk_mob .pk_mt_track .pk_mt_knob i{left:16px;top:5px;height:12px;transform-origin:1px 11px}
-.pk_mob .pk_mt_resize{height:16px}
+.pk_mob .pk_mt_resize{display:none}
 .pk_mob .pk_mt_trim{width:18px}
 .pk_mob .pk_mt_region .wavesurfer-handle{max-width:18px}
 
