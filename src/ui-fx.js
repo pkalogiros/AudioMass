@@ -1259,7 +1259,17 @@
 			},
 			presets:[
 				{name:'Classic',val:'0.3,0.4,0.4'},
-				{name:'Spacey',val:'3.0,0.6,0.3'}
+				{name:'Spacey',val:'3.0,0.6,0.3'},
+				{name:'Small Room',val:'0.3,1.5,0.25'},
+				{name:'Medium Room',val:'0.7,1.2,0.35'},
+				{name:'Large Hall',val:'2.2,0.5,0.4'},
+				{name:'Cathedral',val:'3.0,0.3,0.5'},
+				{name:'Plate',val:'1.2,0.8,0.45'},
+				{name:'Vocal Booth',val:'0.5,2.0,0.2'},
+				{name:'Drum Chamber',val:'0.9,1.0,0.3'},
+				{name:'Ambient Wash',val:'2.8,0.2,0.6'},
+				{name:'Tight Slap',val:'0.15,2.5,0.35'},
+				{name:'Cave',val:'2.5,0.4,0.55'}
 			],
 			custom_pres:custom_presets.Get (filter_id),
 			preview: function ( q ) {
