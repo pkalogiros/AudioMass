@@ -497,7 +497,7 @@
 		}
 
 		function attachToolbarButton () {
-			var actions = app.el.getElementsByClassName ('pk_tb')[0];
+			var actions = app.el.getElementsByClassName ('pk_hdr')[0];
 			if (!actions) return ;
 
 			btn_toggle = d.createElement ('button');
@@ -3573,6 +3573,7 @@
 		};
 		q.IsRecording = function () { return !!rec; };
 		q.IsPlaying = function () { return !!play; };
+		q.Toggle = Toggle;
 		q.Play = Play;
 		q.Pause = Pause;
 		q.Stop = Stop;

@@ -314,9 +314,12 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 
 .pk_btn.icon-clearsel{
 	font-family:var(--ff);
-	width:92px;height:30px;margin:3px 0 0 var(--s3);padding:0;
-	font-size:12px;line-height:20px;
+	width:92px;min-height:30px;margin:3px 0 0 var(--s3);padding:4px 6px;
+	font-size:11px;line-height:1.15;
 	border:1px solid var(--bd);
+	white-space:normal;word-break:normal;overflow-wrap:normal;
+	box-sizing:border-box;
+	display:inline-flex;align-items:center;justify-content:center;text-align:center;
 }
 
 /* ---------- Audio view ---------- */
@@ -608,13 +611,13 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 
 /* "Switch to multitrack" button */
 .pk_mt_topbtn{
-	position:absolute;right:20px;top:11px;
-	height:26px;padding:0 14px;
+	margin-left:auto;margin-right:6px;
+	height:20px;padding:0 12px;
 	background:linear-gradient(180deg,var(--bg-3) 0%,var(--bg-1) 100%);
 	color:var(--fg-0);
-	border:1px solid var(--bd);border-radius:14px;
+	border:1px solid var(--bd);border-radius:10px;
 	box-shadow:var(--inset-hi);
-	font:bold 12px var(--ff);letter-spacing:.4px;
+	font:bold 11px/18px var(--ff);letter-spacing:.4px;
 	white-space:nowrap;cursor:pointer;outline:0;
 	transition:box-shadow var(--tr),color var(--tr),border-color var(--tr),background var(--tr);
 }
@@ -1354,11 +1357,6 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_timecontainer{width:200px;margin-right:10px}
 	.pk_timing{padding:10px 0 0 8px;font-size:24px}
 	.pk_total_dur,.pk_hover_dur{font-size:13px}
-	.pk_mt_topbtn{
-		position:relative;top:-4px;
-		margin:10px;padding:0 10px;
-		font-size:11px;letter-spacing:0;
-	}
 	.pk_mt_topbtn em{display:none}
 	.pk_hdr .pk_btn{margin:2px 10px 0}
 	.pk_tbc{
