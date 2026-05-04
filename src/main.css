@@ -885,7 +885,7 @@ a{
 	backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
 	font-size:16px;
 	transform:translate(-50%,-50%);
-	transition:all 300ms var(--ease);
+	transition:opacity 300ms var(--ease),margin-top 300ms var(--ease);
 	user-select:none;pointer-events:none;
 }
 
@@ -1099,7 +1099,7 @@ input.pk_horiz.pk_w180{max-width:200px}
 	content:' ';position:absolute;left:3px;top:3px;
 	width:16px;height:16px;
 	background:var(--ac-2);border-radius:20px;
-	outline:0;transition:all .1s;
+	outline:0;transition:opacity .1s,transform .1s;
 }
 .pk_check:checked+label:before{border-color:#666}
 .pk_check:not(:checked)+label:after{opacity:0;transform:scale(0)}
