@@ -1148,7 +1148,20 @@
 			body: '',
 			
 			presets:[
-					{name:'Old Telephone',val:'1,highpass,0,5800,5.8,1,lowpass,0,7060,5'}
+					{name:'Old Telephone',val:'1,highpass,0,5800,5.8,1,lowpass,0,7060,5'},
+					{name:'AM Radio',val:'1,highpass,0,400,0.8,1,lowpass,0,3500,0.8,1,peaking,4,1500,1'},
+					{name:'Megaphone',val:'1,highpass,0,700,0.7,1,lowpass,0,4000,0.7,1,peaking,6,2000,2'},
+					{name:'Underwater',val:'1,lowpass,0,1200,1,1,peaking,3,300,1'},
+					{name:'Lo-Fi / Vintage',val:'1,highpass,0,80,0.7,1,lowpass,0,7000,0.7,1,peaking,3,200,1,1,peaking,-3,4000,1'},
+					{name:'Bass Boost',val:'1,peaking,6,60,0.7,1,peaking,3,120,1'},
+					{name:'Vocal Presence',val:'1,highpass,0,80,0.7,1,peaking,-3,250,1,1,peaking,3,3000,1.2,1,peaking,2,8000,1'},
+					{name:'Loudness (Smile)',val:'1,peaking,5,80,0.7,1,peaking,-3,1000,1,1,peaking,5,10000,0.7'},
+					{name:'Air / Brilliance',val:'1,peaking,4,10000,0.7,1,peaking,3,13000,1'},
+					{name:'De-Rumble',val:'1,highpass,0,80,0.7,1,peaking,-6,50,1'},
+					{name:'Podcast Voice',val:'1,highpass,0,100,0.7,1,peaking,-2,300,1,1,peaking,2,2500,1.2,1,peaking,2,9000,0.7'},
+					{name:'De-Esser',val:'1,peaking,-5,6500,3'},
+					{name:'Drum Punch',val:'1,peaking,4,80,1.2,1,peaking,-3,250,1,1,peaking,3,4000,1.5'},
+					{name:'Acoustic Sparkle',val:'1,highpass,0,80,0.7,1,peaking,-2,200,1,1,peaking,3,5000,1'}
 			],
 
 			custom_pres:custom_presets.Get (filter_id),

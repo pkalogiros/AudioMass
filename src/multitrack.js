@@ -3551,6 +3551,26 @@
 		}
 
 		q.IsOn = IsOn;
+		q.AddFilesAuto = function ( file_list ) {
+			if (!file_list || !file_list.length) return false;
+			var target = null;
+			for (var i = 0; i < tracks.length; ++i) {
+				var has_clip = false;
+				for (var j = 0; j < clips.length; ++j) {
+					if (clips[j].track === tracks[i].id) { has_clip = true; break; }
+				}
+				if (!has_clip) { target = tracks[i]; break; }
+			}
+			if (!target) {
+				addTrack ();
+				target = tracks[tracks.length - 1];
+			}
+			else {
+				selected_track = target.id;
+			}
+			addFiles ( file_list, target.id, 0 );
+			return true;
+		};
 		q.IsRecording = function () { return !!rec; };
 		q.IsPlaying = function () { return !!play; };
 		q.Play = Play;

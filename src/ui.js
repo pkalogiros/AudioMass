@@ -3227,7 +3227,38 @@
 
 		UI.el.appendChild ( container );
 
-		dragNDrop( d.getElementById('app'), 'pk_overlay', function ( e ) {
+		var _appEl = d.getElementById('app');
+
+		// When in multitrack mode, route drops outside the multitrack lanes
+		// to the first empty channel (or a new one). Lane/track drop handlers
+		// in multitrack.js call stopPropagation, so this only fires for drops
+		// elsewhere on the page.
+		_appEl.addEventListener('dragover', function ( e ) {
+			var mt = PKAudioEditor && PKAudioEditor.multitrack;
+			if (mt && mt.IsOn && mt.IsOn ()) {
+				e.preventDefault ();
+			}
+		}, true);
+		_appEl.addEventListener('drop', function ( e ) {
+			var mt = PKAudioEditor && PKAudioEditor.multitrack;
+			if (!mt || !mt.IsOn || !mt.IsOn ()) return ;
+			var t = e.target;
+			while (t && t !== _appEl) {
+				if (t.classList && (
+					t.classList.contains ('pk_mt_lane') ||
+					t.classList.contains ('pk_mt_track')
+				)) return ;
+				t = t.parentNode;
+			}
+			if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) return ;
+			e.preventDefault ();
+			e.stopPropagation ();
+			mt.AddFilesAuto ( e.dataTransfer.files );
+		}, true);
+
+		dragNDrop( _appEl, 'pk_overlay', function ( e ) {
+			var mt = PKAudioEditor && PKAudioEditor.multitrack;
+			if (mt && mt.IsOn && mt.IsOn ()) return ;
 			PKAudioEditor.engine.LoadArrayBuffer ( new Blob([e]) );
 		}, 'arrayBuffer' );
 
