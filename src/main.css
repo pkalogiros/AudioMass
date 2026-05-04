@@ -151,7 +151,13 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 .pk_hdr .pk_btn .pk_menu_el:hover button{background:var(--bg-3);color:var(--ac)}
 
 /* ---------- Toolbar ---------- */
-.pk_tbc{position:relative}
+.pk_tbc{
+	position:relative;
+	overflow-x:auto;overflow-y:visible;
+	-webkit-overflow-scrolling:touch;
+	scrollbar-width:none;-ms-overflow-style:none;
+}
+.pk_tbc::-webkit-scrollbar{width:0;height:0}
 .pk_tb{
 	position:relative;z-index:6;
 	min-width:560px;height:48px;
@@ -159,6 +165,7 @@ a:hover{color:#fff;text-shadow:0 0 6px var(--ac-glow)}
 	background:var(--bg-1);
 	border-bottom:1px solid var(--bd);
 	text-rendering:optimizeSpeed;
+	white-space:nowrap;
 }
 
 .pk_total_dur,.pk_hover_dur{
