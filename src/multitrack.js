@@ -454,6 +454,9 @@
 			main.addEventListener ('gesturechange', gestureChange, {passive:false});
 			main.addEventListener ('scroll', syncScroll, false);
 			main.addEventListener ('mousedown', startRangeSelect, false);
+			main.ondblclick = function ( e ) {
+				if (canRangeSelect ( e )) app.fireEvent ('RequestRegionSet');
+			};
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
 			attachToolbarButton ();
@@ -584,7 +587,6 @@
 			var b = d.createElement ('button');
 			b.type = 'button';
 			b.tabIndex = -1;
-			b.title = title;
 			b.className = (cls || '') + (active ? ' pk_act' : '');
 			b.appendChild ( d.createTextNode ( text ) );
 			addTip ( b, title );
@@ -752,7 +754,6 @@
 
 			var pan = d.createElement ('div');
 			pan.className = 'pk_mt_knob pk_mt_pan';
-			pan.title = 'Pan L/R';
 			var needle = d.createElement ('i');
 			pan.appendChild ( needle );
 			addTip ( pan, 'Pan L/R' );
@@ -761,7 +762,6 @@
 
 			var vol = d.createElement ('div');
 			vol.className = 'pk_mt_knob pk_mt_vol';
-			vol.title = 'Volume';
 			needle = d.createElement ('i');
 			vol.appendChild ( needle );
 			addTip ( vol, 'Volume' );
@@ -1106,7 +1106,6 @@
 
 			var vol = d.createElement ('div');
 			vol.className = 'pk_mt_knob pk_mt_vol';
-			vol.title = 'Volume';
 			vol.appendChild ( d.createElement ('i') );
 			addTip ( vol, 'Volume' );
 			updateVolume ( vol, track.vol === undefined ? 1 : track.vol );
@@ -1115,7 +1114,6 @@
 
 			var pan = d.createElement ('div');
 			pan.className = 'pk_mt_knob pk_mt_pan';
-			pan.title = 'Pan L/R';
 			pan.appendChild ( d.createElement ('i') );
 			addTip ( pan, 'Pan L/R' );
 			updateKnob ( pan, track.pan );
@@ -1140,7 +1138,6 @@
 
 			var vol = d.createElement ('div');
 			vol.className = 'pk_mt_knob pk_mt_vol';
-			vol.title = 'Master Volume';
 			vol.appendChild ( d.createElement ('i') );
 			addTip ( vol, 'Master Volume' );
 			updateVolume ( vol, master_vol );
