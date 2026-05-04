@@ -92,7 +92,7 @@ button{
 	font:inherit;color:var(--fg-0);background:transparent;
 	-webkit-tap-highlight-color:transparent;
 	touch-action:manipulation;
-	-webkit-user-select:none;-ms-user-select:none;user-select:none;
+	-webkit-user-select:none;user-select:none;
 	-webkit-touch-callout:none;
 }
 a{
@@ -114,7 +114,7 @@ a{
 .pk_mob .pk_mt_track input{font-size:16px}
 
 .pk_noselect{
-	-webkit-touch-callout:none;-ms-user-select:none;user-select:none;
+	-webkit-touch-callout:none;user-select:none;
 	touch-action:manipulation;
 }
 .pk_app{width:100%;height:100%}
@@ -179,7 +179,7 @@ a{
 	position:relative;
 	overflow-x:auto;overflow-y:visible;
 	-webkit-overflow-scrolling:touch;
-	scrollbar-width:none;-ms-overflow-style:none;
+	scrollbar-width:none;
 }
 .pk_tbc::-webkit-scrollbar{width:0;height:0}
 .pk_tb{
@@ -305,7 +305,7 @@ a{
 	white-space:nowrap;
 	border-radius:3px;
 	visibility:hidden;opacity:0;pointer-events:none;
-	-ms-user-select:none;user-select:none;
+	user-select:none;
 	transition:opacity 320ms 296ms;
 	z-index:6;
 }
@@ -404,7 +404,7 @@ a{
 .pk_mt_tracks_wrap{
 	position:absolute;top:24px;left:0;right:0;bottom:0;
 	overflow-x:hidden;overflow-y:auto;
-	scrollbar-width:none;-ms-overflow-style:none;
+	scrollbar-width:none;
 	padding-bottom:64px;
 }
 .pk_mt_tracks_wrap::-webkit-scrollbar{display:none}
@@ -557,12 +557,6 @@ a{
 	content:"";position:absolute;left:50%;top:16px;
 	height:8px;border-left:1px solid var(--fg-2);
 }
-.pk_mt_tick_half{
-	top:19px;width:0;min-width:0;height:5px;line-height:0;
-	border-left:1px solid var(--bd);transform:none;
-}
-.pk_mt_tick_half:after{display:none}
-
 .pk_mt_lanes{
 	position:relative;
 	background:repeating-linear-gradient(to right,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 86px);
@@ -854,16 +848,11 @@ a{
 .icon-clearsel:before{content:"clear selection"}
 .icon-files-empty:before{content:"\e925"}
 .icon-file-text2:before{content:"\e926"}
-.icon-zoom-in:before{content:"\e987"}
-.icon-zoom-out:before{content:"\e988"}
-.icon-hammer:before{content:"\e996"}
 .icon-play3:before{content:"\ea1c"}
 .icon-pause2:before{content:"\ea1d"}
 .icon-stop2:before{content:"\ea1e"}
 .icon-backward2:before{content:"\ea1f"}
 .icon-forward3:before{content:"\ea20"}
-.icon-first:before{content:"\ea21"}
-.icon-last:before{content:"\ea22"}
 .icon-previous2:before{content:"\ea23"}
 .icon-next2:before{content:"\ea24"}
 .icon-loop:before{content:"\ea2d"}
@@ -1072,11 +1061,6 @@ input.pk_horiz.pk_w180{max-width:200px}
 
 .pk_vert::-moz-range-track,
 .pk_horiz::-moz-range-track{border:inherit;background:transparent}
-.pk_vert::-ms-track,
-.pk_horiz::-ms-track{border:inherit;color:transparent;background:transparent}
-.pk_vert::-ms-fill-lower,.pk_vert::-ms-fill-upper,
-.pk_horiz::-ms-fill-lower,.pk_horiz::-ms-fill-upper{background:transparent}
-.pk_vert::-ms-tooltip,.pk_horiz::-ms-tooltip{display:none}
 
 .pk_vert::-webkit-slider-thumb,
 .pk_horiz::-webkit-slider-thumb{
@@ -1088,12 +1072,6 @@ input.pk_horiz.pk_w180{max-width:200px}
 }
 .pk_vert::-moz-range-thumb,
 .pk_horiz::-moz-range-thumb{
-	width:38px;height:18px;
-	border:1px solid #000;border-radius:12px;
-	background:linear-gradient(180deg,#47497d 0%,#519fa7 100%);
-}
-.pk_vert::-ms-thumb,
-.pk_horiz::-ms-thumb{
 	width:38px;height:18px;
 	border:1px solid #000;border-radius:12px;
 	background:linear-gradient(180deg,#47497d 0%,#519fa7 100%);
@@ -1223,8 +1201,7 @@ label.pk_dis,
 
 .pk_pglst{
 	max-height:160px;padding-bottom:20px;
-	overflow-y:scroll;-ms-overflow-style:none;
-	overflow:-moz-scrollbars-none;
+	overflow-y:scroll;
 }
 .pk_pglst::-webkit-scrollbar{width:0}
 
@@ -1390,7 +1367,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 		background:var(--bg-1);
 		border-bottom:1px solid var(--bd);
 		-webkit-overflow-scrolling:touch;
-		scrollbar-width:none;-ms-overflow-style:none;
+		scrollbar-width:none;
 	}
 	.pk_tbc::-webkit-scrollbar{width:0;height:0}
 	.pk_tb{padding:6px 0 6px 14px;border-bottom:none;white-space:nowrap}
@@ -1500,7 +1477,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 .pk_volpar{
 	touch-action:manipulation;
 	-webkit-touch-callout:none;
-	-webkit-user-select:none;-ms-user-select:none;user-select:none;
+	-webkit-user-select:none;user-select:none;
 }
 
 /* Inputs are special — keep selectable but suppress callout. */
