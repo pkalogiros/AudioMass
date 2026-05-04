@@ -46,6 +46,8 @@
 		var empty_el = null;
 		var btn_toggle = null;
 		var btn_mixer = null;
+		var btn_clear_mute = null;
+		var btn_clear_solo = null;
 		var mixer_el = null;
 		var mixer_on = false;
 		var mixer_meters = null;
@@ -307,8 +309,12 @@
 		}
 
 		function hasSolo () {
+			return hasTrackFlag ( 'solo' );
+		}
+
+		function hasTrackFlag ( flag ) {
 			for (var i = 0; i < tracks.length; ++i)
-				if (tracks[i].solo) return true;
+				if (tracks[i][flag]) return true;
 			return false;
 		}
 
@@ -406,7 +412,7 @@
 			el.className = 'pk_mt pk_noselect';
 			el.innerHTML =
 				'<div class="pk_mt_side">' +
-					'<div class="pk_mt_head"><button tabIndex="-1">+</button><span>Channels</span></div>' +
+					'<div class="pk_mt_head"></div>' +
 					'<div class="pk_mt_tracks_wrap"><div class="pk_mt_tracks"></div></div>' +
 				'</div>' +
 				'<div class="pk_mt_main">' +
@@ -432,6 +438,7 @@
 			region_el = el.getElementsByClassName ('pk_mt_region')[0];
 			playhead = el.getElementsByClassName ('pk_mt_playhead')[0];
 			marker_el = el.getElementsByClassName ('pk_mt_marker')[0];
+			buildHeader ();
 			addRegionHandles ();
 			empty_el.getElementsByTagName ('a')[0].onclick = function ( e ) {
 				e.preventDefault ();
@@ -440,17 +447,6 @@
 			ruler.onclick = function ( e ) {
 				focusMain ();
 				setCursorTime ( timeFromEvent ( e ) );
-			};
-
-			el.getElementsByTagName ('button')[0].onclick = function () {
-				var prev = cloneState ();
-				var tr = makeTrack ();
-				tr.name = 'Channel ' + (tracks.length + 1);
-				tracks.push ( tr );
-				selected_track = tr.id;
-				pushState ( prev, 'Add Channel' );
-				render ();
-				app.fireEvent ('DidUpdateMultitrack');
 			};
 
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
@@ -462,6 +458,42 @@
 
 			attachToolbarButton ();
 			render ();
+		}
+
+		function buildHeader () {
+			var head = el.getElementsByClassName ('pk_mt_head')[0];
+			var label = d.createElement ('span');
+			var add = makeButton ('+', 'Add Channel', false, 'pk_mt_add');
+
+			label.textContent = 'Channels';
+			btn_clear_mute = makeButton ('M', 'Clear Mute', false, 'pk_mt_clear pk_mt_mute pk_inact');
+			btn_clear_solo = makeButton ('S', 'Clear Solo', false, 'pk_mt_clear pk_mt_solo pk_inact');
+
+			add.onclick = addTrack;
+			btn_clear_mute.onclick = function ( e ) {
+				e.stopPropagation ();
+				clearTrackFlag ( 'mute', 'Clear Mute' );
+			};
+			btn_clear_solo.onclick = function ( e ) {
+				e.stopPropagation ();
+				clearTrackFlag ( 'solo', 'Clear Solo' );
+			};
+
+			head.appendChild ( add );
+			head.appendChild ( label );
+			head.appendChild ( btn_clear_mute );
+			head.appendChild ( btn_clear_solo );
+		}
+
+		function addTrack () {
+			var prev = cloneState ();
+			var tr = makeTrack ();
+			tr.name = 'Channel ' + (tracks.length + 1);
+			tracks.push ( tr );
+			selected_track = tr.id;
+			pushState ( prev, 'Add Channel' );
+			render ();
+			app.fireEvent ('DidUpdateMultitrack');
 		}
 
 		function attachToolbarButton () {
@@ -607,6 +639,7 @@
 			}
 			renderRecPreview ();
 			if (empty_el) empty_el.style.display = clips.length ? 'none' : 'block';
+			updateHeaderButtons ();
 
 			if (main) main.scrollTop = old_top;
 			syncScroll ();
@@ -795,6 +828,28 @@
 			pushState ( prev, desc );
 			refreshMix ();
 			render ();
+		}
+
+		function clearTrackFlag ( flag, desc ) {
+			if (!hasTrackFlag ( flag )) return ;
+			var prev = cloneState ();
+			for (var i = 0; i < tracks.length; ++i)
+				tracks[i][flag] = false;
+			pushState ( prev, desc );
+			refreshMix ();
+			render ();
+		}
+
+		function updateHeaderButtons () {
+			updateHeaderButton ( btn_clear_mute, hasTrackFlag ( 'mute' ) );
+			updateHeaderButton ( btn_clear_solo, hasTrackFlag ( 'solo' ) );
+		}
+
+		function updateHeaderButton ( btn, active ) {
+			if (!btn) return ;
+			btn.classList[active ? 'add' : 'remove'] ('pk_act');
+			btn.classList[active ? 'remove' : 'add'] ('pk_inact');
+			btn.setAttribute ('aria-disabled', active ? 'false' : 'true');
 		}
 
 		function setRecordArm ( track, value ) {
