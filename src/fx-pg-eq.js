@@ -3035,6 +3035,13 @@
 							debounce = false;
 						}, 150);
 
+						var detach = function () {
+							app.fireEvent ('RequestDetachClipEditor');
+						};
+
+						app.engine.PreserveCurrentForUndo &&
+							app.engine.PreserveCurrentForUndo ('Open Recording', detach);
+						detach ();
 						showEditor ();
 						app.engine.wavesurfer.backend._add = 0;
 						app.engine.LoadDB ({

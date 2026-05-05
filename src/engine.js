@@ -35,6 +35,23 @@
 			return ((val *dec) >> 0) / dec;
 		}
 
+		this.PreserveCurrentForUndo = function ( desc, cb ) {
+			var buffer = wavesurfer.backend && wavesurfer.backend.buffer;
+			if (!q.is_ready || !buffer) return false;
+
+			var region = wavesurfer.regions && wavesurfer.regions.list[0];
+			var state = {
+				desc : desc || 'Open Audio',
+				meta : region ? [ q.TrimTo (region.start, 3), q.TrimTo (region.end - region.start, 3) ] : [ q.TrimTo (wavesurfer.getCurrentTime (), 3) ],
+				data : buffer
+			};
+			if (cb) state.cb = cb;
+
+			app.fireEvent ('StateRequestClearAll');
+			app.fireEvent ('StateRequestPush', state);
+			return true;
+		};
+
 		this.LoadArrayBuffer = function ( e ) {
 			var func = function () {
 				app.listenFor ('RequestCancelModal', function() {
@@ -2597,7 +2614,7 @@
 			wavesurfer.regions.clear();
 			wavesurfer.loadDecodedBuffer (state.data);
 
-			if (state.cb) state.cb ();
+			if (state.cb) state.cb (undo);
 
 			var new_durr = wavesurfer.getDuration ();
 			app.fireEvent ('DidUpdateLen', new_durr);
