@@ -134,7 +134,7 @@ a{
 
 .pk_hdr .pk_btn{
 	float:none;position:relative;
-	margin:0 var(--s1);min-width:42px;
+	margin:0 16px;min-width:42px;
 	border-radius:var(--r);text-align:center;
 	transition:background var(--tr),color var(--tr);
 }
