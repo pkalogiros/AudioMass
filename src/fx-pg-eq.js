@@ -1576,6 +1576,18 @@
 				var metronome_btn = q.body.getElementsByClassName ('pk_modal_a_bottom')[0];
 				var play_btn      = q.body.getElementsByClassName ('pk_modal_a_bottom')[1];
 				var both_btn      = q.body.getElementsByClassName ('pk_modal_a_bottom')[2];
+				function mtOn () {
+					var mt = q.app.multitrack;
+					return mt && mt.IsOn && mt.IsOn () ? mt : null;
+				}
+				function trackReady () {
+					var mt = mtOn ();
+					return mt ? mt.HasClips () : PKAudioEditor.engine.wavesurfer.isReady;
+				}
+				function trackPlaying () {
+					var mt = mtOn ();
+					return mt ? mt.IsPlaying () : PKAudioEditor.engine.wavesurfer.isPlaying ();
+				}
 
 				metronome_btn.onclick = function () {
 					if (tick) {
@@ -1619,21 +1631,23 @@
 				q.app.listenFor ('DidStopMetro', MetronomeInAct);
 
 				play_btn.onclick = function () {
-					if (PKAudioEditor.engine.wavesurfer.isPlaying()) {
+					if (!trackReady ()) return ;
+					if (trackPlaying ()) {
 						q.app.fireEvent ('RequestStop');
 					}
 					else {
 						q.app.fireEvent ('RequestPlay');
 					}
 				};
-				if (!PKAudioEditor.engine.wavesurfer.isReady)
+				if (!trackReady ())
 				{
 					play_btn.className += ' pk_inact';
 					both_btn.className += ' pk_inact';
 				}
 
-				if (PKAudioEditor.engine.wavesurfer.isPlaying()) {
+				if (trackPlaying ()) {
 					play_btn.className += ' pk_act';
+					play_btn.innerText = 'Stop Track';
 				}
 
 				DidStopPlay = function() {
@@ -1649,10 +1663,10 @@
 
 				both_btn.onclick = function () {
 					if (tick) metronome_btn.onclick ();
-					if (PKAudioEditor.engine.wavesurfer.isPlaying()) play_btn.onclick ();
+					if (trackPlaying ()) play_btn.onclick ();
 
 					setTimeout(function() {
-						if (!tick && !PKAudioEditor.engine.wavesurfer.isPlaying())
+						if (!tick && !trackPlaying ())
 						{
 							play_btn.onclick ();
 							setTimeout(function(){

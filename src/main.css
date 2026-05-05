@@ -1157,10 +1157,10 @@ label.pk_dis,
 .pk_tbs{margin:-10px -14px 0;text-align:center}
 .pk_tbsa{
 	display:inline-block;width:33.333%;padding:10px 0;
-	background:var(--bg-2);
+	background:var(--bg-1);color:var(--fg-2);
 	border-right:1px solid var(--bg-1);border-bottom:1px solid var(--bg-1);
 	box-sizing:border-box;
-	transition:background var(--tr),box-shadow var(--tr);
+	transition:background var(--tr),color var(--tr),box-shadow var(--tr);
 }
 .pk_tbsa:hover{box-shadow:inset 0 -2px 6px rgba(0,0,0,.5)}
 .pk_tbsa.pk_act{background:transparent;border-bottom:none;box-shadow:none;color:var(--ac);text-shadow:0 0 8px var(--ac-glow)}
