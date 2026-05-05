@@ -336,7 +336,7 @@ a{
 
 .pk_btn.icon-clearsel{
 	font-family:var(--ff);
-	width:92px;min-height:30px;margin:3px 0 0 var(--s3);padding:4px 6px;
+	width:92px;min-height:30px;margin:0 0 0 var(--s3);padding:4px 6px;
 	font-size:11px;line-height:1.15;
 	border:1px solid var(--bd);
 	white-space:normal;word-break:normal;overflow-wrap:normal;
@@ -391,6 +391,8 @@ a{
 .pk_mt_on .pk_mt{display:flex}
 .pk_mt_on .pk_zoombtn .pk_zoom_out_v,
 .pk_mt_on .pk_zoombtn .pk_zoom_in_v{display:block!important;z-index:12}
+.pk_mob.pk_mt_on .pk_zoombtn .pk_zoom_out_v,
+.pk_mob.pk_mt_on .pk_zoombtn .pk_zoom_in_v{display:none!important}
 .pk_mt_on .pk_ftr{position:relative;z-index:12}
 
 .pk_mt_side{
