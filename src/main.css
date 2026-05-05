@@ -1060,7 +1060,7 @@ input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pk_dck{position:relative;display:none}
 
 .pk_frqan{
-	position:absolute;z-index:7;
+	position:absolute;z-index:13;
 	width:380px;height:110px;margin:15px;
 	background:var(--bg-1);
 	border:1px solid var(--bd);border-radius:var(--r-md);

@@ -1681,7 +1681,7 @@
 			if (!cur_win || !cur_win.el) return ;
 
 			cur_win.el.style.pointerEvents = 'none';
-			cur_win.el.style.zIndex = '9';
+			cur_win.el.style.zIndex = '15';
 
 			if (cur_win.win && cur_win.win.document && cur_win.win.document.body)
 				cur_win.win.document.body.classList.add ('c');
@@ -1790,7 +1790,7 @@
 					cur_win.win.document.body.classList.remove ('c');
 				if (cur_win && cur_win.el) {
 					cur_win.el.style.pointerEvents = '';
-					cur_win.el.style.zIndex = '7';
+					cur_win.el.style.zIndex = '';
 				}
 
 				app.ui.InteractionHandler.on = false;
