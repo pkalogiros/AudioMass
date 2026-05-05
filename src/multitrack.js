@@ -403,10 +403,18 @@
 				((wv.LeftProgress || 0) / Math.max (0.0001, dur)) * 100,
 				wv.params && wv.params.verticalZoom
 			]);
+		}
+
+		function refreshEditorView () {
+			var wv = app.engine && app.engine.wavesurfer;
 			w.requestAnimationFrame (function () {
 				if (IsOn ()) return ;
-				wv.fireEvent && wv.fireEvent ('resize');
-				app.engine && app.engine.is_ready && wv.drawBuffer && wv.drawBuffer ();
+				app.fireEvent ('RequestResize');
+				app.engine && app.engine.is_ready && wv && wv.drawBuffer && wv.drawBuffer ();
+				w.requestAnimationFrame (function () {
+					var r = wv && wv.regions && wv.regions.list[0];
+					if (!IsOn ()) r && r.updateRender && r.updateRender ();
+				});
 			});
 		}
 
@@ -558,7 +566,8 @@
 				render ();
 				emitState ();
 			}
-			app.fireEvent ('RequestResize');
+			if (on) app.fireEvent ('RequestResize');
+			else refreshEditorView ();
 		}
 
 		function syncScroll () {
