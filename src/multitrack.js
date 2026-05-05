@@ -2291,6 +2291,23 @@
 			setCursorTime ( (play ? playingCursor () : cursor) + seconds );
 		}
 
+		function trackHasClip ( id ) {
+			for (var i = 0; i < clips.length; ++i)
+				if (clips[i].track === id) return true;
+			return false;
+		}
+
+		function emptyTracks ( first_id ) {
+			var list = [];
+			var first = findTrack ( first_id );
+			if (first && !trackHasClip ( first.id )) list.push ( first );
+			for (var i = 0; i < tracks.length; ++i) {
+				if (tracks[i] !== first && !trackHasClip ( tracks[i].id ))
+					list.push ( tracks[i] );
+			}
+			return list;
+		}
+
 		function addFiles ( file_list, track_id, start ) {
 			if (!file_list || !file_list.length) return ;
 			var files = [];
@@ -2339,9 +2356,10 @@
 
 				if (multi) {
 					var first = null;
+					var targets = emptyTracks ( track_id );
 					for (var i = 0; i < decoded.length; ++i) {
 						if (!decoded[i]) continue ;
-						var track = i === 0 ? findTrack ( track_id ) : null;
+						var track = targets[added];
 						if (!track) {
 							track = makeTrack ( trackName ( decoded[i].name ) );
 							tracks.push ( track );
@@ -3705,14 +3723,7 @@
 				addFiles ( file_list, null, 0 );
 				return true;
 			}
-			var target = null;
-			for (var i = 0; i < tracks.length; ++i) {
-				var has_clip = false;
-				for (var j = 0; j < clips.length; ++j) {
-					if (clips[j].track === tracks[i].id) { has_clip = true; break; }
-				}
-				if (!has_clip) { target = tracks[i]; break; }
-			}
+			var target = emptyTracks ()[0];
 			if (!target) {
 				addTrack ();
 				target = tracks[tracks.length - 1];
