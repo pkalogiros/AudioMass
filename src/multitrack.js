@@ -3190,7 +3190,7 @@
 			var analyser = ctx.createAnalyser ();
 			var master = ctx.createGain ();
 			var meter = new Float32Array (128);
-			analyser.fftSize = 256;
+			analyser.fftSize = 1024;
 			master.gain.value = master_vol;
 			master.connect ( analyser );
 			analyser.connect ( ctx.destination );
@@ -3236,7 +3236,8 @@
 				dur: dur,
 				analyser: analyser,
 				master: master,
-				meter: meter
+				meter: meter,
+				freq: new Uint8Array ( analyser.frequencyBinCount )
 			};
 			if (!silent) app.fireEvent ('DidPlay');
 			tick ();
@@ -3302,7 +3303,12 @@
 			var rms = Math.sqrt (sum / play.meter.length);
 			var db = rms > 0.00001 ? 20 * Math.log (rms) / Math.LN10 : -100;
 			var stamp = w.performance.now ();
-			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp]);
+			var freq = null;
+			if (app.engine.wavesurfer.backend.logFrequencies) {
+				play.analyser.getByteFrequencyData ( play.freq );
+				freq = play.freq;
+			}
+			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp], freq);
 			updateMixerMeters ( meterAt (cursor), db );
 			updatePlayhead ();
 			followPlayback ( stamp );
