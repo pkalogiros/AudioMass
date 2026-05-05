@@ -163,6 +163,7 @@
 
 		q.DecodeMultitrack = function ( buf ) {
 			if (!q.IsBuffer ( buf )) return null;
+			try {
 
 			var dv = new DataView ( buf );
 			var o = 4;
@@ -274,6 +275,7 @@
 				st.tracks[sel_t].id;
 			st.selected_clip = sel_c === null || !st.clips[sel_c] ? null : st.clips[sel_c].id;
 			return st;
+			} catch (e) { return null; }
 		};
 	}
 
