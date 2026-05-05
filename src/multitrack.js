@@ -26,7 +26,6 @@
 		var play_sync = 0;
 		var render_raf = 0;
 		var throttle_wheel = 0;
-		var throttle_follow = 0;
 		var ruler_left = -1;
 		var playhead_x = null;
 		var marker_x = null;
@@ -288,6 +287,10 @@
 			return dur;
 		}
 
+		function hasClips () {
+			return !!clips.length;
+		}
+
 		function clampTime ( time ) {
 			return Math.max (0, Math.min (duration (), time || 0));
 		}
@@ -478,6 +481,7 @@
 				loadMultiSample ();
 			};
 			ruler.onclick = function ( e ) {
+				if (!hasClips ()) return ;
 				focusMain ();
 				setCursorTime ( timeFromEvent ( e ) );
 			};
@@ -2052,6 +2056,7 @@
 			var info = app.wheelInfo ( e );
 			e.preventDefault ();
 			e.stopPropagation ();
+			if (!hasClips ()) return ;
 
 			if (info.pinch) {
 				if (!info.y) return ;
@@ -2089,11 +2094,13 @@
 
 		function gestureStart ( e ) {
 			e.preventDefault ();
+			if (!hasClips ()) return ;
 			main._pk_scale = e.scale || 1;
 		}
 
 		function gestureChange ( e ) {
 			e.preventDefault ();
+			if (!hasClips ()) return ;
 			var scale = e.scale || 1;
 			zoomAtEvent ( e, scale / (main._pk_scale || 1) );
 			main._pk_scale = scale;
@@ -2173,6 +2180,7 @@
 		}
 
 		function startRangeSelect ( e ) {
+			if (!hasClips ()) return ;
 			if (!canRangeSelect ( e )) return ;
 
 			focusMain ();
@@ -2255,11 +2263,13 @@
 		}
 
 		function SeekTo ( progress ) {
+			if (!hasClips ()) return ;
 			if (progress > 1) return ;
 			setCursorTime ( progress * duration () );
 		}
 
 		function Skip ( seconds ) {
+			if (!hasClips ()) return ;
 			setCursorTime ( (play ? playingCursor () : cursor) + seconds );
 		}
 
@@ -3330,22 +3340,41 @@
 			}
 			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp], freq);
 			if (mixer_on) updateMixerMeters ( meterAt (cursor), db );
+			followPlayback ();
 			updatePlayhead ();
-			followPlayback ( stamp );
 			raf = w.requestAnimationFrame ( tick );
 		}
 
-		function followPlayback ( stamp ) {
+		function followPlayback () {
 			var ws = app.engine && app.engine.wavesurfer;
 			if (!main || GetZoomFactor () <= 1 || active_drag ||
 				(ws && (!ws.FollowCursor || ws.Interacting)) ||
 				(app.ui.InteractionHandler && app.ui.InteractionHandler.on))
 				return ;
-			if (stamp - throttle_follow < 50) return ;
-			var x = cursor * px_per_sec - main.scrollLeft;
-			if (x < main.clientWidth / 2 || x > main.clientWidth) return ;
-			throttle_follow = stamp;
-			CenterToCursor ();
+			var width = main.clientWidth;
+			var max = totalPixels ();
+			var half = width >> 1;
+			var real = cursor * px_per_sec;
+			var target = real - half;
+			var left_middle = (main.scrollLeft + half) >> 0;
+			var max_left = Math.max (0, max - width);
+
+			if (left_middle > real || real > left_middle + half) return ;
+			if (left_middle + half > real && left_middle + half < max) {
+				var pos = ((real - main.scrollLeft) / width * 100) >> 0;
+				if (pos > 99) {
+					var x = target - left_middle + half;
+					target -= Math.max (0, x - 2 * GetZoomFactor ());
+				}
+				else target = Math.max (0, Math.min (max_left, target));
+			}
+			else target = Math.max (0, Math.min (max_left, target));
+
+			target = target >> 0;
+			if (target === main.scrollLeft) return ;
+			main.scrollLeft = target;
+			redrawRuler ();
+			fireZoom ();
 		}
 
 		function Pause () {
@@ -3536,6 +3565,7 @@
 		}
 
 		function ZoomUI ( type, val ) {
+			if (!hasClips ()) return ;
 			if (type === 0) {
 				var top = main ? main.scrollTop / row_h : 0;
 				row_h = default_row_h;
@@ -3559,6 +3589,7 @@
 		}
 
 		function Zoom ( diff, mode ) {
+			if (!hasClips ()) return ;
 			var factor = 1;
 
 			if (mode === -1) {
@@ -3574,7 +3605,7 @@
 		}
 
 		function Pan ( diff, mode ) {
-			if (!main) return ;
+			if (!main || !hasClips ()) return ;
 			var wave = app.el.getElementsByClassName ('pk_wavescroll')[0];
 			var ww = wave ? wave.clientWidth : main.clientWidth;
 			if (mode === 2) {
@@ -3589,7 +3620,7 @@
 		}
 
 		function CenterToCursor () {
-			if (!main) return ;
+			if (!main || !hasClips ()) return ;
 			main.scrollLeft = (cursor * px_per_sec) - (main.clientWidth / 2);
 			clampScroll ();
 			redrawRuler ();
@@ -3804,7 +3835,7 @@
 		q.GetCursorPercent = GetCursorPercent;
 		q.GetDuration = duration;
 		q.GetRegion = function () { return region; };
-		q.HasClips = function () { return !!clips.length; };
+		q.HasClips = hasClips;
 		q.Mixdown = Mixdown;
 		q.RecordToggle = RecordToggle;
 		q.RecordStart = RecordStart;
@@ -3923,6 +3954,7 @@
 				return true;
 			}
 			if (id === 'RequestSelect') {
+				if (!hasClips ()) return true;
 				if (arg1 && selected_clip) {
 					app.fireEvent ('DidSelectClip', findClip ( selected_clip ));
 					return true;
@@ -3933,6 +3965,7 @@
 				return true;
 			}
 			if (id === 'RequestRegionSet') {
+				if (!hasClips ()) return true;
 				if (arg1 === undefined)
 					arg1 = main.scrollLeft / px_per_sec;
 				if (arg2 === undefined)
@@ -3942,6 +3975,7 @@
 				return true;
 			}
 			if (id === 'RequestSetLoop') {
+				if (!hasClips ()) return true;
 				if (!region) setRegion (0.01, duration () - 0.01);
 				region.loop = !region.loop;
 				app.fireEvent ('DidSetLoop', region.loop);
