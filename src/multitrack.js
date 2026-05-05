@@ -1000,6 +1000,10 @@
 				HideMixer ();
 				return ;
 			}
+			if (!force && mixer_on) {
+				HideMixer ();
+				return ;
+			}
 			if (force === true && mixer_on) return ;
 			app.fireEvent ('RequestShowFreqAn', 'mix', [1, 1]);
 		}

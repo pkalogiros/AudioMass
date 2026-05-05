@@ -6,7 +6,11 @@
 	<style>
 	html,body{height:100%}
 	body{margin:0;background:#090d0e;color:#dfe7e8;overflow:hidden;font:12px Arial,sans-serif}
-	#m{box-sizing:border-box;height:100%;padding:26px 10px 10px;white-space:nowrap;overflow:auto;background:#090d0e}
+	#m{box-sizing:border-box;height:100%;padding:26px 10px 10px;white-space:nowrap;overflow:auto;background:#090d0e;scrollbar-color:#1c2026 #0e1013}
+	#m::-webkit-scrollbar{width:10px;height:10px}
+	#m::-webkit-scrollbar-track{background:#0e1013}
+	#m::-webkit-scrollbar-thumb{background:#1c2026;border:2px solid #0e1013;border-radius:4px}
+	#m::-webkit-scrollbar-thumb:hover,#m::-webkit-scrollbar-thumb:active{background:#6a7380}
 	.s{display:inline-block;position:relative;box-sizing:border-box;width:92px;height:268px;margin-right:8px;padding:8px 7px;vertical-align:top;background:linear-gradient(#182023,#101416);border:1px solid #263338;border-radius:5px;box-shadow:inset 0 1px rgba(255,255,255,.05),0 2px 8px #000}
 	.s.sel{border-color:#56dbe3;box-shadow:0 0 12px rgba(80,220,225,.35),inset 0 1px rgba(255,255,255,.05)}
 	.s.master{border-color:#4b493c;background:linear-gradient(#1f211d,#121310)}

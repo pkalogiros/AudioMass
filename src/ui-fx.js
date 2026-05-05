@@ -1892,7 +1892,7 @@
 			if (curr_win && toggle)
 			{
 				var ext = false;
-				if (curr_win.type === type) ext = true;
+				if (curr_win.type === type || type === undefined) ext = true;
 
 				curr_win.destroy ();
 				curr_win = null;
@@ -1910,13 +1910,17 @@
 			};
 
 			var setEvents = function ( obj, _url ) {
-				obj.win.destroy = function () {
+				var destroy = obj.destroy;
+				var done = false;
+				var cleanup = function () {
+					if (done) return ;
+					done = true;
 					if (!is_mix) app.stopListeningFor ('DidAudioProcess', freq_cb);
 					app.fireEvent ('DidToggleFreqAn', _url, null);
 
 					// if (obj && obj.type === undefined) {
-					if (obj && obj === eq_win[url]) {
-						eq_win[url] = null;
+					if (obj && obj === eq_win[_url]) {
+						eq_win[_url] = null;
 					}
 
 					var stop = true;
@@ -1930,6 +1934,11 @@
 					if (stop) app.engine.wavesurfer.backend.logFrequencies = false;
 					resizeDock ();
 				};
+				obj.destroy = function () {
+					destroy && destroy ();
+					cleanup ();
+				};
+				obj.win.destroy = cleanup;
 
 				if (!is_mix) app.listenFor ('DidAudioProcess', freq_cb);
 				app.fireEvent ('DidToggleFreqAn', _url, curr_win);
