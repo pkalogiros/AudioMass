@@ -266,8 +266,8 @@
 									'<label for="k02">wav <i>(44100hz)</i></label>' +
 									'<input type="radio" class="pk_check" id="k03" name="frmtex" value="flac">'+  
 									'<label for="k03">flac</i></label>' +
-									'<input type="radio" class="pk_check" id="k04" name="frmtex" value="amss">'+
-									'<label class="pk_amss" for="k04">session</label>' +
+									'<br class="pk_amss"><input type="radio" class="pk_check pk_amss" id="k04" name="frmtex" value="amss">'+
+									'<label class="pk_amss" for="k04">session file (.amss)</label>' +
 									'</div>' +
 
 									'<div class="pk_row" id="frmtex-mp3"><input type="radio" class="pk_check" id="k1" name="rdslnc" checked value="128">'+ 
@@ -325,13 +325,24 @@
 									  		var format = document.getElementById('frmtex');
 									  		var mp3conf = document.getElementById('frmtex-mp3');
 									  		var flacconf = document.getElementById('frmtex-flac');
-											var amss = q.el_body.getElementsByClassName ('pk_amss')[0];
-											if (!mt_on && amss) {
-												amss.style.display = 'none';
-												document.getElementById ('k04').style.display = 'none';
+											var amss = q.el_body.getElementsByClassName ('pk_amss');
+											var k6 = document.getElementById ('k6');
+											var k7 = document.getElementById ('k7');
+											if (!mt_on) {
+												for (var x = 0; x < amss.length; ++x)
+													amss[x].style.display = 'none';
 											}
 											function setExt ( ext ) {
 												inputtxt.value = inputtxt.value.replace (/\.(mp3|wav|flac|amss)$/i, '') + ext;
+											}
+											function chanOff ( off ) {
+												k6.disabled = k7.disabled = !!off;
+											}
+											if (mt_on) {
+												document.getElementById ('k04').checked = true;
+												mp3conf.style.display = 'none';
+												chanOff ( true );
+												setExt ('.amss');
 											}
 
 											document.getElementById('flac-comp').oninput = function() {
@@ -344,6 +355,7 @@
 												{
 													if (inputs[i].checked)
 													{
+														chanOff (inputs[i].value === 'amss');
 														if (inputs[i].value === 'mp3')
 														{
 															mp3conf.style.display = 'block';
@@ -382,8 +394,7 @@
 
 								function setExportReady () {
 									var mt = activeMultitrackFor ( app );
-									if ((mt && mt.HasClips && mt.HasClips ()) ||
-										(app.engine && app.engine.is_ready))
+									if (mt || (app.engine && app.engine.is_ready))
 										obj.classList.remove ('pk_inact');
 									else
 										obj.classList.add ('pk_inact');

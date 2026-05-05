@@ -280,7 +280,7 @@
 		q.getState = cloneState;
 
 		function ExportSession ( name ) {
-			if (!clips.length) {
+			if (!tracks.length) {
 				OneUp ('Nothing to save', 1200);
 				return false;
 			}
