@@ -27,6 +27,9 @@
 		var render_raf = 0;
 		var throttle_wheel = 0;
 		var throttle_follow = 0;
+		var ruler_left = -1;
+		var playhead_x = null;
+		var marker_x = null;
 		var rec_raf = 0;
 		var rec_redraw = 0;
 		var scroll_sync = false;
@@ -114,6 +117,11 @@
 			if (!w.WaveSurferAudioContext)
 				w.WaveSurferAudioContext = new (w.AudioContext || w.webkitAudioContext)();
 			return w.WaveSurferAudioContext;
+		}
+
+		function logFrequencies () {
+			var wv = app.engine && app.engine.wavesurfer;
+			return !!(wv && wv.backend && wv.backend.logFrequencies);
 		}
 
 		function getWavePeaks ( buffer ) {
@@ -577,8 +585,10 @@
 				tracks_wrap.scrollTop = main.scrollTop;
 				scroll_sync = false;
 			}
-			redrawRuler ();
-			fireZoom ();
+			if (main.scrollLeft !== ruler_left) {
+				redrawRuler ();
+				fireZoom ();
+			}
 		}
 
 		function syncTrackScroll () {
@@ -586,7 +596,6 @@
 			scroll_sync = true;
 			main.scrollTop = tracks_wrap.scrollTop;
 			scroll_sync = false;
-			redrawRuler ();
 		}
 
 		function addTip ( el, text ) {
@@ -666,6 +675,7 @@
 			var left = main ? main.scrollLeft : 0;
 			var visible = Math.max (1, main ? main.clientWidth : (ruler.clientWidth || width));
 			var ratio = w.devicePixelRatio || 1;
+			ruler_left = left;
 
 			if (app.ui && app.ui.drawTimelineRuler) {
 				if (!ruler_canvas) {
@@ -3190,7 +3200,7 @@
 			var analyser = ctx.createAnalyser ();
 			var master = ctx.createGain ();
 			var meter = new Float32Array (128);
-			analyser.fftSize = 1024;
+			analyser.fftSize = logFrequencies () ? 1024 : 256;
 			master.gain.value = master_vol;
 			master.connect ( analyser );
 			analyser.connect ( ctx.destination );
@@ -3237,7 +3247,7 @@
 				analyser: analyser,
 				master: master,
 				meter: meter,
-				freq: new Uint8Array ( analyser.frequencyBinCount )
+				freq: null
 			};
 			if (!silent) app.fireEvent ('DidPlay');
 			tick ();
@@ -3304,12 +3314,22 @@
 			var db = rms > 0.00001 ? 20 * Math.log (rms) / Math.LN10 : -100;
 			var stamp = w.performance.now ();
 			var freq = null;
-			if (app.engine.wavesurfer.backend.logFrequencies) {
+			if (logFrequencies ()) {
+				if (play.analyser.fftSize !== 1024) {
+					play.analyser.fftSize = 1024;
+					play.freq = null;
+				}
+				if (!play.freq)
+					play.freq = new Uint8Array ( play.analyser.frequencyBinCount );
 				play.analyser.getByteFrequencyData ( play.freq );
 				freq = play.freq;
 			}
+			else if (play.freq) {
+				play.freq = null;
+				play.analyser.fftSize = 256;
+			}
 			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp], freq);
-			updateMixerMeters ( meterAt (cursor), db );
+			if (mixer_on) updateMixerMeters ( meterAt (cursor), db );
 			updatePlayhead ();
 			followPlayback ( stamp );
 			raf = w.requestAnimationFrame ( tick );
@@ -3401,12 +3421,16 @@
 		}
 
 		function updatePlayhead () {
-			if (playhead)
-				playhead.style.transform = 'translate3d(' +
-					((cursor * px_per_sec) >> 0) + 'px,0,0)';
-			if (marker_el)
-				marker_el.style.transform = 'translate3d(' +
-					((marker * px_per_sec) >> 0) + 'px,0,0)';
+			var x = (cursor * px_per_sec) >> 0;
+			var mx = (marker * px_per_sec) >> 0;
+			if (playhead && x !== playhead_x) {
+				playhead_x = x;
+				playhead.style.transform = 'translate3d(' + x + 'px,0,0)';
+			}
+			if (marker_el && mx !== marker_x) {
+				marker_x = mx;
+				marker_el.style.transform = 'translate3d(' + mx + 'px,0,0)';
+			}
 		}
 
 		function resizeTrackers ( height ) {
