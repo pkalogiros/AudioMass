@@ -32,6 +32,10 @@
 		var scroll_sync = false;
 		var did_init_zoom = false;
 		var active_drag = null;
+		var edge_pan_raf = 0;
+		var edge_pan_dir = 0;
+		var edge_pan_ev = null;
+		var edge_pan_update = null;
 
 		var el = null;
 		var side = null;
@@ -1538,7 +1542,6 @@
 			var cls = e.target && e.target.classList;
 			var mode = cls && cls.contains ('wavesurfer-handle-start') ? -1 :
 				(cls && cls.contains ('wavesurfer-handle-end') ? 1 : 0);
-			var down_x = e.clientX;
 			var old_start = region.start;
 			var old_end = region.end;
 			var moved = false;
@@ -1547,25 +1550,16 @@
 			setActiveDrag ( up );
 
 			function move ( ev ) {
-				var diff = (ev.clientX - down_x) / px_per_sec;
-				var min = 0.005;
-				var start = old_start;
-				var end = old_end;
+				var time = timeFromEvent ( ev );
 
 				ev.preventDefault ();
 				moved = true;
-
-				if (mode < 0) {
-					start = Math.max (0, Math.min (old_end - min, old_start + diff));
-				}
-				else {
-					end = Math.min (duration (), Math.max (old_start + min, old_end + diff));
-				}
-
-				setRegion ( start, end );
+				setRegion ( mode < 0 ? time : old_start, mode < 0 ? old_end : time );
+				edgePan ( ev, edgeDirFromEvent ( ev ), move );
 			}
 
 			function up () {
+				stopEdgePan ();
 				stop_drag ();
 				clearActiveDrag ( up );
 				app.ui.InteractionHandler.forceUnset ('multitrack-region');
@@ -1580,6 +1574,8 @@
 
 			var down_x = e.clientX;
 			var down_y = e.clientY;
+			var down_time = timeFromEvent ( e );
+			var last_time = down_time;
 			var old_start = region.start;
 			var old_end = region.end;
 			var active = false;
@@ -1600,13 +1596,17 @@
 				}
 
 				var len = old_end - old_start;
+				var time = timeFromEvent ( ev );
 				var start = Math.max (0, Math.min (duration () - len,
-					old_start + dx / px_per_sec));
+					old_start + time - down_time));
 				ev.preventDefault ();
 				setRegion ( start, start + len );
+				edgePan ( ev, edgeDirFromRegion ( time, last_time ), move );
+				last_time = time;
 			}
 
 			function up ( ev ) {
+				stopEdgePan ();
 				stop_drag ();
 				clearActiveDrag ( up );
 				if (active) {
@@ -2073,6 +2073,61 @@
 			return Math.max (0, (e.clientX - rect.left) / px_per_sec);
 		}
 
+		function stopEdgePan () {
+			edge_pan_dir = 0;
+			edge_pan_ev = edge_pan_update = null;
+			if (edge_pan_raf) {
+				w.cancelAnimationFrame ( edge_pan_raf );
+				edge_pan_raf = 0;
+			}
+		}
+
+		function edgePanStep () {
+			edge_pan_raf = 0;
+			if (!edge_pan_dir || !edge_pan_update || !edge_pan_ev) return ;
+			var rect = main.getBoundingClientRect ();
+			var over = edge_pan_dir < 0 ? Math.abs (rect.left - edge_pan_ev.clientX) :
+				Math.abs (edge_pan_ev.clientX - rect.right);
+			var old = main.scrollLeft;
+			main.scrollLeft += edge_pan_dir * (over > 10 ? over / 2 : 1);
+			clampScroll ();
+			if (main.scrollLeft === old) return stopEdgePan ();
+			redrawRuler ();
+			fireZoom ();
+			edge_pan_update ( edge_pan_ev );
+			if (edge_pan_dir && !edge_pan_raf)
+				edge_pan_raf = w.requestAnimationFrame ( edgePanStep );
+		}
+
+		function edgePan ( e, dir, update ) {
+			if (!main || GetZoomFactor () <= 1 || !dir) {
+				stopEdgePan ();
+				return ;
+			}
+			edge_pan_ev = e;
+			edge_pan_dir = dir;
+			edge_pan_update = update;
+			if (!edge_pan_raf)
+				edge_pan_raf = w.requestAnimationFrame ( edgePanStep );
+		}
+
+		function edgeDirFromEvent ( e ) {
+			var rect = main.getBoundingClientRect ();
+			var x = e.clientX - rect.left;
+			return x <= 28 ? -1 : (x >= rect.width - 28 ? 1 : 0);
+		}
+
+		function edgeDirFromRegion ( time, old_time ) {
+			var rect = main.getBoundingClientRect ();
+			var rr = region_el.getBoundingClientRect ();
+			var dir = time < old_time && rr.left >= rect.left ? -1 :
+				(time > old_time && rr.right <= rect.right ? 1 : 0);
+			if ((dir < 0 && rr.left - rect.left > 28) ||
+				(dir > 0 && rect.right - rr.right > 28))
+				dir = 0;
+			return dir;
+		}
+
 		function canRangeSelect ( e ) {
 			if (e.button !== undefined && e.button !== 0) return false;
 			if (e.target === main || e.target === lanes || e.target === ruler ||
@@ -2129,9 +2184,11 @@
 				ev.preventDefault ();
 				last = timeFromEvent ( ev );
 				setRegion ( start, last );
+				edgePan ( ev, edgeDirFromEvent ( ev ), move );
 			}
 
 			function up ( ev ) {
+				stopEdgePan ();
 				stop_drag ();
 				clearActiveDrag ( up );
 				if (active) {
@@ -3203,7 +3260,9 @@
 		}
 
 		function followPlayback ( stamp ) {
+			var ws = app.engine && app.engine.wavesurfer;
 			if (!main || GetZoomFactor () <= 1 || active_drag ||
+				(ws && (!ws.FollowCursor || ws.Interacting)) ||
 				(app.ui.InteractionHandler && app.ui.InteractionHandler.on))
 				return ;
 			if (stamp - throttle_follow < 50) return ;
