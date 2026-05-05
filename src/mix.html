@@ -5,28 +5,35 @@
 	<meta charset="utf-8" />
 	<style>
 	html,body{height:100%}
-	body{margin:0;background:#151716;color:#e8e0cf;overflow:hidden;font:12px Arial,sans-serif}
-	#m{box-sizing:border-box;height:100%;padding:26px 10px 10px;white-space:nowrap;overflow:auto;background:linear-gradient(#303432,#171918)}
-	.s{display:inline-block;position:relative;box-sizing:border-box;width:86px;height:268px;margin-right:8px;padding:8px 7px;vertical-align:top;background:linear-gradient(#424741,#252826);border:1px solid #0a0b0b;border-radius:4px;box-shadow:inset 0 1px #686d66,0 2px 8px #000}
-	.s.sel{outline:1px solid #67d4d8;box-shadow:inset 0 1px #686d66,0 0 10px rgba(80,210,220,.35)}
-	.s.master{border-color:#615842;background:linear-gradient(#4b473d,#292821)}
-	strong{display:block;height:26px;overflow:hidden;white-space:normal;color:#f2ead8;font:13px/13px Arial,sans-serif}
-	.meter{height:7px;margin:5px 0 8px;background:#090a0a;border:1px solid #171717;box-shadow:inset 0 1px 3px #000;overflow:hidden}
-	.meter i{display:block;height:100%;transform:scaleX(0);transform-origin:0 0;background:linear-gradient(90deg,#58d4d2,#83d36f 62%,#d6bf55 84%,#d35e56)}
+	body{margin:0;background:#090d0e;color:#dfe7e8;overflow:hidden;font:12px Arial,sans-serif}
+	#m{box-sizing:border-box;height:100%;padding:26px 10px 10px;white-space:nowrap;overflow:auto;background:#090d0e}
+	.s{display:inline-block;position:relative;box-sizing:border-box;width:92px;height:268px;margin-right:8px;padding:8px 7px;vertical-align:top;background:linear-gradient(#182023,#101416);border:1px solid #263338;border-radius:5px;box-shadow:inset 0 1px rgba(255,255,255,.05),0 2px 8px #000}
+	.s.sel{border-color:#56dbe3;box-shadow:0 0 12px rgba(80,220,225,.35),inset 0 1px rgba(255,255,255,.05)}
+	.s.master{border-color:#4b493c;background:linear-gradient(#1f211d,#121310)}
+	strong{display:block;height:26px;overflow:hidden;color:#f3f6f6;font:bold 13px/13px Arial,sans-serif}
+	.meter{height:7px;margin:5px 0 8px;background:#050708;border:1px solid #222c30;box-shadow:inset 0 1px 3px #000;overflow:hidden}
+	.meter i{display:block;height:100%;transform:scaleX(0);transform-origin:0 0;background:linear-gradient(90deg,#56dbe3,#77d26d 62%,#d4bd54 84%,#d45b57)}
 	p{margin:0 0 8px}
-	button{width:22px;height:22px;margin-right:2px;background:linear-gradient(#252828,#070808);color:#ddd;border:1px solid #0b0c0c;border-radius:3px;box-shadow:inset 0 1px #3b3d3d;cursor:pointer;font:13px Arial}
-	button.a{color:#111;background:linear-gradient(#b8f3f3,#48c8cc)}
-	label{display:block;color:#aab1b2;font:9px/12px monospace;text-transform:uppercase}
-	input{accent-color:#cfc7b5;cursor:pointer}
-	.pan{width:70px}
-	.vol{position:absolute;left:25px;bottom:42px;width:36px;height:118px;writing-mode:vertical-lr;direction:rtl}
+	button{width:22px;height:22px;margin-right:2px;background:#06090a;color:#dfe7e8;border:1px solid #263338;border-radius:3px;cursor:pointer;font:13px Arial}
+	button.a{color:#111;background:#56dbe3;border-color:#56dbe3}
+	label{display:block;color:#8b9aa0;font:9px/12px monospace;text-transform:uppercase}
+	input{cursor:pointer}
+	.pn{height:44px;margin:0 -7px;display:flex;align-items:center;justify-content:center;gap:4px}
+	.pn label{width:27px;text-align:right}.pn em{width:25px;text-align:left}
+	.k{position:relative;width:30px;height:30px;margin:0;border-radius:50%;background:linear-gradient(145deg,#080b0c,#151b1e);box-shadow:inset 0 0 0 1px #263338,0 2px 7px #000;cursor:move}
+	.k i{position:absolute;left:14px;top:5px;width:3px;height:11px;background:#66e8ef;border-radius:2px;box-shadow:0 0 8px #66e8ef;transform-origin:50% 10px}
+	.vol{position:absolute;left:50%;bottom:78px;width:86px;height:18px;margin-left:-43px;transform:rotate(-90deg);transform-origin:50% 50%;appearance:none;background:transparent}
+	.vol::-webkit-slider-runnable-track{height:6px;background:#050708;border:1px solid #263338;border-radius:9px}
+	.vol::-webkit-slider-thumb{appearance:none;width:18px;height:18px;margin-top:-7px;border-radius:50%;background:#d7d2c3;border:1px solid #0a0d0e;box-shadow:0 1px 5px #000}
+	.vol::-moz-range-track{height:6px;background:#050708;border:1px solid #263338;border-radius:9px}
+	.vol::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#d7d2c3;border:1px solid #0a0d0e}
 	em,output{display:block;color:#b3b6b1;font:10px/14px monospace;text-align:center}
 	output{position:absolute;left:0;right:0;bottom:20px}
 	.empty{position:absolute;left:0;right:0;top:50%;margin-top:-9px;color:#4d5250;text-align:center;font:18px Arial;letter-spacing:1px}
 	#e,#d,#f{position:absolute;top:7px;right:7px;z-index:9;height:20px;padding:0 6px;background:#eaeaea;color:#111;border-radius:4px;opacity:.9;cursor:pointer;text-align:center;font:9px/20px Arial,sans-serif;user-select:none}
 	#e{right:68px;width:10px;display:none}
 	#f{left:0;right:0;top:0;width:100%;height:4px;padding:0;border-radius:0;background:#333;display:none;line-height:0}
-	.b #e,.b #f{display:block}.b #d{top:12px}.c #f,#f:hover{background:#444}
+	.b #e,.b #f{display:block}.b #e,.b #d{top:12px}.c #f,#f:hover{background:#444}
 	</style>
 </head>
 <body>
@@ -98,7 +105,7 @@
 			s.className = 's' + (master ? ' master' : '');
 			s.innerHTML = master ?
 				'<strong></strong><div class="meter"><i></i></div><label>level</label><input class="vol" type="range" min="0" max="1" step=".01"><output></output>' :
-				'<strong></strong><div class="meter"><i></i></div><p><button>M</button><button>S</button><button>R</button></p><label>pan <input class="pan" type="range" min="-1" max="1" step=".01"></label><em></em><input class="vol" type="range" min="0" max="1" step=".01"><output></output>';
+				'<strong></strong><div class="meter"><i></i></div><p><button>M</button><button>S</button><button>R</button></p><div class="pn"><label>pan</label><div class="k"><i></i></div><em></em></div><input class="vol" type="range" min="0" max="1" step=".01"><output></output>';
 			s.getElementsByTagName ('strong')[0].textContent = t.name;
 			var e = els[t.id] = {
 				el:s,
@@ -109,16 +116,16 @@
 			if (!master) {
 				var b = s.getElementsByTagName ('button');
 				e.mute = b[0]; e.solo = b[1]; e.rec = b[2];
-				e.pan = s.getElementsByClassName ('pan')[0];
+				e.pan = s.getElementsByClassName ('k')[0];
 				e.panv = s.getElementsByTagName ('em')[0];
 				e.mute.onclick = function ( ev ) { ev.stopPropagation (); call ( t.id, 'mute', !e.mute.classList.contains ('a'), 1 ); };
 				e.solo.onclick = function ( ev ) { ev.stopPropagation (); call ( t.id, 'solo', !e.solo.classList.contains ('a'), 1 ); };
 				e.rec.onclick = function ( ev ) { ev.stopPropagation (); call ( t.id, 'rec', !e.rec.classList.contains ('a'), 1 ); };
-				e.pan.oninput = function () { call ( t.id, 'pan', this.value, 0 ); };
-				e.pan.onchange = function () { call ( t.id, 'pan', this.value, 1 ); };
-				e.pan.ondblclick = function () { this.value = 0; call ( t.id, 'pan', 0, 1 ); };
+				bindPan ( e.pan, t.id );
 				s.onclick = function ( ev ) {
-					if (/BUTTON|INPUT/.test (ev.target.tagName)) return ;
+					if (/BUTTON|INPUT/.test (ev.target.tagName) ||
+						(ev.target.classList && ev.target.classList.contains ('k')) ||
+						(ev.target.parentNode.classList && ev.target.parentNode.classList.contains ('k'))) return ;
 					call ( t.id, 'select', 1, 1 );
 				};
 			}
@@ -128,6 +135,34 @@
 			return s;
 		}
 
+		function panKnob ( el, v ) {
+			el._v = v;
+			el.getElementsByTagName ('i')[0].style.transform = 'rotate(' + (v * 65) + 'deg)';
+		}
+
+		function bindPan ( el, id ) {
+			el.onpointerdown = function ( ev ) {
+				ev.preventDefault ();
+				ev.stopPropagation ();
+				var x = ev.clientX, y = ev.clientY, v = el._v || 0;
+				function move ( e ) {
+					var n = Math.max (-1, Math.min (1, v + (e.clientX - x - e.clientY + y) / 80));
+					panKnob ( el, n );
+					call ( id, 'pan', n, 0 );
+				}
+				function up () {
+					d.removeEventListener ('pointermove', move);
+					call ( id, 'pan', el._v || 0, 1 );
+				}
+				d.addEventListener ('pointermove', move);
+				d.addEventListener ('pointerup', up, {once:true});
+			};
+			el.ondblclick = function () {
+				panKnob ( el, 0 );
+				call ( id, 'pan', 0, 1 );
+			};
+		}
+
 		function build ( list ) {
 			box.innerHTML = '';
 			els = {};
@@ -135,7 +170,7 @@
 		}
 
 		function panText ( v ) {
-			return v < -0.01 ? 'L ' + ((-v * 100) >> 0) : v > 0.01 ? 'R ' + ((v * 100) >> 0) : 'C';
+			return v < -0.01 ? 'L' + ((-v * 100) >> 0) : v > 0.01 ? 'R' + ((v * 100) >> 0) : 'C';
 		}
 
 		function cls ( el, on ) {
@@ -164,7 +199,7 @@
 			if (t.id !== 'master') {
 				if (e.pan_v !== t.pan) {
 					e.pan_v = t.pan;
-					e.pan.value = t.pan;
+					panKnob ( e.pan, t.pan );
 					e.panv.textContent = panText ( t.pan );
 				}
 				cls ( e.mute, t.mute );
@@ -204,6 +239,17 @@
 			}
 			w.requestAnimationFrame ( loop );
 		}
+
+		var last_press = 0;
+		d.addEventListener ('keydown', function ( e ) {
+			if ((e.keyCode || e.which) !== 32) return ;
+			e.preventDefault ();
+			e.stopPropagation ();
+			if (e.timeStamp - last_press < 100) return ;
+			last_press = e.timeStamp;
+			var h = host ();
+			h && h.PKAudioEditor && h.PKAudioEditor.ui.Dock ('RequestKeyDown', 32);
+		}, true);
 
 		w.onunload = function () {
 			w.destroy && w.destroy ( iframe );

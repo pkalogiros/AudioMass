@@ -46,7 +46,6 @@
 		var marker_el = null;
 		var empty_el = null;
 		var btn_toggle = null;
-		var btn_mixer = null;
 		var btn_clear_mute = null;
 		var btn_clear_solo = null;
 		var mixer_on = false;
@@ -513,16 +512,6 @@
 			};
 			actions.appendChild ( btn_toggle );
 
-			btn_mixer = d.createElement ('button');
-			btn_mixer.setAttribute ('tabIndex', -1);
-			btn_mixer.className = 'pk_btn pk_mt_mix_btn';
-			btn_mixer.innerHTML = '<span>Multitrack Mixer</span>';
-			btn_mixer.onclick = function () {
-				if (!IsOn ()) Toggle ( true );
-				ToggleMixer ();
-				this.blur ();
-			};
-			actions.appendChild ( btn_mixer );
 		}
 
 		function IsOn () {
@@ -1023,8 +1012,6 @@
 		function updateMixerButton ( val ) {
 			mixer_on = !!val;
 			mixer_type = val && val.type;
-			if (btn_mixer) btn_mixer.classList.remove ('pk_act');
-			if (btn_mixer && mixer_on) btn_mixer.classList.add ('pk_act');
 		}
 
 		function updateMixerMeters ( vals, master ) {

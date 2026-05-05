@@ -294,8 +294,6 @@ a{
 .pk_tb .pk_btn span,
 .pk_mt_head button span,
 .pk_mt_track button span,
-.pk_mt_strip button span,
-.pk_mt_strip .pk_mt_knob span,
 .pk_mt_knob span{
 	position:absolute;left:50%;bottom:-31px;
 	display:block;padding:0 6px;
@@ -313,8 +311,6 @@ a{
 .pk_tb .pk_btn:hover span,
 .pk_mt_head button:hover span,
 .pk_mt_track button:hover span,
-.pk_mt_strip button:hover span,
-.pk_mt_strip .pk_mt_knob:hover span,
 .pk_mt_knob:hover span{visibility:visible;opacity:1}
 
 .pk_ftr .pk_btn.pk_inact:hover span,
@@ -334,6 +330,7 @@ a{
 	display:inline-block;min-width:14px;padding:2px 5px;
 	background:var(--bg-3);color:var(--ac);
 	border-radius:var(--r);font-family:var(--ff-mono);
+	font-size:11px;line-height:16px;
 	font-variant-numeric:tabular-nums;
 }
 
@@ -456,28 +453,20 @@ a{
 }
 .pk_mt_track input:focus{border-color:var(--ac);box-shadow:0 0 8px var(--ac-glow)}
 
-.pk_mt_track button,
-.pk_mt_strip button{
+.pk_mt_track button{
 	background:var(--bg-0);color:var(--fg-0);
 	border:0;border-radius:var(--r);
 	cursor:pointer;position:relative;overflow:visible;
 	transition:box-shadow var(--tr),background var(--tr),color var(--tr);
 }
 .pk_mt_track button{width:25px;height:24px;margin-right:5px;font-size:11px}
-.pk_mt_strip button{width:21px;height:19px;margin:4px 3px 0 0;font-size:10px}
-.pk_mt_track button:hover,
-.pk_mt_strip button:hover{box-shadow:0 0 0 1px var(--bd-h)}
-.pk_mt_track button:active,
-.pk_mt_strip button:active{box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
-.pk_mt_track button.pk_act,
-.pk_mt_strip button.pk_act{background:var(--ac);color:var(--ac-ink)}
+.pk_mt_track button:hover{box-shadow:0 0 0 1px var(--bd-h)}
+.pk_mt_track button:active{box-shadow:inset 0 0 10px rgba(0,0,0,.5)}
+.pk_mt_track button.pk_act{background:var(--ac);color:var(--ac-ink)}
 
-.pk_mt_track button.pk_mt_mute.pk_act,
-.pk_mt_strip button.pk_mt_mute.pk_act{background:#3a0a0e;color:#fff;box-shadow:inset 0 0 0 1px var(--rec)}
-.pk_mt_track button.pk_mt_solo.pk_act,
-.pk_mt_strip button.pk_mt_solo.pk_act{background:var(--solo);color:#041014;box-shadow:none}
-.pk_mt_track button.pk_mt_rec.pk_act,
-.pk_mt_strip button.pk_mt_rec.pk_act{background:var(--rec);color:#fff}
+.pk_mt_track button.pk_mt_mute.pk_act{background:#3a0a0e;color:#fff;box-shadow:inset 0 0 0 1px var(--rec)}
+.pk_mt_track button.pk_mt_solo.pk_act{background:var(--solo);color:#041014;box-shadow:none}
+.pk_mt_track button.pk_mt_rec.pk_act{background:var(--rec);color:#fff}
 
 .pk_mt_track .pk_mt_rec{position:absolute;right:6px;top:41px;margin:0}
 .pk_mt_track .pk_mt_del{position:absolute;right:4px;top:7px;margin:0;color:#c99999}
@@ -1377,10 +1366,8 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_mt_head button:not(.pk_act):hover,
 	.pk_mt_head button.pk_inact:hover,
 	.pk_mt_track button:not(.pk_act):hover,
-	.pk_mt_strip button:not(.pk_act):hover,
 	.pk_mt_knob:hover,
 	.pk_mt_topbtn:hover,
-	.pk_mt_mix_head button:hover,
 	.pk_zoombtn button:hover,
 	.pk_modal_a_bottom:hover,
 	.pk_modal_a_red:hover,
@@ -1399,7 +1386,6 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_btn:hover span,
 	.pk_mt_head button:hover span,
 	.pk_mt_track button:hover span,
-	.pk_mt_strip button:hover span,
 	.pk_mt_knob:hover span{visibility:hidden;opacity:0}
 	/* Re-assert active states that the hover reset above clobbers
 	   when sticky :hover lingers on touch devices. */
@@ -1422,7 +1408,6 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 .pk_btn,
 .pk_mt_head button,
 .pk_mt_track button,
-.pk_mt_strip button,
 .pk_mt_knob,
 .pk_mt_clip,
 .pk_mt_trim,
@@ -1453,8 +1438,6 @@ input,textarea{-webkit-touch-callout:none}
 /* Hide multitrack tooltips on mobile (already hidden for tb/ftr). */
 .pk_mob .pk_mt_head button span,
 .pk_mob .pk_mt_track button span,
-.pk_mob .pk_mt_strip button span,
-.pk_mob .pk_mt_strip .pk_mt_knob span,
 .pk_mob .pk_mt_knob span{visibility:hidden;display:none}
 
 /* Larger hit targets for fiddly mt controls on mobile. */
@@ -1463,7 +1446,6 @@ input,textarea{-webkit-touch-callout:none}
 .pk_mob .pk_mt_track input{height:26px;margin-bottom:8px;padding:0 5px}
 .pk_mob .pk_mt_head button{width:30px;height:24px;font-size:13px}
 .pk_mob .pk_mt_track button{width:28px;height:28px;margin-right:3px;font-size:13px}
-.pk_mob .pk_mt_strip button{width:28px;height:26px;font-size:12px}
 .pk_mob .pk_mt_knob{width:32px;height:32px}
 .pk_mob .pk_mt_knob i{left:14px;top:5px}
 .pk_mob .pk_mt_track .pk_mt_rec{position:absolute;right:5px;top:40px;margin:0}

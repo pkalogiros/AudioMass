@@ -1251,6 +1251,27 @@
 					},
 
 					{
+						name:'Multitrack Mixer',
+						action: function ( obj ) {
+							var mt = app.multitrack;
+							if (mt && mt.IsOn && !mt.IsOn ()) mt.Toggle ( true );
+							app.fireEvent ('RequestMixerToggle');
+						},
+						setup: function ( obj ) {
+							app.listenFor ('DidToggleFreqAn', function ( url, val ) {
+								if (url !== 'mix') return ;
+
+								var txt = 'Multitrack Mixer';
+								if (val) {
+									obj.innerHTML = txt + ' &#10004;';
+								} else {
+									obj.textContent = txt;
+								}
+							});
+						}
+					},
+
+					{
 						name:'Tempo Tools',
 						action: function ( obj ) {
 							app.fireEvent ('RequestActionTempo');
