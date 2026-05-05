@@ -1861,9 +1861,10 @@
 				drag_mode = cls && cls.contains ('pk_mt_trim_l') ? 1 :
 					(cls && cls.contains ('pk_mt_trim_r') ? 2 : 0);
 				if (!drag_mode && selected_clip !== clip.id) {
-					setCursorTime ( timeFromEvent ( e ) );
-					selectClip ( clip );
-					return false;
+					return startRangeSelect ( e, function ( ev ) {
+						setCursorTime ( timeFromEvent ( ev || e ) );
+						selectClip ( clip );
+					});
 				}
 
 				down_x = e.clientX;
@@ -2230,6 +2231,8 @@
 				e.target.classList.contains ('pk_mt_timeline')
 			))
 				return true;
+			var cn = clipNodeFrom ( e.target );
+			if (cn) return cn.getAttribute ('data-clip') !== selected_clip;
 			return !!(e.target.classList && e.target.classList.contains ('pk_mt_lane'));
 		}
 
@@ -2274,7 +2277,7 @@
 			return false;
 		}
 
-		function startRangeSelect ( e ) {
+		function startRangeSelect ( e, click_cb ) {
 			if (!hasClips ()) return ;
 			if (!canRangeSelect ( e )) return ;
 
@@ -2334,9 +2337,12 @@
 				}
 				else {
 					if (!ev) return ;
-					clearSelectedClip ( true );
-					clearRegion ();
-					setCursorTime ( start );
+					if (click_cb) click_cb ( ev );
+					else {
+						clearSelectedClip ( true );
+						clearRegion ();
+						setCursorTime ( start );
+					}
 				}
 				render ();
 			}

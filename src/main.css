@@ -578,14 +578,15 @@ a{
 	background:#0a1414;
 	border:1px solid #2f7b75;border-radius:var(--r-md);
 	box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
-	overflow:hidden;contain:content;cursor:grab;
+	overflow:hidden;contain:content;cursor:default;
 }
-.pk_mt_clip.pk_drag{cursor:grabbing;z-index:8;box-shadow:0 0 8px rgba(153,194,198,.45)}
 .pk_mt_clip.pk_mt_clip_sel{
 	border-color:#f0d878;
 	box-shadow:inset 0 0 0 1px rgba(240,216,120,.5);
+	cursor:grab;
 	z-index:7;
 }
+.pk_mt_clip.pk_drag{cursor:grabbing;z-index:8;box-shadow:0 0 8px rgba(153,194,198,.45)}
 .pk_mt_clip canvas{display:block;width:100%;height:calc(100% - 8px)}
 
 .pk_mt_trim{position:absolute;top:0;bottom:0;width:8px;z-index:2;cursor:ew-resize}
