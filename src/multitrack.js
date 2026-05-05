@@ -386,8 +386,9 @@
 
 		function emitEditorState () {
 			var wv = app.engine && app.engine.wavesurfer;
+			var dur = wv && wv.getDuration ? wv.getDuration () : 0;
 			if (!wv) return ;
-			app.fireEvent ('DidUpdateLen', wv.getDuration ? wv.getDuration () : 0);
+			app.fireEvent ('DidUpdateLen', dur);
 			if (wv.regions && wv.regions.list[0])
 				app.fireEvent ('DidCreateRegion', wv.regions.list[0]);
 			else
@@ -397,6 +398,16 @@
 				null,
 				w.performance.now ()
 			]);
+			app.fireEvent ('DidZoom', [
+				wv.ZoomFactor || 1,
+				((wv.LeftProgress || 0) / Math.max (0.0001, dur)) * 100,
+				wv.params && wv.params.verticalZoom
+			]);
+			w.requestAnimationFrame (function () {
+				if (IsOn ()) return ;
+				wv.fireEvent && wv.fireEvent ('resize');
+				app.engine && app.engine.is_ready && wv.drawBuffer && wv.drawBuffer ();
+			});
 		}
 
 		function emitState () {
@@ -558,6 +569,7 @@
 				scroll_sync = false;
 			}
 			redrawRuler ();
+			fireZoom ();
 		}
 
 		function syncTrackScroll () {
@@ -2403,6 +2415,7 @@
 					try { filter[i].disconnect (); } catch (e) {}
 				return ;
 			}
+			try { filter.stop && filter.stop (0); } catch (e1) {}
 			try { filter.disconnect && filter.disconnect (); } catch (e2) {}
 		}
 
@@ -2477,6 +2490,8 @@
 			if (!fx_preview) return true;
 			try { fx_preview.source.stop (0); } catch (e) {}
 			try { fx_preview.source.disconnect (); } catch (e2) {}
+			try { fx_preview.dry.disconnect (); } catch (e3) {}
+			try { fx_preview.wet.disconnect (); } catch (e4) {}
 			disconnectFx ( fx_preview.filter );
 			fx_preview.fx && fx_preview.fx.destroy && fx_preview.fx.destroy ();
 			fx_preview = null;
@@ -2484,10 +2499,19 @@
 			return true;
 		}
 
+		function setFxPreviewOn ( on ) {
+			fx_preview_on = !!on;
+			if (fx_preview) {
+				fx_preview.dry.gain.value = fx_preview_on ? 0 : 1;
+				fx_preview.wet.gain.value = fx_preview_on ? 1 : 0;
+				if (fx_preview.fx.preview)
+					fx_preview.fx.preview ( fx_preview_on, fx_preview.source );
+			}
+			return fx_preview_on;
+		}
+
 		function toggleFxPreview ( val ) {
-			fx_preview_on = val === undefined ? !fx_preview_on : !!val;
-			if (fx_preview && fx_preview.fx.preview)
-				fx_preview.fx.preview ( fx_preview_on, fx_preview.source );
+			setFxPreviewOn ( val === undefined ? !fx_preview_on : !!val );
 			app.fireEvent ('DidTogglePreview', fx_preview_on);
 			return true;
 		}
@@ -2505,33 +2529,50 @@
 				name,
 				name === 'Rate' ? 1 / Math.max (0.001, val) : val
 			);
+			var wet = ctx.createGain ();
+			var dry = ctx.createGain ();
 			var filter = null;
 
 			source.buffer = buffer;
-			filter = fx.filter ( ctx, ctx.destination, source, buffer.duration );
+			source.loop = true;
+			wet.connect ( ctx.destination );
+			dry.connect ( ctx.destination );
+			source.connect ( dry );
+			filter = fx.filter ( ctx, wet, source, buffer.duration );
+			fx_preview = {
+				source: source,
+				filter: filter,
+				fx: fx,
+				ctx: ctx,
+				wet: wet,
+				dry: dry
+			};
+			setFxPreviewOn ( fx_preview_on );
 			source.onended = function () {
 				if (fx_preview && fx_preview.source === source)
 					stopFxPreview ();
 			};
 			source.start (0);
-			fx_preview = {
-				source: source,
-				filter: filter,
-				fx: fx,
-				ctx: ctx
-			};
 			app.fireEvent ('DidStartPreview');
 			return true;
 		}
 
 		function updateFxPreview ( val ) {
+			var host = app.engine && app.engine.FXPreviewHost;
 			if (!fx_preview || !fx_preview.fx.update) return true;
-			fx_preview.fx.update (
+			if (host) host.PreviewFilter = fx_preview.filter;
+			fx_preview.fx.update.call (
+				host || fx_preview.fx,
 				fx_preview.filter,
 				fx_preview.ctx,
 				val,
-				fx_preview.source
+				fx_preview.source,
+				fx_preview.wet
 			);
+			if (host && host.PreviewFilter !== fx_preview.filter)
+				fx_preview.filter = host.PreviewFilter;
+			try { fx_preview.source.connect ( fx_preview.dry ); } catch (e) {}
+			setFxPreviewOn ( fx_preview_on );
 			return true;
 		}
 

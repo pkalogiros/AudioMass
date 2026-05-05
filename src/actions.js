@@ -1219,14 +1219,15 @@
 						temp_source.connect (destination);
 						return (temp_source);
 					},
-					update : function ( filtered_source, audio_ctx, val, source ) {
+					update : function ( filtered_source, audio_ctx, val, source, destination ) {
 						// stop the existing onerror
+						try { filtered_source.stop && filtered_source.stop (); } catch (e) {}
 						filtered_source.disconnect ();
 						filtered_source.buffer = null;
 						filtered_source = null;
 
 						var ff = this.FXBank.HardLimit( val );
-						this.PreviewFilter = ff.filter ( audio_ctx, audio_destination, source, 0 );
+						this.PreviewFilter = ff.filter ( audio_ctx, destination || audio_destination, source, 0 );
 					}
 				};
 			},
@@ -1403,7 +1404,7 @@
 
 								const grainGain = offlineCtx.createGain();
 								grainSource.connect(grainGain);
-								grainGain.connect(offlineCtx.destination);
+								grainGain.connect(destination || offlineCtx.destination);
 
 								applyHannWindowFast (grainGain, now + outputTime, grainDuration);
 

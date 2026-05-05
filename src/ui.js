@@ -3135,10 +3135,12 @@
 			this.blur();
 		};
 		UI.listenFor ('DidSelectClip', function () {
+			copy_btn.classList.remove ('pk_inact');
 			cut_btn.classList.remove ('pk_inact');
 			btn_clear_selection.classList.remove ('pk_inact');
 		});
 		UI.listenFor ('DidDeselectClip', function () {
+			copy_btn.classList.add ('pk_inact');
 			cut_btn.classList.add ('pk_inact');
 		});
 		

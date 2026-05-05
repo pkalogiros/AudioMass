@@ -26,6 +26,7 @@
 		this.wavesurfer = wavesurfer;
 
 		var AudioUtils = new app._deps.audioutils ( app, wavesurfer );
+		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
 		
 		this.TrimTo = function( val, num ) {
