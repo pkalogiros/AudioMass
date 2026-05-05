@@ -1651,6 +1651,12 @@
 
 		var eq_win = {};
 
+		var resizeDock = function () {
+			if (!app.ui || !app.ui.BarBtm) return ;
+			app.ui.BarBtm.height = eq_win.mix && eq_win.mix.type === 1 ? 350 : 130;
+			app.fireEvent ('RequestResize');
+		};
+
 		app.listenFor ('WillUnload', function () {
 			var cur;
 
@@ -1877,8 +1883,10 @@
 			var type   = args_arr[ 1 ];
 			var title = 'Frequency Analysis';
 			var curr_win = eq_win[ url ];
+			var is_mix = url === 'mix';
 
 			if (url === 'sp') title = 'Spectrum Analysis';
+			if (is_mix) title = 'Multitrack Mixer';
 
 			var toggled = false;
 			if (curr_win && toggle)
@@ -1890,18 +1898,20 @@
 				curr_win = null;
 
 				eq_win[url] = null;
+				resizeDock ();
 
 				if (ext) return ;
 				toggled = true;
 			}
 
 			var freq_cb = function (_, freq) {
+				if (is_mix) return ;
 				curr_win && curr_win.win && curr_win.win.update && curr_win.win.update (freq);
 			};
 
 			var setEvents = function ( obj, _url ) {
 				obj.win.destroy = function () {
-					app.stopListeningFor ('DidAudioProcess', freq_cb);
+					if (!is_mix) app.stopListeningFor ('DidAudioProcess', freq_cb);
 					app.fireEvent ('DidToggleFreqAn', _url, null);
 
 					// if (obj && obj.type === undefined) {
@@ -1911,18 +1921,19 @@
 
 					var stop = true;
 					for (var k in eq_win) {
-						if (eq_win[k]) {
+						if (eq_win[k] && k !== 'mix') {
 							stop = false;
 							break;
 						}
 					}
 
 					if (stop) app.engine.wavesurfer.backend.logFrequencies = false;
+					resizeDock ();
 				};
 
-				app.listenFor ('DidAudioProcess', freq_cb);
+				if (!is_mix) app.listenFor ('DidAudioProcess', freq_cb);
 				app.fireEvent ('DidToggleFreqAn', _url, curr_win);
-				app.engine.wavesurfer.backend.logFrequencies = true;
+				if (!is_mix) app.engine.wavesurfer.backend.logFrequencies = true;
 			};
 
 			if (!type)
@@ -1936,8 +1947,9 @@
 						extra = ',left=' + dat[0] + ',top=' + dat[1];
 					}
 
+					var size = is_mix ? [760, 320] : [600, 188];
 					var wnd = window.open ('/' + url + '.html', title, "directories=no,titlebar=no,toolbar=no,"+
-							"location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=600,height=188" + extra);
+							"location=no,status=no,menubar=no,scrollbars=no,resizable=no,width=" + size[0] + ",height=" + size[1] + extra);
 
 					if (!wnd) {
 						OneUp ('Please allow pop-ups for AudioMass!', 3600, 'pk_r');
@@ -1966,7 +1978,7 @@
 			else if (type === 1)
 			{
 				var iframe = document.createElement ('iframe');
-				iframe.className = 'pk_frqan';
+				iframe.className = 'pk_frqan' + (is_mix ? ' pk_mixwin' : '');
 				iframe.id = 'pk_fr' + url;
 
 				if (app.ui.BarBtm.on) {
@@ -2014,6 +2026,7 @@
 				};
 
 				curr_win = eq_win[url];
+				resizeDock ();
 
 				iframe.onload = function (e) {
 					if (curr_win && curr_win.type === type)

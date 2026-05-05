@@ -49,9 +49,11 @@
 		var btn_mixer = null;
 		var btn_clear_mute = null;
 		var btn_clear_solo = null;
-		var mixer_el = null;
 		var mixer_on = false;
-		var mixer_meters = null;
+		var mixer_type = null;
+		var mixer_prev = null;
+		var mixer_changed = false;
+		var mixer_meters = {};
 		var lane_by_track = {};
 
 		var play = null;
@@ -511,7 +513,6 @@
 			};
 			actions.appendChild ( btn_toggle );
 
-			/*
 			btn_mixer = d.createElement ('button');
 			btn_mixer.setAttribute ('tabIndex', -1);
 			btn_mixer.className = 'pk_btn pk_mt_mix_btn';
@@ -522,7 +523,6 @@
 				this.blur ();
 			};
 			actions.appendChild ( btn_mixer );
-			*/
 		}
 
 		function IsOn () {
@@ -645,7 +645,6 @@
 			syncScroll ();
 			renderRegion ();
 			updatePlayhead ();
-			renderMixer ();
 			fireZoom ();
 		}
 
@@ -1008,209 +1007,102 @@
 		}
 
 		function ToggleMixer ( force ) {
-			mixer_on = force === undefined ? !mixer_on : !!force;
-			if (!mixer_on) {
+			if (force === false) {
 				HideMixer ();
 				return ;
 			}
-			ShowMixer ();
-		}
-
-		function dockLeft () {
-			var ch = app.ui.BarBtm.el.childNodes;
-			var lw = 0;
-			for (var i = 0; i < ch.length; ++i)
-				lw += ch[i].clientWidth + 18;
-			return lw;
-		}
-
-		function reflowDock () {
-			var ch = app.ui.BarBtm.el.childNodes;
-			var lw = 0;
-			for (var i = 0; i < ch.length; ++i) {
-				if (!ch[i] || !ch[i].parentNode) continue;
-				ch[i].style.top = '0px';
-				ch[i].style.left = lw + 'px';
-				lw += ch[i].clientWidth + 18;
-			}
-			if (!ch.length) app.ui.BarBtm.Hide ();
-		}
-
-		function ShowMixer () {
-			if (!app.ui || !app.ui.BarBtm) return ;
-			if (!mixer_el) {
-				mixer_el = d.createElement ('div');
-				mixer_el.className = 'pk_mt_mixer';
-				mixer_el.style.left = dockLeft () + 'px';
-				mixer_el.innerHTML =
-					'<div class="pk_mt_mix_head">Mixer<button tabIndex="-1">x</button></div>' +
-					'<div class="pk_mt_mix_body"></div>';
-				mixer_el.getElementsByTagName ('button')[0].onclick = function () {
-					HideMixer ();
-					this.blur ();
-				};
-				app.ui.BarBtm.el.appendChild ( mixer_el );
-			}
-			mixer_on = true;
-			if (btn_mixer) btn_mixer.classList.add ('pk_act');
-			app.ui.BarBtm.Show ();
-			renderMixer ();
+			if (force === true && mixer_on) return ;
+			app.fireEvent ('RequestShowFreqAn', 'mix', [1, 1]);
 		}
 
 		function HideMixer () {
-			mixer_on = false;
-			mixer_meters = null;
+			if (!mixer_on) return ;
+			app.fireEvent ('RequestShowFreqAn', 'mix', [1, mixer_type]);
+		}
+
+		function updateMixerButton ( val ) {
+			mixer_on = !!val;
+			mixer_type = val && val.type;
 			if (btn_mixer) btn_mixer.classList.remove ('pk_act');
-			if (mixer_el && mixer_el.parentNode) {
-				mixer_el.parentNode.removeChild ( mixer_el );
-				mixer_el = null;
-				reflowDock ();
-			}
-		}
-
-		function renderMixer () {
-			if (!mixer_on || !mixer_el) return ;
-
-			var body = mixer_el.getElementsByClassName ('pk_mt_mix_body')[0];
-			body.innerHTML = '';
-			mixer_meters = {};
-
-			for (var i = 0; i < tracks.length; ++i)
-				body.appendChild ( makeMixerStrip ( tracks[i] ) );
-			body.appendChild ( makeMasterStrip () );
-		}
-
-		function makeMixerStrip ( track ) {
-			var strip = d.createElement ('div');
-			strip.className = 'pk_mt_strip' + (track.id === selected_track ? ' pk_mt_sel' : '');
-
-			var name = d.createElement ('strong');
-			name.textContent = track.name;
-			strip.appendChild ( name );
-
-			var meter = d.createElement ('div');
-			meter.className = 'pk_mt_meter';
-			meter.innerHTML = '<i></i>';
-			mixer_meters[track.id] = meter.getElementsByTagName ('i')[0];
-			strip.appendChild ( meter );
-
-			var mute = makeButton ('M', 'Mute', track.mute, 'pk_mt_mute');
-			var solo = makeButton ('S', 'Solo', track.solo, 'pk_mt_solo');
-			var arm = makeButton ('R', 'Rec Trigger', track.rec, 'pk_mt_rec');
-			mute.onclick = function ( e ) {
-				e.stopPropagation ();
-				setTrackFlag ( track, 'mute', !track.mute, 'Mute Channel' );
-			};
-			solo.onclick = function ( e ) {
-				e.stopPropagation ();
-				setTrackFlag ( track, 'solo', !track.solo, 'Solo Channel' );
-			};
-			arm.onclick = function ( e ) {
-				e.stopPropagation ();
-				setRecordArm ( track, !track.rec );
-			};
-			strip.appendChild ( mute );
-			strip.appendChild ( solo );
-			strip.appendChild ( arm );
-
-			var vol = d.createElement ('div');
-			vol.className = 'pk_mt_knob pk_mt_vol';
-			vol.appendChild ( d.createElement ('i') );
-			addTip ( vol, 'Volume' );
-			updateVolume ( vol, track.vol === undefined ? 1 : track.vol );
-			bindVolume ( vol, track );
-			strip.appendChild ( vol );
-
-			var pan = d.createElement ('div');
-			pan.className = 'pk_mt_knob pk_mt_pan';
-			pan.appendChild ( d.createElement ('i') );
-			addTip ( pan, 'Pan L/R' );
-			updateKnob ( pan, track.pan );
-			bindPan ( pan, track );
-			strip.appendChild ( pan );
-
-			var fx = d.createElement ('small');
-			fx.textContent = 'FX  SEND';
-			strip.appendChild ( fx );
-			strip.onclick = function () {
-				selected_track = track.id;
-				render ();
-			};
-			return strip;
-		}
-
-		function makeMasterStrip () {
-			var strip = d.createElement ('div');
-			strip.className = 'pk_mt_strip pk_mt_master';
-			strip.innerHTML = '<strong>Master</strong><div class="pk_mt_meter"><i></i></div>';
-			mixer_meters.master = strip.getElementsByTagName ('i')[0];
-
-			var vol = d.createElement ('div');
-			vol.className = 'pk_mt_knob pk_mt_vol';
-			vol.appendChild ( d.createElement ('i') );
-			addTip ( vol, 'Master Volume' );
-			updateVolume ( vol, master_vol );
-			bindMasterVolume ( vol );
-			strip.appendChild ( vol );
-
-			var fx = d.createElement ('small');
-			fx.textContent = 'FX  SEND';
-			strip.appendChild ( fx );
-			return strip;
-		}
-
-		function bindMasterVolume ( knob ) {
-			var start_x = 0;
-			var start_y = 0;
-			var start_vol = 1;
-			var prev = null;
-			var moved = false;
-			var stop_drag = null;
-
-			bindDown ( knob, function ( e ) {
-				e.preventDefault ();
-				e.stopPropagation ();
-				prev = cloneState ();
-				start_x = e.clientX;
-				start_y = e.clientY;
-				start_vol = master_vol;
-				moved = false;
-				stop_drag = bindDrag ( e, move, up );
-				setActiveDrag ( up );
-			});
-			knob.ondblclick = function ( e ) {
-				e.preventDefault ();
-				e.stopPropagation ();
-				if (master_vol === 1) return ;
-				var p = cloneState ();
-				master_vol = 1;
-				if (play && play.master) play.master.gain.value = master_vol;
-				pushState ( p, 'Master Volume' );
-				renderMixer ();
-			};
-
-			function move ( e ) {
-				var val = Math.max (0, Math.min (1, start_vol + knobDelta ( e, start_x, start_y ) / 90));
-				if (Math.abs (val - master_vol) > 0.001) moved = true;
-				master_vol = val;
-				if (play && play.master) play.master.gain.value = master_vol;
-				updateVolume ( knob, val );
-			}
-
-			function up () {
-				if (stop_drag) stop_drag ();
-				clearActiveDrag ( up );
-				if (moved) pushState ( prev, 'Master Volume' );
-			}
+			if (btn_mixer && mixer_on) btn_mixer.classList.add ('pk_act');
 		}
 
 		function updateMixerMeters ( vals, master ) {
-			if (!mixer_meters) return ;
-			for (var k in mixer_meters) {
-				var db = k === 'master' ? master : (vals && vals[k]);
-				var pct = db === undefined ? 0 : Math.max (0, Math.min (100, db + 80) / 80 * 100);
-				mixer_meters[k].style.width = pct + '%';
+			if (!mixer_on) return ;
+			mixer_meters.master = dbPct ( master );
+			for (var i = 0; i < tracks.length; ++i)
+				mixer_meters[tracks[i].id] = dbPct ( vals && vals[tracks[i].id] );
+		}
+
+		function dbPct ( db ) {
+			return db === undefined ? 0 : Math.max (0, Math.min (1, (db + 80) / 80));
+		}
+
+		function MixerData () {
+			var list = [];
+			for (var i = 0; i < tracks.length; ++i) {
+				var t = tracks[i];
+				list.push ({
+					id:t.id,
+					name:t.name,
+					mute:!!t.mute,
+					solo:!!t.solo,
+					rec:!!t.rec,
+					sel:t.id === selected_track,
+					vol:t.vol === undefined ? 1 : t.vol,
+					pan:t.pan || 0,
+					meter:mixer_meters[t.id] || 0
+				});
 			}
+			return {
+				on:IsOn (),
+				tracks:list,
+				master:{vol:master_vol, meter:mixer_meters.master || 0}
+			};
+		}
+
+		function MixerSet ( id, key, val, done ) {
+			var t = id === 'master' ? null : findTrack ( id );
+			var old = t ? (key === 'vol' && t.vol === undefined ? 1 : t[key]) : master_vol;
+			var desc = key === 'pan' ? 'Pan Channel' :
+				(id === 'master' ? 'Master Volume' : 'Volume Channel');
+
+			if (key === 'select' && t) {
+				selected_track = t.id;
+				render ();
+				return true;
+			}
+			if (key === 'mute' && t) {
+				setTrackFlag ( t, 'mute', !!val, 'Mute Channel' );
+				return true;
+			}
+			if (key === 'solo' && t) {
+				setTrackFlag ( t, 'solo', !!val, 'Solo Channel' );
+				return true;
+			}
+			if (key === 'rec' && t) {
+				setRecordArm ( t, !!val );
+				return true;
+			}
+			if (key !== 'vol' && key !== 'pan') return false;
+
+			val = key === 'pan' ?
+				Math.max (-1, Math.min (1, +val || 0)) :
+				Math.max (0, Math.min (1, +val || 0));
+			if (Math.abs (old - val) > 0.001) {
+				if (!mixer_prev) mixer_prev = cloneState ();
+				mixer_changed = true;
+				if (t) t[key] = val;
+				else master_vol = val;
+				refreshMix ();
+			}
+			if (done && mixer_prev) {
+				if (mixer_changed) pushState ( mixer_prev, desc );
+				mixer_prev = null;
+				mixer_changed = false;
+				render ();
+			}
+			return true;
 		}
 
 		function startTrackResize ( e, track ) {
@@ -3788,6 +3680,8 @@
 		q.RecordStart = RecordStart;
 		q.RecordStop = RecordStop;
 		q.ToggleMixer = ToggleMixer;
+		q.MixerData = MixerData;
+		q.MixerSet = MixerSet;
 		q.Propagate = function ( id, arg1, arg2 ) {
 			if (!IsOn () && id !== 'RequestActionRecordStop') return false;
 
@@ -3973,6 +3867,9 @@
 			restoreState ( state.mt );
 			if (undo) OneUp ('Undo ' + state.desc);
 			else OneUp ('Redo ' + state.desc);
+		});
+		app.listenFor ('DidToggleFreqAn', function ( url, val ) {
+			if (url === 'mix') updateMixerButton ( val );
 		});
 		app.listenFor ('RequestResize', function () {
 			if (!el) return ;

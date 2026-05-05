@@ -30,6 +30,7 @@ const assets = [
 	'./favicon.ico',
 	'./eq.html',
 	'./sp.html',
+	'./mix.html',
 	'./test.mp3'
 
 ];
