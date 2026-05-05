@@ -279,6 +279,52 @@
 
 		q.getState = cloneState;
 
+		function ExportSession ( name ) {
+			if (!clips.length) {
+				OneUp ('Nothing to save', 1200);
+				return false;
+			}
+			if (!app.amss || !app.amss.ExportMultitrack ||
+				!app.amss.ExportMultitrack ( name, cloneState () ))
+			{
+				OneUp ('Could not save session', 1400);
+				return false;
+			}
+			OneUp ('Saved session', 1000);
+			return true;
+		}
+
+		function LoadSessionBuffer ( buf, name ) {
+			if (!app.amss || !app.amss.IsBuffer || !app.amss.IsBuffer ( buf ))
+				return false;
+
+			app.fireEvent ('WillDownloadFile');
+			try {
+				var st = app.amss.DecodeMultitrack ( buf );
+				if (!st) throw 0;
+				editing_clip = null;
+				app.fireEvent ('StateRequestClearAll');
+				Toggle ( true );
+				restoreState ( st );
+				app.fireEvent ('DidUpdateMultitrack');
+				OneUp ('Loaded session' + (name ? ': ' + name : ''), 1200);
+			}
+			catch (e) {
+				OneUp ('Could not load session', 1400);
+			}
+			app.fireEvent ('DidDownloadFile');
+			return true;
+		}
+
+		function LoadSessionFiles ( files ) {
+			return !!(app.amss &&
+				app.amss.ReadFile &&
+				app.amss.ReadFile (files && files[0], function ( b, n ) {
+					if (!LoadSessionBuffer ( b, n ))
+						OneUp ('Could not load session', 1400);
+				}));
+		}
+
 		function duration () {
 			var dur = 30;
 			for (var i = 0; i < clips.length; ++i) {
@@ -2341,6 +2387,7 @@
 
 		function addFiles ( file_list, track_id, start ) {
 			if (!file_list || !file_list.length) return ;
+			if (LoadSessionFiles ( file_list )) return ;
 			var files = [];
 			for (var i = 0; i < file_list.length; ++i)
 				files.push ( file_list[i] );
@@ -3873,6 +3920,9 @@
 		}
 
 		q.IsOn = IsOn;
+		q.ExportSession = ExportSession;
+		q.LoadSessionBuffer = LoadSessionBuffer;
+		q.LoadSessionFiles = LoadSessionFiles;
 		q.AddFilesAuto = function ( file_list ) {
 			if (!file_list || !file_list.length) return false;
 			if (file_list.length > 1) {

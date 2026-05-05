@@ -236,6 +236,14 @@
 												}
 											}
 
+											if (format === 'amss')
+											{
+												var mt = activeMultitrackFor ( app );
+												if (mt) mt.ExportSession ( value );
+												q.Destroy ();
+												return ;
+											}
+
 											if (format == 'flac')
 											{
 												kbps = document.getElementById('flac-comp').value / 1;
@@ -258,6 +266,8 @@
 									'<label for="k02">wav <i>(44100hz)</i></label>' +
 									'<input type="radio" class="pk_check" id="k03" name="frmtex" value="flac">'+  
 									'<label for="k03">flac</i></label>' +
+									'<input type="radio" class="pk_check" id="k04" name="frmtex" value="amss">'+
+									'<label class="pk_amss" for="k04">session</label>' +
 									'</div>' +
 
 									'<div class="pk_row" id="frmtex-mp3"><input type="radio" class="pk_check" id="k1" name="rdslnc" checked value="128">'+ 
@@ -287,7 +297,6 @@
 									  setup:function( q ) {
 											var wv = PKAudioEditor.engine.wavesurfer;
 											var mt_on = activeMultitrackFor ( app );
-											//console.log( document.getElementById('frmtex') );
 
 								  		// if no region
 										var region = activeRegionFor ( app );
@@ -316,6 +325,14 @@
 									  		var format = document.getElementById('frmtex');
 									  		var mp3conf = document.getElementById('frmtex-mp3');
 									  		var flacconf = document.getElementById('frmtex-flac');
+											var amss = q.el_body.getElementsByClassName ('pk_amss')[0];
+											if (!mt_on && amss) {
+												amss.style.display = 'none';
+												document.getElementById ('k04').style.display = 'none';
+											}
+											function setExt ( ext ) {
+												inputtxt.value = inputtxt.value.replace (/\.(mp3|wav|flac|amss)$/i, '') + ext;
+											}
 
 											document.getElementById('flac-comp').oninput = function() {
 												this.parentNode.getElementsByTagName('span')[0].innerText = this.value;
@@ -331,19 +348,25 @@
 														{
 															mp3conf.style.display = 'block';
 															flacconf.style.display = 'none';
-															inputtxt.value = inputtxt.value.replace('.wav', '.mp3').replace('.flac', '.mp3');
+															setExt ('.mp3');
 														}
 														else if (inputs[i].value === 'flac')
 														{
 															mp3conf.style.display = 'none';
 															flacconf.style.display = 'block';
-															inputtxt.value = inputtxt.value.replace('.mp3', '.flac').replace('.wav', '.flac');
+															setExt ('.flac');
+														}
+														else if (inputs[i].value === 'amss')
+														{
+															mp3conf.style.display = 'none';
+															flacconf.style.display = 'none';
+															setExt ('.amss');
 														}
 														else
 														{
 															mp3conf.style.display = 'none';
 															flacconf.style.display = 'none';
-															inputtxt.value = inputtxt.value.replace('.mp3', '.wav').replace('.flac', '.wav');
+															setExt ('.wav');
 														}
 													}
 												}
@@ -3255,10 +3278,6 @@
 
 		var _appEl = d.getElementById('app');
 
-		// When in multitrack mode, route drops outside the multitrack lanes
-		// to the first empty channel (or a new one). Lane/track drop handlers
-		// in multitrack.js call stopPropagation, so this only fires for drops
-		// elsewhere on the page.
 		_appEl.addEventListener('dragover', function ( e ) {
 			var mt = PKAudioEditor && PKAudioEditor.multitrack;
 			if (mt && mt.IsOn && mt.IsOn ()) {
@@ -3282,9 +3301,16 @@
 			mt.AddFilesAuto ( e.dataTransfer.files );
 		}, true);
 
-		dragNDrop( _appEl, 'pk_overlay', function ( e ) {
+		dragNDrop( _appEl, 'pk_overlay', function ( e, name ) {
 			var mt = PKAudioEditor && PKAudioEditor.multitrack;
 			if (mt && mt.IsOn && mt.IsOn ()) return ;
+			if (mt && mt.LoadSessionBuffer) {
+				if (mt.LoadSessionBuffer ( e, name )) return ;
+				if (/\.amss$/i.test (name || '')) {
+					OneUp ('Could not load session', 1400);
+					return ;
+				}
+			}
 			PKAudioEditor.engine.LoadArrayBuffer ( new Blob([e]) );
 		}, 'arrayBuffer' );
 

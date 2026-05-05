@@ -766,10 +766,14 @@
 
 				input = d.createElement( 'input' );
 				input.setAttribute ('type', 'file');
-				input.setAttribute ('accept', 'audio/*');
+				input.setAttribute ('accept', 'audio/*,.amss');
 				input.className = 'pk_inpfile';
 				input.onchange = function () {
-					if (app.fireEvent ('RequestLoadPickedFiles', input.files) !== true)
+					if (app.multitrack &&
+						app.multitrack.LoadSessionFiles &&
+						app.multitrack.LoadSessionFiles ( input.files ))
+					{}
+					else if (app.fireEvent ('RequestLoadPickedFiles', input.files) !== true)
 						q.LoadFile ( input );
 
 					input.parentNode.removeChild( input );

@@ -24,6 +24,7 @@ const assets = [
 	'./local.js',
 	'./id3.js',
 	'./lzma.js',
+	'./amss-format.js',
 	'./lame.js',
 	'./fonts/icomoon.ttf',
 	'./fonts/icomoon.woff',
