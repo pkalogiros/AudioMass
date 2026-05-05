@@ -26,6 +26,7 @@
 		var play_sync = 0;
 		var render_raf = 0;
 		var throttle_wheel = 0;
+		var throttle_follow = 0;
 		var rec_raf = 0;
 		var rec_redraw = 0;
 		var scroll_sync = false;
@@ -2471,6 +2472,21 @@
 			return clip;
 		}
 
+		function fxClipPart ( clip ) {
+			var c = clipIn ( clip );
+			var a = c;
+			var b = clipOut ( clip );
+			if (region) {
+				var x = Math.max (a, region.start - clip.start + c);
+				var y = Math.min (b, region.end - clip.start + c);
+				if (y - x >= 0.005) {
+					a = x;
+					b = y;
+				}
+			}
+			return {buffer:clip.buffer, in:a, out:b};
+		}
+
 		function fxName ( id ) {
 			var map = {
 				GAIN: 'Gain',
@@ -2542,7 +2558,8 @@
 			if (fx_preview) return stopFxPreview ();
 
 			var ctx = audioCtx ();
-			var buffer = copyClipBuffer ( clip );
+			var part = fxClipPart ( clip );
+			var buffer = copyClipBuffer ( part );
 			var source = ctx.createBufferSource ();
 			var fx = app.engine.GetFX (
 				name,
@@ -2588,9 +2605,11 @@
 			var prev = cloneState ();
 			var src = clip.buffer;
 			var rate = src.sampleRate;
-			var from = Math.max (0, (clipIn ( clip ) * rate) >> 0);
-			var segment = copyClipBuffer ( clip );
+			var part = fxClipPart ( clip );
+			var from = Math.max (0, (clipIn ( part ) * rate) >> 0);
+			var segment = copyClipBuffer ( part );
 			var old_len = segment.length;
+			var old_out = clipOut ( clip );
 			var new_len = old_len;
 			var fx_val = val;
 			var Ctx = w.OfflineAudioContext || w.webkitOfflineAudioContext;
@@ -2611,7 +2630,7 @@
 				if (findClip ( clip.id ) !== clip) return ;
 
 				clip.buffer = replaceBufferSegment ( src, from, old_len, rendered );
-				clip.out = clipIn ( clip ) + (rendered.length / rate);
+				clip.out = old_out + ((rendered.length - old_len) / rate);
 				disconnectFx ( filter );
 				fx.destroy && fx.destroy ();
 				try { source.disconnect (); } catch (e) {}
@@ -3292,10 +3311,23 @@
 				sum += play.meter[i] * play.meter[i];
 			var rms = Math.sqrt (sum / play.meter.length);
 			var db = rms > 0.00001 ? 20 * Math.log (rms) / Math.LN10 : -100;
-			app.fireEvent ('DidAudioProcess', [cursor, [db, db], w.performance.now ()]);
+			var stamp = w.performance.now ();
+			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp]);
 			updateMixerMeters ( meterAt (cursor), db );
 			updatePlayhead ();
+			followPlayback ( stamp );
 			raf = w.requestAnimationFrame ( tick );
+		}
+
+		function followPlayback ( stamp ) {
+			if (!main || GetZoomFactor () <= 1 || active_drag ||
+				(app.ui.InteractionHandler && app.ui.InteractionHandler.on))
+				return ;
+			if (stamp - throttle_follow < 50) return ;
+			var x = cursor * px_per_sec - main.scrollLeft;
+			if (x < main.clientWidth / 2 || x > main.clientWidth) return ;
+			throttle_follow = stamp;
+			CenterToCursor ();
 		}
 
 		function Pause () {
