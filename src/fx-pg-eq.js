@@ -2667,6 +2667,10 @@
 					var remaining = 0;
 					var debounce = false;
 
+					var showEditor = function () {
+						app.fireEvent ('RequestOriginalEditor');
+					};
+
 					temp_buffers = [];
 					newbuff = null;
 
@@ -3028,6 +3032,7 @@
 							debounce = false;
 						}, 150);
 
+						showEditor ();
 						app.engine.wavesurfer.backend._add = 0;
 						app.engine.LoadDB ({
 							samplerate: sample_rate,
@@ -3050,6 +3055,7 @@
 							debounce = false;
 						}, 150);
 
+						showEditor ();
 						app.engine.wavesurfer.backend._add = 1;
 						app.engine.LoadDB ({
 							samplerate: sample_rate,

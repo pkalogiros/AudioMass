@@ -868,6 +868,7 @@
 												app.fls.GetSession (name, function ( e ) {
 													if(e && e.id === name )
 													{
+														app.fireEvent ('RequestOriginalEditor');
 														app.engine.wavesurfer.backend._add = append ? 1 : 0;
 														app.engine.LoadDB ( e );
 													}

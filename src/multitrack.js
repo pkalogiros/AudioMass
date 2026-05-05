@@ -3962,6 +3962,9 @@
 			return false;
 		};
 
+		app.listenFor ('RequestOriginalEditor', function () {
+			if (IsOn ()) Toggle ( false );
+		});
 		app.listenFor ('StateDidPop', function ( state, undo ) {
 			if (state.type !== 'multitrack') return ;
 			restoreState ( state.mt );
