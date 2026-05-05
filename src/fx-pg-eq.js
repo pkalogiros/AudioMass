@@ -1384,9 +1384,6 @@
 				}
 				// break;
 			}
-
-			console.log(unique_distances);
-
 			// grab only the big peaks.
 
 			function getmax (a) {
@@ -2391,10 +2388,7 @@
 
 					// ----
                     var ret = _group_rhythm ( new_arr, diff_arr );
-                    if (!ret) {
-                    	console.log ("something weird happened, error 244");
-                    	return ;
-                    }
+                    if (!ret) return ;
 
                     var distances = ret[0];
 
@@ -2407,15 +2401,12 @@
                     	dist_rhythm[ k ] += distances[ k ];
                     }
 
-                     
-                    console.log ( distances );
                     // console.log( ' ---------------- ' );
                     // console.log ('--------- END OF PASS -------  ',  offset, ' / ', duration);
 
                     if (next_offset + look_ahead >= duration) {
 
                     	 // Done... 
-                    	 console.log ( dist_rhythm );
                     } else {
                    // 	_pass ( rendered_buffer, next_offset, duration );
                     }
@@ -2425,9 +2416,7 @@
 
 				var offline_renderer = audio_ctx.startRendering(); 
 				if (offline_renderer)
-					offline_renderer.then( offline_callback ).catch(function(err) {
-						console.log('Rendering failed: ' + err);
-					});
+					offline_renderer.then( offline_callback ).catch(function() {});
 				else
 					audio_ctx.oncomplete = function ( e ) {
 						offline_callback ( e.renderedBuffer );

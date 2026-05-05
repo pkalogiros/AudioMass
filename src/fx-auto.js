@@ -430,8 +430,6 @@
 			var offline_callback = function( rendered_buffer ) {
 						q.rbuff = rendered_buffer;
 
-						debugger;
-
 						// var img = new Image();
 						// img.src = q.app.engine.GetWave (rendered_buffer, 500, 200);
 
@@ -440,9 +438,7 @@
 			};
 			var offline_renderer = audio_ctx.startRendering(); 
 			if (offline_renderer)
-				offline_renderer.then( offline_callback ).catch(function(err) {
-					console.log('Rendering failed: ' + err);
-				});
+				offline_renderer.then( offline_callback ).catch(function() {});
 			else
 				audio_ctx.oncomplete = function ( e ) {
 					offline_callback ( e.renderedBuffer );
