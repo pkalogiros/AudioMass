@@ -39,6 +39,8 @@
 		var edge_pan_ev = null;
 		var edge_pan_update = null;
 		var clip_copy = null;
+		var timeline_on = !app.engine || !app.engine.wavesurfer ||
+			app.engine.wavesurfer.params.timeline !== false;
 
 		var el = null;
 		var side = null;
@@ -737,6 +739,12 @@
 			var visible = Math.max (1, main ? main.clientWidth : (ruler.clientWidth || width));
 			var ratio = w.devicePixelRatio || 1;
 			ruler_left = left;
+
+			if (!timeline_on) {
+				if (ruler.firstChild) ruler.innerHTML = '';
+				ruler_canvas = null;
+				return ;
+			}
 
 			if (app.ui && app.ui.drawTimelineRuler) {
 				if (!ruler_canvas) {
@@ -4164,6 +4172,10 @@
 		});
 		app.listenFor ('DidToggleFreqAn', function ( url, val ) {
 			if (url === 'mix') updateMixerButton ( val );
+		});
+		app.listenFor ('DidViewTimelineToggle', function ( val ) {
+			timeline_on = !!val;
+			redrawRuler ();
 		});
 		app.listenFor ('DidSetClipboard', function () {
 			clip_copy = null;

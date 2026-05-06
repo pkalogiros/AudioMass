@@ -3021,12 +3021,10 @@
 
 		
 		app.listenFor ('RequestViewTimelineToggle', function () {
-			if (!q.is_ready) return ;
-
 			var val = !wavesurfer.params.timeline ;
 			wavesurfer.params.timeline = val;
 
-			wavesurfer.ForceDraw ();
+			if (q.is_ready) wavesurfer.ForceDraw ();
 
 			app.fireEvent ( 'DidViewTimelineToggle', val );
 		});
