@@ -575,11 +575,12 @@
 					value = auto.GetValue ();
 				} else {
 					var inputs = q.el_body.getElementsByTagName('input');
-					value[0] = {val:inputs[0].value / 1};
-					value[1] = {val:inputs[1].value / 1};
-					value[2] = {val:inputs[2].value / 1};
-					value[3] = {val:inputs[3].value / 1};
-					value[4] = {val:inputs[4].value / 1};
+					value[0] = {val:+inputs[0].value};
+					value[1] = {val:+inputs[1].value};
+					value[2] = {val:+inputs[2].value};
+					value[3] = {val:+inputs[3].value};
+					value[4] = {val:+inputs[4].value};
+					value[5] = {val:+inputs[5].value};
 				}
 
 				ret = {
@@ -587,7 +588,8 @@
 					knee:  value[1],
 					ratio:  value[2],
 					attack:  value[3],
-					release:  value[4]
+					release:  value[4],
+					makeup: value[5]
 				};
 
 				return (ret);
@@ -604,20 +606,20 @@
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 			},
 				presets:[
-					{name:'Vocal — Lead',val:'-18,6,3,0.005,0.15'},
-					{name:'Vocal — Broadcast',val:'-20,2,4,0.003,0.1'},
-					{name:'Drum Bus Glue',val:'-10,3,2,0.03,0.3'},
-					{name:'Snare Punch',val:'-15,1,4,0.001,0.06'},
-					{name:'Kick Tighten',val:'-12,2,4,0.01,0.1'},
-					{name:'Bass Even-Out',val:'-15,4,3,0.015,0.15'},
-					{name:'Acoustic Smooth',val:'-18,6,2.5,0.01,0.15'},
-					{name:'Master Glue',val:'-8,6,1.5,0.03,0.3'},
-					{name:'Parallel Crush',val:'-30,0,8,0.002,0.1'},
-					{name:'Brickwall Limit',val:'-3,0,20,0.001,0.05'},
-					{name:'Classic 3:1',val:'-18,6,3,0.01,0.1'},
-					{name:'Light Touch',val:'-12,2,2,0.005,0.08'},
-					{name:'Classic',val:'-40,5,7,0.002,0.1'},
-					{name:'Dashed Distortion',val:'-45,26,2.05,0.233,0.0'}
+					{name:'Vocal — Lead',val:'-18,6,3,0.005,0.15,6'},
+					{name:'Vocal — Broadcast',val:'-20,2,4,0.003,0.1,7.5'},
+					{name:'Drum Bus Glue',val:'-10,3,2,0.03,0.3,2.5'},
+					{name:'Snare Punch',val:'-15,1,4,0.001,0.06,5.5'},
+					{name:'Kick Tighten',val:'-12,2,4,0.01,0.1,4.5'},
+					{name:'Bass Even-Out',val:'-15,4,3,0.015,0.15,5'},
+					{name:'Acoustic Smooth',val:'-18,6,2.5,0.01,0.15,5.5'},
+					{name:'Master Glue',val:'-8,6,1.5,0.03,0.3,1.5'},
+					{name:'Heavy Crush',val:'-30,0,8,0.002,0.1,8'},
+					{name:'Brickwall Limit',val:'-3,0,20,0.001,0.05,1.5'},
+					{name:'Classic 3:1',val:'-18,6,3,0.01,0.1,6'},
+					{name:'Light Touch',val:'-12,2,2,0.005,0.08,3'},
+					{name:'Classic',val:'-40,5,7,0.002,0.1,12'},
+					{name:'Dashed Distortion',val:'-45,26,2.05,0.233,0.0,0'}
 				],
 				custom_pres:custom_presets.Get (filter_id),
 			preview: function ( q ) {
@@ -660,6 +662,10 @@
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.001" value="0.25" />'+
 				'<span class="pk_val">0.25</span></div>'+
 
+				'<div class="pk_row"><label class="pk_line">Makeup</label>' +
+				'<input class="pk_horiz" type="range" min="-12" max="24" step="0.1" value="0" />'+
+				'<span class="pk_val">0.0 dB</span></div>'+
+
 				'<div class="pk_row pk_grmtr_r" style="border:none"><label class="pk_line">Reduction</label>' +
 				'<div class="pk_grmtr"><div class="pk_grmtr_f"></div></div>'+
 				'<span class="pk_val pk_grmtr_v">0.0 dB</span></div>',
@@ -668,12 +674,13 @@
 				var inputs = q.el_body.getElementsByTagName ('input');
 				for (var i = 0; i < inputs.length; ++i)
 				{
-				  inputs[i].oninput = function () {
-					  var span = this.parentNode.getElementsByTagName ('span')[0];
-					  span.innerHTML = (this.value/1).toFixed (3);
-					  
+				  (function (k) {
+					inputs[k].oninput = function () {
+					  var v = +this.value;
+					  this.nextElementSibling.firstChild.nodeValue = k === 5 ? v.toFixed (1) + ' dB' : v.toFixed (3);
 					  updateFilter ();
-				  };
+					};
+				  })(i);
 				}
 
 				//var graph_btn = q.el_body.getElementsByTagName  ('a')[0];
@@ -694,20 +701,22 @@
 				}, [27]);
 
 				// Gain reduction meter — reads compressor.reduction during preview
-				var grFill = q.el_body.getElementsByClassName ('pk_grmtr_f')[0];
-				var grVal  = q.el_body.getElementsByClassName ('pk_grmtr_v')[0];
+				var gF = q.el_body.getElementsByClassName ('pk_grmtr_f')[0];
+				var gV = q.el_body.getElementsByClassName ('pk_grmtr_v')[0].firstChild;
+				var lr = NaN;
 				function tickGR () {
 					q._grRAF = requestAnimationFrame (tickGR);
-					var host = app.engine && app.engine.FXPreviewHost;
-					var node = host && host.PreviewFilter;
-					var r = 0;
-					if (host && host.previewing && node) {
-						r = node.reduction;
+					var h = app.engine && app.engine.FXPreviewHost, n = h && h.PreviewFilter, r = 0;
+					if (h && h.previewing && n) {
+						var c = n.length ? n[0] : n;
+						r = c.reduction;
 						if (typeof r !== 'number') r = (r && r.value) || 0;
 					}
-					var pct = Math.min (100, Math.max (0, (-r) / 20 * 100));
-					grFill.style.width = pct + '%';
-					grVal.innerHTML = r.toFixed (1) + ' dB';
+					if (r === lr) return;
+					lr = r;
+					var p = -r * 5; if (p > 100) p = 100; else if (p < 0) p = 0;
+					gF.style.width = p + '%';
+					gV.nodeValue = r.toFixed (1) + ' dB';
 				}
 				tickGR ();
 				// ---

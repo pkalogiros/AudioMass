@@ -1020,52 +1020,37 @@
 				};
 			},
 			
-			Compressor : function ( val ) {
-				return {
-					filter : function ( audio_ctx, destination, source, duration ) {
-						var compressor = audio_ctx.createDynamicsCompressor ();
-
-						for (var k in val)
-						{
-							if (val[k].length)
-							{
-								for (var i = 0; i < val[k].length; ++i)
-								{
-									var curr = val[k][i];
-									compressor[k].linearRampToValueAtTime (curr.val, audio_ctx.currentTime + curr.time);
-								}
+			Compressor : (function () {
+				var P = ['threshold','knee','ratio','attack','release'];
+				function ap (n, ac, v) {
+					for (var i = 0; i < 5; ++i) {
+						var k = P[i], x = v[k]; if (!x) continue;
+						if (x.length) {
+							for (var j = 0; j < x.length; ++j) {
+								var c = x[j];
+								n[k].linearRampToValueAtTime (c.val, ac.currentTime + c.time);
 							}
-							else
-							{
-								compressor[k].setValueAtTime ( val[k].val, audio_ctx.currentTime );
-							}
-						}
-
-						compressor.connect (destination);
-						source.connect (compressor);
-
-						return (compressor);
-					},
-					update : function ( compressor, audio_ctx, val ) {
-						for (var k in val)
-						{
-							if (val[k].length)
-							{
-								for (var i = 0; i < val[k].length; ++i)
-								{
-									var curr = val[k][i];
-									compressor[k].linearRampToValueAtTime (curr.val, audio_ctx.currentTime + curr.time);
-								}
-							}
-							else
-							{
-								compressor[k].setValueAtTime ( val[k].val, audio_ctx.currentTime );
-							}
-						}
-						// ---
+						} else n[k].setValueAtTime (x.val, ac.currentTime);
 					}
+				}
+				function mkv (v) { return v && v.val !== undefined ? v.val : 0; }
+				function l (d) { return Math.pow (10, d / 20); }
+				return function ( val ) {
+					return {
+						filter : function ( ac, dst, src ) {
+							var c = ac.createDynamicsCompressor (), g = ac.createGain ();
+							ap (c, ac, val);
+							g.gain.value = l (mkv (val.makeup));
+							src.connect (c); c.connect (g); g.connect (dst);
+							return [c, g];
+						},
+						update : function ( ch, ac, v ) {
+							ap (ch[0], ac, v);
+							ch[1].gain.value = l (mkv (v.makeup));
+						}
+					};
 				};
-			},
+			})(),
 
 			Reverse : function ( val ) {
 				return {

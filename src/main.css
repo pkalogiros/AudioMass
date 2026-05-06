@@ -1508,6 +1508,10 @@ input,textarea{-webkit-touch-callout:none}
 	.pk_modal.pk_bigger{min-width:auto;width:calc(100vw - 24px)}
 	.pk_modal_cnt{padding:20px 10px}
 	.pk_modal_main{padding:0 10px 48px}
+	.pk_modal.pk_bigger .pk_row label.pk_line{width:70px}
+	.pk_modal.pk_bigger .pk_horiz,
+	.pk_modal.pk_bigger .pk_grmtr{max-width:145px}
+	.pk_modal.pk_bigger .pk_val{padding:4px 8px}
 
 	.pk_frqan,.pk_peq{width:calc(100vw - 32px);max-width:380px}
 	.pk_mixwin{max-width:calc(100vw - 32px)}
