@@ -57,12 +57,12 @@
 			aggr_i = 0;
 		}
 
-		function pushInput ( input ) {
+		function pushInput ( input, owned ) {
 			if (!capture_opts || !capture_opts.ondata || !input) return ;
 
 			var size = capture_opts.chunkSize || buffer_size;
 			if (input.length === size && !aggr_i) {
-				capture_opts.ondata ( input );
+				capture_opts.ondata ( owned ? input : input.slice (0) );
 				return ;
 			}
 			if (!aggr || aggr.length !== size) aggr = new Float32Array ( size );
@@ -94,7 +94,7 @@
 			);
 			recorder_node = script_processor;
 			script_processor.onaudioprocess = function ( ev ) {
-				pushInput ( ev.inputBuffer.getChannelData (0).slice (0) );
+				pushInput ( ev.inputBuffer.getChannelData (0) );
 			};
 			connectNode ();
 		}
@@ -108,7 +108,7 @@
 			});
 			recorder_node._pk_wk = true;
 			recorder_node.port.onmessage = function ( ev ) {
-				if (ev.data !== 0) pushInput ( ev.data );
+				if (ev.data !== 0) pushInput ( ev.data, true );
 			};
 			connectNode ();
 		}
@@ -199,7 +199,7 @@
 						did = true;
 						finishCapture ( done );
 					}
-					else pushInput ( ev.data );
+					else pushInput ( ev.data, true );
 				};
 				recorder_node.port.postMessage (0);
 				w.setTimeout(function () {
@@ -263,6 +263,7 @@
 			if (audio_context.currentTime === 0) {
 				app.engine.wavesurfer.backend.source.start (0);
 				app.engine.wavesurfer.backend.source.stop (0);
+				app.engine.wavesurfer.backend.createSource ();
 			}
 
 			sample_rate = _sample_rate || (

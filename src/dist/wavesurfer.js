@@ -6800,7 +6800,11 @@ var WebAudio = function (_util$Observer) {
             this.scheduledPause = null;
 
             this.startPosition += this.getPlayedTime();
-            this.source && this.source.stop(0);
+            if (this.source) {
+                try {
+                    this.source.stop(0);
+                } catch (e) {}
+            }
 
             this.setState(PAUSED);
 
