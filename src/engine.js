@@ -3,7 +3,7 @@
 
 	function PKEng ( app ) {
 		var q = this;
-		
+
 		var wavesurfer = WaveSurfer.create ({
 			container: '#' + 'pk_av_' + app.id,
 			scrollParent: false,
@@ -28,7 +28,7 @@
 		var AudioUtils = new app._deps.audioutils ( app, wavesurfer );
 		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
-		
+
 		this.TrimTo = function( val, num ) {
 			var nums = {'0':1, '1':10, '2':100,'3':1000,'4':10000,'5':100000};
 			var dec = nums[num];
@@ -117,7 +117,7 @@
 
 			wavesurfer.backend._add = 0;
 			func ();
-			// --- 
+			// ---
 		};
 
 		this.LoadDB = function ( e ) {
@@ -180,7 +180,7 @@
 										if (wavesurfer.arraybuffer) q.is_ready = true;
 
 										app.fireEvent ('RequestResize');
-										setTimeout(function() { 
+										setTimeout(function() {
 											app.fireEvent ('DidDownloadFile');
 										}, 12);
 										app.stopListeningForName ('RequestCancelModal');
@@ -238,7 +238,7 @@
 							wavesurfer.backend._add = 0;
 							func ();
 
-							// ----					
+							// ----
 				}
 			}
 			};
@@ -285,7 +285,7 @@
 		this.LoadSample = function () {
 
 			app.fireEvent ('WillDownloadFile');
-			
+
 			setTimeout(function () {
 
 				app.listenFor ('RequestCancelModal', function() {
@@ -387,7 +387,7 @@
 					      final_data[curr_time + sample] = inputData[sample];
 
 					      // add noise to each output sample
-					      // outputData[sample] += ((Math.random() * 2) - 1) * 0.2;         
+					      // outputData[sample] += ((Math.random() * 2) - 1) * 0.2;
 					    }
 					  }
 				};
@@ -571,7 +571,7 @@
 				});
 				wavesurfer.regions.list[0].loop = true;
 			}
-			
+
 			var will_loop = wavesurfer.regions.list[0].loop;
 			app.fireEvent('DidSetLoop', will_loop);
 			if (will_loop && !skip_seek /*&& wavesurfer.isPlaying ()*/) {
@@ -750,7 +750,7 @@
 				e.preventDefault();
 			}
 		},false);
-		
+
 		// select all... ####
 		app.listenFor ('RequestSelect', function( ifnot, custom ) {
 			if (!q.is_ready) return ;
@@ -768,11 +768,11 @@
 					end:wavesurfer.getDuration() - 0.00,
 					id:'t'
 				});
-				
+
 				if (!wavesurfer.isPlaying ())
 				setTimeout(function () {
 					app.fireEvent ('RequestSeekTo', 0.00);
-				},0);	
+				},0);
 			}
 			else
 			{
@@ -784,14 +784,14 @@
 				if (!wavesurfer.isPlaying ())
 				setTimeout(function () {
 					app.fireEvent ('RequestSeekTo', custom[0]/wavesurfer.getDuration ());
-				},0);	
+				},0);
 			}
 		});
 		app.listenFor ('RequestDeselect', function() {
 			wavesurfer.regions.clear ();
 			app.fireEvent ('RequestSeekTo', 0);
 		});
-		
+
 		(function() {
 			var input = null;
 			app.listenFor ('RequestLoadLocalFile', function () {
@@ -824,20 +824,20 @@
 				input.click ();
 			});
 		})();
-		
+
 		wavesurfer.container.addEventListener('dblclick', function(e){
-			app.fireEvent ('RequestSelect', false, 
+			app.fireEvent ('RequestSelect', false,
 				[ wavesurfer.LeftProgress,
 				wavesurfer.LeftProgress + wavesurfer.VisibleDuration ]
 			);
 		}, false);
 		wavesurfer.container.addEventListener ('click', function( e ) {
 			if (!q.is_ready) return ;
-			
+
 			if (!app.ui.KeyHandler.keyMap[16])
 				wavesurfer.regions.clear();
 		}, false);
-		
+
 		var dbncr = null;
 		w.addEventListener('resize', function() {
 			if (!wavesurfer) return ;
@@ -883,7 +883,7 @@
 		wavesurfer.on('audioprocess', function ( time, stamp ) {
 			// var time = wavesurfer.getCurrentTime();
 			var loudness = wavesurfer.getLoudness();
-		
+
 			app.fireEvent ('DidAudioProcess', [time, loudness, stamp], wavesurfer.backend.FreqArr);
 		});
 		wavesurfer.on('DidZoom', function ( e ) {
@@ -931,7 +931,7 @@
 
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
-			
+
 			var copybuffer = AudioUtils.Copy (
 				start,
 				end
@@ -1032,7 +1032,7 @@
 			ctx.fillStyle = "#000";
 			ctx.fillRect ( 0, 0, width, height );
 			ctx.fillStyle = '#99c2c6';
-			
+
 			ctx.beginPath ();
 	        ctx.moveTo ( 0, half_height );
 
@@ -1057,7 +1057,7 @@
 
 		app.listenFor ('RequestActionCut', function ( use_clipboard ) {
 			if (!q.is_ready) return ;
-			
+
 			var region = wavesurfer.regions.list[0];
 			if (!region) return (false);
 
@@ -1082,7 +1082,7 @@
 			if (tmp < 0) tmp = 0;
 
 			app.fireEvent ('RequestSeekTo', tmp / wavesurfer.getDuration ());
-			
+
 			if (use_clipboard) {
 				copy_buffer = cutbuffer;
 
@@ -1103,10 +1103,10 @@
 			eel.appendChild( imm );
 			*/
 		});
-		
+
 		app.listenFor ('RequestActionCopy', function () {
 			if (!q.is_ready) return ;
-			
+
 			var region = wavesurfer.regions.list[0];
 			if (!region) return (false);
 
@@ -1114,7 +1114,7 @@
 
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
-			
+
 			var copybuffer = AudioUtils.Copy (
 				start,
 				end
@@ -1126,7 +1126,7 @@
 
 			OneUp ('Copied range');
 		});
-		
+
 		app.listenFor ('RequestActionSilence', function ( offset, silence_duration ) {
 			if (!q.is_ready) return ;
 
@@ -1134,7 +1134,7 @@
 
 			var region = wavesurfer.regions.list[0];
 			var dims = [ 0, 0 ];
-			
+
 			if (!silence_duration || silence_duration < 0) silence_duration = 1;
 
 			function handleStateInline ( start, end ) {
@@ -1150,7 +1150,7 @@
 
 			handleStateInline ( start, end );
 			dims = AudioUtils.Insert (
-				offset, 
+				offset,
 				AudioUtils.MakeSilence ( silence_duration )
 			);
 
@@ -1163,7 +1163,7 @@
 			});
 
 			app.fireEvent ('RequestSeekTo', (dims[0]/wavesurfer.getDuration()));
-			
+
 			OneUp ('Inserted Silence');
 		});
 
@@ -1183,10 +1183,10 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				var offset = q.TrimTo (wavesurfer.getCurrentTime(), 3);
-				
+
 				handleStateInline ( offset );
 				dims = AudioUtils.Insert ( offset, copy_buffer );
 			}
@@ -1228,7 +1228,7 @@
 
 				return ;
 			}
-			
+
 			if (app.rec.isActive ()) {
 				app.fireEvent('RequestActionRecordStop');
 			} else {
@@ -1304,7 +1304,7 @@
 			else
 				app.rec.setEndingOffset ( wavesurfer.getDuration () * wavesurfer.backend.buffer.sampleRate );
 		});
-		
+
 		app.listenFor ('RequestActionFX_PREVIEW_HardLimit', function ( val ) {
 			if (!q.is_ready) return ;
 			if (AudioUtils.previewing) {
@@ -1324,7 +1324,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1333,7 +1333,7 @@
 		});
 		app.listenFor ('RequestActionFX_HardLimit', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1346,7 +1346,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1355,19 +1355,19 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.HardLimit ( val ) );
-			
+
 			OneUp ('Applied Hard Limit (fx)');
 		});
-		
+
 		app.listenFor ('RequestActionFX_PARAMEQ', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1380,7 +1380,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1389,13 +1389,13 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.ParametricEQ ( val ) );
-			
+
 			OneUp ('Applied Parametric EQ (fx)');
 		});
 		app.listenFor ('RequestActionFX_PREVIEW_PARAMEQ', function ( val ) {
@@ -1417,7 +1417,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1444,7 +1444,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1453,7 +1453,7 @@
 		});
 		app.listenFor ('RequestActionFX_DISTORT', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1466,7 +1466,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1475,13 +1475,13 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Distortion ( val ) );
-			
+
 			OneUp ('Applied Distortion (fx)');
 		});
 
@@ -1504,7 +1504,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1513,7 +1513,7 @@
 		});
 		app.listenFor ('RequestActionFX_DELAY', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1526,7 +1526,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1535,13 +1535,13 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Delay ( val ) );
-			
+
 			OneUp ('Applied Delay (fx)');
 		});
 
@@ -1564,7 +1564,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1573,7 +1573,7 @@
 		});
 		app.listenFor ('RequestActionFX_REVERB', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1586,7 +1586,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1595,13 +1595,13 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Reverb ( val ) );
-			
+
 			OneUp ('Applied Reverb (fx)');
 		});
 
@@ -1624,7 +1624,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1634,7 +1634,7 @@
 
 		app.listenFor ('RequestActionFX_Compressor', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1647,7 +1647,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1656,18 +1656,52 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Compressor ( val ) );
-			
+
 			OneUp ('Applied Compressor (fx)');
+		});
+		function previewNormalize ( val, fx ) {
+			if (!q.is_ready || !val) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+
+			var region = wavesurfer.regions.list[0];
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+
+			AudioUtils.FXPreview( start, end, fx ( val ) );
+			app.fireEvent ('DidStartPreview');
+		}
+		app.listenFor ('RequestActionFX_PREVIEW_Normalize', function ( val ) {
+			previewNormalize ( val, AudioUtils.FXBank.Normalize );
+		});
+		app.listenFor ('RequestActionFX_PREVIEW_NormalizeRMS', function ( val ) {
+			previewNormalize ( val, AudioUtils.FXBank.NormalizeRMS );
+		});
+		app.listenFor ('RequestActionFX_PREVIEW_NormalizeLUFS', function ( val ) {
+			previewNormalize ( val, AudioUtils.FXBank.NormalizeLUFS );
 		});
 		app.listenFor ('RequestActionFX_Normalize', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1680,7 +1714,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1689,19 +1723,105 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3)
 			var end = q.TrimTo ((region.end - region.start), 3)
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Normalize ( val ) );
-			
+
 			OneUp ('Applied Normalize');
+		});
+		app.listenFor ('RequestActionFX_Loudness', function ( done ) {
+			if (!q.is_ready) {
+				done && done (null);
+				return ;
+			}
+
+			var region = wavesurfer.regions.list[0];
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+
+			done && done (AudioUtils.Loudness (start, end));
+		});
+		app.listenFor ('RequestActionFX_NormalizeRMS', function ( val ) {
+			if (!q.is_ready) return ;
+
+			app.fireEvent('RequestPause');
+
+			var region = wavesurfer.regions.list[0];
+
+			function handleStateInline ( start, end ) {
+				app.fireEvent ('StateRequestPush', {
+					desc : 'Normalize RMS ',
+					meta : [ start, end ],
+					data : wavesurfer.backend.buffer
+				});
+			}
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+
+			handleStateInline ( start, end );
+			AudioUtils.FX( start, end, AudioUtils.FXBank.NormalizeRMS ( val ) );
+
+			OneUp ('Applied RMS Normalize');
+		});
+		app.listenFor ('RequestActionFX_NormalizeLUFS', function ( val ) {
+			if (!q.is_ready) return ;
+
+			app.fireEvent('RequestPause');
+
+			var region = wavesurfer.regions.list[0];
+
+			function handleStateInline ( start, end ) {
+				app.fireEvent ('StateRequestPush', {
+					desc : 'Normalize LUFS ',
+					meta : [ start, end ],
+					data : wavesurfer.backend.buffer
+				});
+			}
+
+			if (!region) {
+				wavesurfer.regions.add({
+					start:0.00,
+					end:wavesurfer.getDuration() - 0.00,
+					id:'t'
+				});
+				region = wavesurfer.regions.list[0];
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+
+			handleStateInline ( start, end );
+			AudioUtils.FX( start, end, AudioUtils.FXBank.NormalizeLUFS ( val ) );
+
+			OneUp (val && val.limited ? 'Applied LUFS Normalize (ceiling limited)' : 'Applied LUFS Normalize');
 		});
 
 		app.listenFor ('RequestActionFX_Invert', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1714,7 +1834,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1723,19 +1843,19 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3)
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Invert() );
-			
+
 			OneUp ('Applied Invert');
 		});
 
 		app.listenFor ('RequestActionFX_RemSil', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -1748,7 +1868,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -1757,7 +1877,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3)
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -1922,7 +2042,7 @@
 
 		app.listenFor ('RequestActionFX_Flip', function ( val, val2 ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var start = 0;
@@ -2008,7 +2128,7 @@
 
 		app.listenFor ('RequestActionFX_Reverse', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2021,7 +2141,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -2030,13 +2150,13 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3)
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.Reverse() );
-			
+
 			OneUp ('Applied Reverse');
 		});
 
@@ -2090,7 +2210,7 @@
 
 		app.listenFor ('RequestActionFX_FadeIn', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2103,7 +2223,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -2112,18 +2232,18 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.FadeIn() );
-			
+
 			OneUp ('Applied Fade In (fx)');
 		});
 		app.listenFor ('RequestActionFX_FadeOut', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2136,7 +2256,7 @@
 					data : wavesurfer.backend.buffer
 				});
 			}
-			
+
 			if (!region) {
 				wavesurfer.regions.add({
 					start:0.00,
@@ -2145,21 +2265,21 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			handleStateInline ( start, end );
 			AudioUtils.FX( start, end, AudioUtils.FXBank.FadeOut() );
-			
+
 			OneUp ('Applied Fade Out (fx)');
 		});
-		
-		
+
+
 		var fx_preview_debounce = null;
 		app.listenFor ('RequestActionFX_UPDATE_PREVIEW', function ( val ) {
 			if (!AudioUtils.previewing) return ;
-			
+
 			clearTimeout (fx_preview_debounce);
 			fx_preview_debounce = setTimeout(function () {
 				AudioUtils.FXPreviewUpdate ( val );
@@ -2203,13 +2323,13 @@
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			AudioUtils.FXPreview( start, end, AudioUtils.FXBank.Gain( val ) );
-			
+
 			app.fireEvent ('DidStartPreview');
 		});
 
 		app.listenFor ('RequestActionFX_GAIN', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2231,7 +2351,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
@@ -2265,13 +2385,13 @@
 			var end = q.TrimTo ((region.end - region.start), 3);
 
 			AudioUtils.FXPreview( start, end, AudioUtils.FXBank.Speed( val ) );
-			
+
 			app.fireEvent ('DidStartPreview');
 		});
 
 		app.listenFor ('RequestActionFX_RATE', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2293,7 +2413,7 @@
 				});
 				region = wavesurfer.regions.list[0];
 			}
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 			var duration = (region.end - region.start) / val;
@@ -2434,7 +2554,7 @@
 				  }
 				}
 				*/
-			  
+
 			  return output;
 			};
 
@@ -2455,7 +2575,7 @@
 				// Optionally, if you need an AudioBuffer from the stretchedSamples:
 				// const offlineCtx = new OfflineAudioContext(stretchedSamples.length, stretchedSamples[0].length, fx_buffer.sampleRate);
 				const newBuffer = audio_ctx.createBuffer(stretchedSamples.length, stretchedSamples[0].length, fx_buffer.sampleRate);
-				
+
 				for (let i = 0; i < stretchedSamples.length; ++i) {
 					newBuffer.copyToChannel(stretchedSamples[i], i);
 				}
@@ -2495,7 +2615,7 @@
 				app.ui.InteractionHandler.on = false;
 			};
 
-			var offline_renderer = audio_ctx.startRendering(); 
+			var offline_renderer = audio_ctx.startRendering();
 			if (offline_renderer)
 				offline_renderer.then( offline_callback ).catch(function(err) {
 					console.log('Rendering failed: ' + err);
@@ -2545,7 +2665,7 @@
 
 		app.listenFor ('RequestActionFX_SPEED', function ( val ) {
 			if (!q.is_ready) return ;
-			
+
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
@@ -2568,7 +2688,7 @@
 				region = wavesurfer.regions.list[0];
 			}
 
-			
+
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 			var duration = (region.end - region.start) / val;
@@ -2638,7 +2758,7 @@
 				app.ui.InteractionHandler.on = false;
 			};
 
-			var offline_renderer = audio_ctx.startRendering(); 
+			var offline_renderer = audio_ctx.startRendering();
 			if (offline_renderer)
 				offline_renderer.then( offline_callback ).catch(function(err) {
 					console.log('Rendering failed: ' + err);
@@ -2648,7 +2768,7 @@
 					offline_callback ( e.renderedBuffer );
 				};
 		});
-		
+
 		app.listenFor ('StateDidPop', function ( state, undo ) {
 			if (state.type === 'multitrack') return ;
 			if (!q.is_ready) return ;
@@ -2678,13 +2798,13 @@
 					app.fireEvent ('RequestSeekTo', (state.meta[0]/new_durr));
 				}
 			}
-			
+
 			if (undo) OneUp ('Undo ' + state.desc);
 			else OneUp ('Redo ' + state.desc);
 		});
 
 
-		// --- 
+		// ---
 		app.listenFor ('RequestChanToggle', function ( chan_index, force_val ) {
 			if (!q.is_ready) return (false);
 
@@ -2744,7 +2864,7 @@
 		wavesurfer.on( 'cursorcenter', function ( e ) {
 			app.fireEvent ('DidCursorCenter', e, wavesurfer.ZoomFactor);
 		});
-		
+
 			var wave = wavesurfer.drawer.wrapper || wavesurfer.drawer.canvases[0].wave.parentNode;
 
 			var drag_x = 0;
@@ -2888,7 +3008,7 @@
 			wave.addEventListener ('wheel', waveWheel, {capture:true, passive:false});
 			wave.addEventListener ('gesturestart', gestureStart, {passive:false});
 			wave.addEventListener ('gesturechange', gestureChange, {passive:false});
-		
+
 		app.listenFor ('RequestZoom', function ( diff, mode ) {
 			var wv = wavesurfer;
 
@@ -2906,7 +3026,7 @@
 				 var old_zoomfactor = wv.ZoomFactor;
 				 wv.ZoomFactor += (diff*target)/available_pixels;
 				 if (wv.ZoomFactor < 1) wv.ZoomFactor = 1;
-				 
+
 				 var new_vis_dur = wv.getDuration() / wv.ZoomFactor;
 
 				 if (new_vis_dur <= 0.5)
@@ -2916,10 +3036,10 @@
 				 }
 
 				 wv.VisibleDuration = new_vis_dur;
-				 
+
 				var time_moved = wv.VisibleDuration * (diff / wv.drawer.width);
 				wv.LeftProgress += time_moved;
-				
+
 				if (wv.LeftProgress + wv.VisibleDuration >= wv.getDuration ())
 				{
 					wv.LeftProgress = wv.getDuration () - wv.VisibleDuration;
@@ -2935,7 +3055,7 @@
 				var target = wv.ZoomFactor - 1;
 				if (target <= 0) return ;
 
-				var old_factor = wv.ZoomFactor; 
+				var old_factor = wv.ZoomFactor;
 				wv.ZoomFactor -= (diff*target)/available_pixels;
 				if (wv.ZoomFactor < 1) wv.ZoomFactor = 1;
 				var temp = wv.getDuration() / wv.ZoomFactor;
@@ -2954,7 +3074,7 @@
 				}
 				// -
 			}
-			
+
 			// wv.ZoomFactor -= Math.abs (diff / (wv.drawer.width / 2));
 			// console.log( diff + " BLAH " + wv.ZoomFactor + '   ' +  (diff / wv.drawer.width) );
 				queueViewportDraw ();
@@ -2977,7 +3097,7 @@
 				// drag and draw by X pixels...
 				var time_moved = wv.VisibleDuration * (diff / wv.drawer.width);
 				wv.LeftProgress += time_moved;
-				
+
 				if (wv.LeftProgress + wv.VisibleDuration >= wv.getDuration ())
 				{
 					wv.LeftProgress = wv.getDuration () - wv.VisibleDuration;
@@ -2989,17 +3109,17 @@
 					queueViewportDraw ();
 				}
 			});
-		
+
 
 		wave.addEventListener ('mousedown', function( e ) {
 			if (e.which === 3) {
 				e.preventDefault();
-				
+
 				wavesurfer.Interacting |= (1 << 1);
 
 				drag_x = e.clientX;
 				wave.className = 'pk_grabbing';
-				
+
 				document.addEventListener ('mousemove', drag_move, false);
 				return (false);
 			} else {
@@ -3058,7 +3178,7 @@
 			app.fireEvent ( 'DidViewPeakSeparatorToggle', val );
 		});
 
-		
+
 		app.listenFor ('RequestViewTimelineToggle', function () {
 			var val = !wavesurfer.params.timeline ;
 			wavesurfer.params.timeline = val;
@@ -3109,7 +3229,7 @@
 				//console.log( window.performance.now() - ttt );
 				// console.log( tags );
             }
-            else if (bytes[4] === 102 && bytes[5] === 116 && bytes[6] === 121 && 
+            else if (bytes[4] === 102 && bytes[5] === 116 && bytes[6] === 121 &&
             	bytes[7] === 112 && bytes[8] === 77 && bytes[9] === 52) {
 
             	tags = ID4.ReadTags ( arraybuffer );

@@ -241,7 +241,7 @@
 				}
 
 				q.act_point.time = duration * rel_x;
-				q.act_point.val  = ((1 - rel_y) * q.act.max - q.act.min) + q.act.min; 
+				q.act_point.val  = ((1 - rel_y) * (q.act.max - q.act.min)) + q.act.min;
 
 				q.Render ();
 

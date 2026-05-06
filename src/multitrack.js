@@ -12,11 +12,11 @@
 		var selected_clip = null;
 		var editing_clip = null;
 		var default_px_per_sec = 86;
-		var default_row_h = app.isMobile ? 130 : 88;
-		var min_track_h = app.isMobile ? 74 : 58;
+		var default_row_h = app.isMobile ? 134 : 88;
+		var min_track_h = app.isMobile ? 78 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
-		var snap_px = 8;
+		var snap_px = 9;
 		var row_h = default_row_h;
 		var cursor = 0;
 		var marker = 0;
@@ -2944,6 +2944,14 @@
 			try { filter.disconnect && filter.disconnect (); } catch (e2) {}
 		}
 
+		function setFxPreviewMeter ( filter, on ) {
+			var host = app.engine && app.engine.FXPreviewHost;
+			if (!host) return ;
+
+			host.MTPreviewFilter = filter || null;
+			host.MTPreviewing = !!on;
+		}
+
 		function selectedFxClip () {
 			var clip = findClip ( selected_clip );
 			if (!clip) OneUp ('Select a waveform box first', 1200);
@@ -2974,8 +2982,11 @@
 				FadeOut: 'FadeOut',
 				HardLimit: 'HardLimit',
 				PARAMEQ: 'ParametricEQ',
+				COMPRESSOR: 'Compressor',
 				Compressor: 'Compressor',
 				Normalize: 'Normalize',
+				NormalizeRMS: 'NormalizeRMS',
+				NormalizeLUFS: 'NormalizeLUFS',
 				DELAY: 'Delay',
 				DISTORT: 'Distortion',
 				REVERB: 'Reverb',
@@ -2996,6 +3007,8 @@
 				ParametricEQ: 'Parametric EQ',
 				Compressor: 'Compressor',
 				Normalize: 'Normalize',
+				NormalizeRMS: 'RMS Normalize',
+				NormalizeLUFS: 'LUFS Normalize',
 				Delay: 'Delay',
 				Distortion: 'Distortion',
 				Reverb: 'Reverb',
@@ -3021,6 +3034,7 @@
 			try { fx_preview.wet.disconnect (); } catch (e4) {}
 			disconnectFx ( fx_preview.filter );
 			fx_preview.fx && fx_preview.fx.destroy && fx_preview.fx.destroy ();
+			setFxPreviewMeter ( null, false );
 			fx_preview = null;
 			if (!silent) app.fireEvent ('DidStopPreview');
 			return true;
@@ -3040,6 +3054,20 @@
 		function toggleFxPreview ( val ) {
 			setFxPreviewOn ( val === undefined ? !fx_preview_on : !!val );
 			app.fireEvent ('DidTogglePreview', fx_preview_on);
+			return true;
+		}
+
+		function analyzeFxLoudness ( done ) {
+			var clip = selectedFxClip ();
+			var lufs = app._deps && app._deps.lufs;
+
+			if (!clip || !lufs) {
+				done && done (null);
+				return true;
+			}
+
+			var part = clipRegionPart ( clip );
+			done && done (lufs.analyze (copyClipBuffer ( part )));
 			return true;
 		}
 
@@ -3065,7 +3093,7 @@
 			wet.connect ( ctx.destination );
 			dry.connect ( ctx.destination );
 			source.connect ( dry );
-			filter = fx.filter ( ctx, wet, source, buffer.duration );
+			filter = fx.filter ( ctx, wet, source, buffer.duration, true );
 			fx_preview = {
 				source: source,
 				filter: filter,
@@ -3074,6 +3102,7 @@
 				wet: wet,
 				dry: dry
 			};
+			setFxPreviewMeter ( filter, true );
 			setFxPreviewOn ( fx_preview_on );
 			source.onended = function () {
 				if (fx_preview && fx_preview.source === source)
@@ -3098,6 +3127,7 @@
 			);
 			if (host && host.PreviewFilter !== fx_preview.filter)
 				fx_preview.filter = host.PreviewFilter;
+			setFxPreviewMeter ( fx_preview.filter, true );
 			try { fx_preview.source.connect ( fx_preview.dry ); } catch (e) {}
 			setFxPreviewOn ( fx_preview_on );
 			return true;
@@ -3146,7 +3176,9 @@
 				queuePlayRefresh ( true );
 				render ();
 				app.fireEvent ('DidUpdateMultitrack');
-				OneUp ('Applied ' + fxLabel ( name ) + ' (fx)');
+				OneUp (name === 'NormalizeLUFS' && val && val.limited ?
+					'Applied LUFS Normalize (ceiling limited) (fx)' :
+					'Applied ' + fxLabel ( name ) + ' (fx)');
 			}
 
 			var ret = ctx.startRendering ();
@@ -4221,12 +4253,12 @@
 			if (!rec || rec.stopping) return ;
 			var r = rec;
 			r.stopping = true;
+			if (rec_raf) {
+				w.cancelAnimationFrame ( rec_raf );
+				rec_raf = 0;
+			}
 			app.rec.stopCapture (function () {
 				rec = null;
-				if (rec_raf) {
-					w.cancelAnimationFrame ( rec_raf );
-					rec_raf = 0;
-				}
 
 				app.fireEvent ('DidActionRecordStop', !!r.buffers.length);
 				if (!r.buffers.length) {
@@ -4459,6 +4491,9 @@
 			if (id === 'RequestActionFX_UPDATE_PREVIEW') {
 				updateFxPreview ( arg1 );
 				return false;
+			}
+			if (id === 'RequestActionFX_Loudness') {
+				return analyzeFxLoudness ( arg1 );
 			}
 			if (fxEventName (id, true)) {
 				return previewFx ( fxEventName (id, true), arg1 );

@@ -168,6 +168,10 @@
 				app.stopListeningFor ('DidSetPresets', q._updatePresets);
 				app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
 				app.stopListeningFor ('RequestSetPresetActive',  q._updpreset);
+				if (q._upd_t) {
+					w.clearTimeout ( q._upd_t );
+					q._upd_t = 0;
+				}
 
 				app.fireEvent ('RequestActionFX_PREVIEW_STOP');
 
@@ -215,43 +219,36 @@
 				  el.firstChild.nodeValue = val ? 'ON' : 'OFF';
 			  };
 
-			  var stopped_listening = false;
-			  q._updpreview = function ( val ) {
-					var sel_opt = q.el_presets.options[q.el_presets.selectedIndex];
-				  	var btn = q.el.getElementsByClassName('pk_sel_edt')[0];
+				  q._updpreview = function ( val ) {
+						var sel_opt = q.el_presets.options[q.el_presets.selectedIndex];
+						var btn = q.el.getElementsByClassName('pk_sel_edt')[0];
 
-				  	if (val === 't')
-				  	{
-				  		if (sel_opt && sel_opt.getAttribute('data-custom')) {
-							btn.style.visibility = 'visible';
-							btn.style.opacity = '1';
-							app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
-				  		}
-				  		else
-				  		{
-							btn.style.visibility = 'hidden';
-							btn.style.opacity = '0';
+						if (val === 't')
+						{
+							if (q._upd_t) w.clearTimeout ( q._upd_t );
+							q._upd_t = 0;
+							if (sel_opt && sel_opt.getAttribute('data-custom')) {
+								btn.style.visibility = 'visible';
+								btn.style.opacity = '1';
+								app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
+							}
+							else
+							{
+								btn.style.visibility = 'hidden';
+								btn.style.opacity = '0';
+								app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
+								q._upd_t = w.setTimeout(function (){
+									q._upd_t = 0;
+									app.listenFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
+								}, 100);
+							}
+							return ;
+						}
 
-							app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
-
-							//if (stopped_listening)
-							//{
-								setTimeout(function (){
-				  					app.listenFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
-				  				}, 100);
-				  				stopped_listening = false;
-							//}
-				  		}
-						return ;
-				  	}
-
-					// if (sel_opt && sel_opt.getAttribute('data-custom')) {
-					btn.style.visibility = 'visible';
-					btn.style.opacity = '1';
-					stopped_listening = true;
-					app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
-					// }
-			  };
+						btn.style.visibility = 'visible';
+						btn.style.opacity = '1';
+						app.stopListeningFor ('RequestActionFX_UPDATE_PREVIEW',  q._updpreview);
+				  };
 
 			  q._updpreset = function ( fx_id, preset_id ) {
 			  	  if (fx_id && fx_id !== q.id) {

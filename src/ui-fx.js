@@ -124,7 +124,7 @@
 
 			app.fireEvent('RequestPause');
 
-			// mark the region as 
+			// mark the region as
 			region.element.style.background = 'red';
 
 			var reg = {
@@ -205,7 +205,7 @@
 					}
 				}
 			  ],
-			  body:'<div class="pk_row" style="border:none"><label>Gain percentage</label>' + 
+			  body:'<div class="pk_row" style="border:none"><label>Gain percentage</label>' +
 				'<input type="range" class="pk_horiz" min="0.0" max="2.5" step="0.01" value="1.0" />'+
 				'<span class="pk_val">100%</span></div>' +
 				'<div class="pk_row" style="border:none;padding:0">',
@@ -277,7 +277,7 @@
 					}
 				}
 			  ],
-			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' + 
+			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' +
 				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.05" value="1.0" />'+
 				'<span class="pk_val">1.0</span></div>',
 			  setup:function( q ) {
@@ -288,12 +288,12 @@
 					span.innerHTML = range.value;
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', range.value/1);
 				  };
-				  
+
 				  app.fireEvent ('RequestPause');
 				  app.ui.InteractionHandler.checkAndSet (modal_name);
-				   
+
 				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
-				  	if (!app.ui.InteractionHandler.check (modal_name)) return ;
+					if (!app.ui.InteractionHandler.check (modal_name)) return ;
 
 				    q.Destroy ();
 				  }, [27]);
@@ -344,7 +344,7 @@
 					}
 				}
 			  ],
-			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' + 
+			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' +
 				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.05" value="1.0" />'+
 				'<span class="pk_val">1.0</span></div>',
 			  setup:function( q ) {
@@ -355,12 +355,12 @@
 					span.innerHTML = range.value;
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', range.value/1);
 				  };
-				  
+
 				  app.fireEvent ('RequestPause');
 				  app.ui.InteractionHandler.checkAndSet (modal_name);
-				   
+
 				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
-				  	if (!app.ui.InteractionHandler.check (modal_name)) return ;
+					if (!app.ui.InteractionHandler.check (modal_name)) return ;
 
 				    q.Destroy ();
 				  }, [27]);
@@ -430,63 +430,63 @@
 
 					'<div class="pk_row">'+
 					'<input type="checkbox" class="pk_check pk_c_mm" id="xmm" name="makeMono">'+
-					'<label for="xmm">Make Mono</label></div>' + 
+					'<label for="xmm">Make Mono</label></div>' +
 			  		'<div class="pk_row" style="padding-left:30px">' +
 					'<input type="radio" class="pk_check pk_c_c" id="kf6" name="chnl" value="left">'+
 					'<label class="pk_dis" for="kf6">Left Channel</label>'+
 					'<input type="radio" class="pk_check pk_c_c" id="kf7" name="chnl" value="right">'+
 					'<label class="pk_dis" for="kf7">Right Channel</label>'+
-					'</div>'+ 
+					'</div>'+
 
 					'<div class="pk_row"><input type="checkbox" class="pk_check pk_c_fl" id="xfc" name="flipChn">'+
-					'<label for="xfc">Flip Channels</label></div>' + 
+					'<label for="xfc">Flip Channels</label></div>' +
 					'</div>' +
 
 					'<div class="pk_row pk_ms" style="border:none;display:none">'+
 						'<div class="pk_row"><input type="checkbox" class="pk_check pk_c_ms" id="xms" checked name="makeStereo">'+
-						'<label for="xms">Make Stereo</label></div>' + 
+						'<label for="xms">Make Stereo</label></div>' +
 					'</div>',
 			  setup:function( q ) {
 			  	  var main = null;
 				  var num = PKAudioEditor.engine.wavesurfer.backend.buffer.numberOfChannels;
 				  if (num === 2)
 				  {
-				  	mode = 1;
-				  	main = q.el_body.getElementsByClassName('pk_mm')[0];
-				  	
-				  	var mono  = main.getElementsByClassName('pk_c_mm')[0];
-				  	var flip  = main.getElementsByClassName('pk_c_fl')[0];
-				  	var chans = main.getElementsByClassName('pk_c_c');
-				  	var tmp   = main.getElementsByClassName('pk_dis');
-				  	var lbls  = [tmp[0], tmp[1]];
+					mode = 1;
+					main = q.el_body.getElementsByClassName('pk_mm')[0];
 
-				  	mono.onchange = function( e ) { 
-				  		if (mono.checked) {
-				  			flip.checked = false;
-				  			chans[0].checked = true;
-				  			lbls[0].className = '';
-				  			lbls[1].className = '';
-				  		}
-				  		else {
-				  			chans[0].checked = false;
-				  			chans[1].checked = false;
-				  			lbls[0].className = 'pk_dis';
-				  			lbls[1].className = 'pk_dis';
-				  		}
-				  	};
+					var mono  = main.getElementsByClassName('pk_c_mm')[0];
+					var flip  = main.getElementsByClassName('pk_c_fl')[0];
+					var chans = main.getElementsByClassName('pk_c_c');
+					var tmp   = main.getElementsByClassName('pk_dis');
+					var lbls  = [tmp[0], tmp[1]];
 
-				  	flip.onchange = function( e ) {
-				  		if (flip.checked) {
-				  			mono.checked = false;
-				  			mono.onchange ();
-				  		}
-				  	};
+					mono.onchange = function( e ) {
+						if (mono.checked) {
+							flip.checked = false;
+							chans[0].checked = true;
+							lbls[0].className = '';
+							lbls[1].className = '';
+						}
+						else {
+							chans[0].checked = false;
+							chans[1].checked = false;
+							lbls[0].className = 'pk_dis';
+							lbls[1].className = 'pk_dis';
+						}
+					};
+
+					flip.onchange = function( e ) {
+						if (flip.checked) {
+							mono.checked = false;
+							mono.onchange ();
+						}
+					};
 
 				  }
 				  else
 				  {
-				  	mode = 2;
-				  	main = q.el_body.getElementsByClassName('pk_ms')[0];
+					mode = 2;
+					main = q.el_body.getElementsByClassName('pk_ms')[0];
 				  }
 
 				  main.style.display = 'block';
@@ -496,7 +496,7 @@
 				  app.fireEvent ('RequestPause');
 				  app.ui.InteractionHandler.checkAndSet (modal_name);
 				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
-				  	if (!app.ui.InteractionHandler.check (modal_name)) return ;
+					if (!app.ui.InteractionHandler.check (modal_name)) return ;
 				    q.Destroy ();
 				  }, [27]);
 			  }
@@ -533,7 +533,7 @@
 					}
 				}
 			  ],
-			  body:'<div class="pk_row"><input type="radio" class="pk_check" id="ifeq" name="rdslnc" value="beginning">'+ 
+			  body:'<div class="pk_row"><input type="radio" class="pk_check" id="ifeq" name="rdslnc" value="beginning">'+
 				'<label  for="ifeq">Insert silence at beginning</label><br/>' +
 				'<input type="radio" class="pk_check"  id="vgdja" name="rdslnc" checked value="cursor">'+
 				'<label for="vgdja">Insert silence at current cursor (<span class="pkcdpk"></span>)</label></div>'+
@@ -632,29 +632,29 @@
 				{
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
-					callback: function( q ) {		
+					callback: function( q ) {
 						var inputs = q.el_body.getElementsByTagName('input');
 						var val = getvalue ( q );
-						
+
 						app.fireEvent ('RequestActionFX_Compressor', val);
 
 						q.Destroy ();
 					}
 				}
 			  ],
-			  body:'<div class="pk_row"><label class="pk_line">Threshold</label>' + 
+			  body:'<div class="pk_row"><label class="pk_line">Threshold</label>' +
 				'<input class="pk_horiz" type="range" min="-100" max="0" step="0.1" value="-24.0" />'+
 				'<span class="pk_val">-24.0</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Knee</label>' + 
+				'<div class="pk_row"><label class="pk_line">Knee</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="40.0" step="0.01" value="30.0" />'+
 				'<span class="pk_val">30.0</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Ratio</label>' + 
+				'<div class="pk_row"><label class="pk_line">Ratio</label>' +
 				'<input class="pk_horiz" type="range" min="1.0" max="20.0" step="0.01" value="12.0" />'+
 				'<span class="pk_val">12.0</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Attack</label>' + 
+				'<div class="pk_row"><label class="pk_line">Attack</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.001" value="0.003" />'+
 				'<span class="pk_val">0.003</span></div>'+
 
@@ -687,7 +687,7 @@
 				//graph_btn.onclick = function () {
 				//		auto = new PKAudioEditor._deps.FxAUT (PKAudioEditor, q);
 				//};
-				
+
 				function updateFilter() {
 					var val = getvalue ( q );
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
@@ -707,7 +707,8 @@
 				function tickGR () {
 					q._grRAF = requestAnimationFrame (tickGR);
 					var h = app.engine && app.engine.FXPreviewHost, n = h && h.PreviewFilter, r = 0;
-					if (h && h.previewing && n) {
+					if (h && h.MTPreviewing && h.MTPreviewFilter) n = h.MTPreviewFilter;
+					if (h && (h.previewing || h.MTPreviewing) && n) {
 						var c = n.length ? n[0] : n;
 						r = c.reduction;
 						if (typeof r !== 'number') r = (r && r.value) || 0;
@@ -729,47 +730,291 @@
 		app.listenFor ('RequestActionFXUI_Normalize', function () {
 			app.fireEvent ('RequestSelect', 1);
 
-			var x = new PKSimpleModal({
+			var getMode = function ( q ) {
+				return (q._normMode || 'peak');
+			};
+			var getTarget = function ( q ) {
+				var target = q.el_body.getElementsByClassName('pk_lufs_target')[0];
+				var custom = q.el_body.getElementsByClassName('pk_lufs_custom_v')[0];
+				return target.value === 'custom' ? custom.value / 1 : target.value.split ('|')[1] / 1;
+			};
+			var getCeiling = function ( q ) {
+				var target = q.el_body.getElementsByClassName('pk_lufs_target')[0];
+				var ceiling = q.el_body.getElementsByClassName('pk_lufs_ceil')[0];
+				return target.value === 'custom' ? ceiling.value / 1 : target.value.split ('|')[2] / 1;
+			};
+			var getValue = function ( q ) {
+				var mode = getMode (q);
+				if (mode === 'lufs') return (q._lufsNorm || null);
+				return [
+					q.el_body.getElementsByClassName('pk_norm_eq')[0].checked,
+					q.el_body.getElementsByClassName('pk_norm_amt')[0].value / 1
+				];
+			};
+			var fireFor = function ( mode, preview ) {
+				if (mode === 'lufs') return preview ? 'RequestActionFX_PREVIEW_NormalizeLUFS' : 'RequestActionFX_NormalizeLUFS';
+				if (mode === 'rms') return preview ? 'RequestActionFX_PREVIEW_NormalizeRMS' : 'RequestActionFX_NormalizeRMS';
+				return preview ? 'RequestActionFX_PREVIEW_Normalize' : 'RequestActionFX_Normalize';
+			};
+
+			var x = new PKAudioFXModal({
+			  id: 'normalize',
 			  title: 'Normalize',
+			  clss: 'pk_bigger',
 			  ondestroy: function( q ) {
+				clearTimeout (q._normPreviewTimer);
 				app.ui.InteractionHandler.on = false;
-				app.ui.KeyHandler.removeCallback ('modalTemp');
+				app.ui.KeyHandler.removeCallback (modal_esc_key);
+			  },
+			  preview: function ( q ) {
+				var val = getValue (q);
+				if (!val) return ;
+				app.fireEvent (fireFor (getMode (q), true), val);
 			  },
 			  buttons:[
 				{
-					title:'Normalize Audio',
+					title:'Apply',
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {
-						var input = q.el_body.getElementsByClassName('pk_horiz')[0];
-						var value = (input.value / 1);
-
-						var toggle = q.el_body.getElementsByClassName('pk_check')[0].checked;
-						app.fireEvent ('RequestActionFX_Normalize', [toggle, value]);
+						var mode = getMode (q);
+						var val = getValue (q);
+						if (!val) return ;
+						app.fireEvent (fireFor (mode), val);
 						q.Destroy ();
 					}
 				}
 			  ],
-			  body:'<div class="pk_row">'+
-			    '<input type="checkbox" id="vhcjgs" class="pk_check" name="normEqually">'+
-				'<label for="vhcjgs">Normalize L/R Equally</label></div>' + 
-				'<div class="pk_row" style="border:none"><label>Normalize to</label>'+
-				'<input type="range" min="0.0" max="2.0" class="pk_horiz" step="0.01" value="1.0" />'+
-				'<span class="pk_val">100%</span></div>',
+			  body:'<div class="pk_row pk_norm_modes"><label>Mode</label>'+
+				'<input type="radio" class="pk_check pk_norm_mode" id="pk_norm_peak" name="pk_norm_mode" value="peak" checked>'+
+				'<label for="pk_norm_peak">Peak</label>'+
+				'<input type="radio" class="pk_check pk_norm_mode" id="pk_norm_rms" name="pk_norm_mode" value="rms">'+
+				'<label for="pk_norm_rms">RMS</label>'+
+				'<input type="radio" class="pk_check pk_norm_mode" id="pk_norm_lufs" name="pk_norm_mode" value="lufs">'+
+				'<label for="pk_norm_lufs">LUFS</label></div>'+
+				'<div class="pk_norm_simple">'+
+				'<div class="pk_row">'+
+			    '<input type="checkbox" id="vhcjgs" class="pk_check pk_norm_eq" name="normEqually">'+
+				'<label for="vhcjgs">Normalize L/R Equally</label></div>' +
+				'<div class="pk_row pk_norm_rng" style="border:none"><label class="pk_norm_lbl">Normalize to</label>'+
+				'<input type="range" min="0.0" max="2.0" class="pk_horiz pk_w180 pk_norm_amt" step="0.01" value="1.0" />'+
+				'<span class="pk_val">100%</span></div></div>'+
+				'<div class="pk_norm_lufs" style="display:none">'+
+				'<div class="pk_row"><label>Target</label>'+
+				'<select class="pk_lufs_target">'+
+				'<optgroup label="Streaming">'+
+				'<option value="spotify|-14|-1">Spotify (-14 LUFS)</option>'+
+				'<option value="spotify-loud|-11|-1">Spotify Loud (-11 LUFS)</option>'+
+				'<option value="youtube|-14|-1">YouTube (-14 LUFS)</option>'+
+				'<option value="apple|-16|-1">Apple Music (-16 LUFS)</option>'+
+				'<option value="tidal|-14|-1">Tidal (-14 LUFS)</option>'+
+				'<option value="amazon|-14|-2">Amazon Music (-14 LUFS)</option>'+
+				'<option value="soundcloud|-14|-1">SoundCloud (-14 LUFS)</option>'+
+				'</optgroup>'+
+				'<optgroup label="Broadcast / Voice">'+
+				'<option value="podcast|-16|-1">Podcast (-16 LUFS)</option>'+
+				'<option value="ebu|-23|-1">Broadcast EBU R128 (-23 LUFS)</option>'+
+				'<option value="atsc|-24|-2">Broadcast ATSC A/85 (-24 LUFS)</option>'+
+				'</optgroup>'+
+				'<optgroup label="Other">'+
+				'<option value="club|-8|-0.3">Club / DJ Master (-8 LUFS)</option>'+
+				'<option value="custom">Custom</option>'+
+				'</optgroup>'+
+				'</select></div>'+
+				'<div class="pk_row pk_lufs_custom pk_lufs_rng" style="display:none"><label>Custom LUFS</label>'+
+				'<input type="range" class="pk_horiz pk_w180 pk_lufs_custom_v" min="-40" max="-6" value="-14" step="0.1">'+
+				'<span class="pk_val">-14.0</span></div>'+
+				'<div class="pk_row pk_lufs_rng"><label>Peak ceiling</label>'+
+				'<input type="range" class="pk_horiz pk_w180 pk_lufs_ceil" min="-6" max="0" value="-1" step="0.1">'+
+				'<span class="pk_val">-1.0 dBTP</span></div>'+
+				'<div class="pk_row" style="border:none"><label>Analysis</label>'+
+				'<span class="pk_lufs_out">Select LUFS to measure integrated loudness.</span></div>'+
+				'</div>',
 			  setup:function( q ) {
-				  var range = q.el_body.getElementsByClassName('pk_horiz')[0];
+				  var modes = q.el_body.getElementsByClassName('pk_norm_mode');
+				  var range = q.el_body.getElementsByClassName('pk_norm_amt')[0];
 				  var span = q.el_body.getElementsByClassName('pk_val')[0];
+				  var simple = q.el_body.getElementsByClassName('pk_norm_simple')[0];
+				  var lufs = q.el_body.getElementsByClassName('pk_norm_lufs')[0];
+				  var target = q.el_body.getElementsByClassName('pk_lufs_target')[0];
+				  var custom = q.el_body.getElementsByClassName('pk_lufs_custom')[0];
+				  var customVal = q.el_body.getElementsByClassName('pk_lufs_custom_v')[0];
+				  var ceiling = q.el_body.getElementsByClassName('pk_lufs_ceil')[0];
+				  var out = q.el_body.getElementsByClassName('pk_lufs_out')[0];
+				  var customOut = custom.getElementsByClassName('pk_val')[0];
+				  var ceilingOut = ceiling.parentNode.getElementsByClassName('pk_val')[0];
+				  var equally = q.el_body.getElementsByClassName('pk_norm_eq')[0];
+				  var applyBtn = q.els.bottom[0];
+
+				  function fmt (v) {
+					return isFinite (v) ? v.toFixed (1) : '-inf';
+				  }
+
+				  function signed (v) {
+					return (v > 0 ? '+' : '') + fmt (v);
+				  }
+
+				  function targetName () {
+					return target.options[target.selectedIndex].text.replace (/\s*\(.*/, '');
+				  }
+
+				  function syncCeiling () {
+					ceiling.value = getCeiling (q);
+					ceilingOut.innerHTML = (ceiling.value / 1).toFixed (1) + ' dBTP';
+				  }
+
+				  function syncApply () {
+					if (q._normMode === 'lufs') {
+						applyBtn.innerHTML = 'Apply: Match ' + fmt (getTarget (q)) + ' LUFS';
+						if (q._lufsNorm) applyBtn.classList.remove ('pk_inact');
+						else applyBtn.classList.add ('pk_inact');
+					}
+					else {
+						applyBtn.innerHTML = 'Apply';
+						applyBtn.classList.remove ('pk_inact');
+					}
+				  }
+
+				  function previewOn () {
+					return q.els && q.els.toolbar && q.els.toolbar[1] &&
+						q.els.toolbar[1].classList.contains ('pk_act');
+				  }
+
+					  function refreshPreview () {
+						if (!previewOn ()) return ;
+						clearTimeout (q._normPreviewTimer);
+						q._normPreviewTimer = setTimeout (function () {
+							var val = getValue (q);
+							if (!previewOn () || !val) return ;
+							app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
+						}, 60);
+					  }
+
+					  function restartPreview () {
+						if (!previewOn ()) return ;
+						clearTimeout (q._normPreviewTimer);
+						var val = getValue (q);
+						if (!val) return ;
+
+						app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+						setTimeout (function () {
+							if (q.els) app.fireEvent (fireFor (getMode (q), true), val);
+						}, 20);
+					  }
+
+				  function setSimpleMode () {
+					if (q._normMode === 'rms') {
+						range.min = -40; range.max = 0; range.step = 0.1; range.value = -18;
+						span.innerHTML = '-18.0 dBFS';
+					}
+					else {
+						range.min = 0; range.max = 2; range.step = 0.01; range.value = 1;
+						span.innerHTML = '100%';
+					}
+				  }
+
+				  function updateLufs () {
+					if (!q._lufsReport) return ;
+					var norm = app._deps.lufs.gainForTarget (q._lufsReport, getTarget (q), ceiling.value / 1);
+					q._lufsNorm = {
+						gain: norm.gain,
+						gainDb: norm.gainDb,
+						target: getTarget (q),
+						ceiling: ceiling.value / 1,
+						measuredLUFS: q._lufsReport.lufs,
+						expectedLUFS: norm.expectedLUFS,
+						expectedTruePeakDb: norm.expectedTruePeakDb,
+						limited: norm.limited
+					};
+					out.innerHTML =
+						'Source: ' + fmt (q._lufsReport.lufs) + ' LUFS, est. TP ' + fmt (q._lufsReport.truePeakDb) + ' dBTP<br>'+
+						'After: ' + fmt (norm.expectedLUFS) + ' LUFS, est. TP ' + fmt (norm.expectedTruePeakDb) + ' dBTP<br>'+
+						'<span class="' + (norm.limited ? 'pk_lufs_warn' : 'pk_lufs_note') + '">' +
+						'Gain ' + signed (norm.gainDb) + ' dB for ' + targetName () +
+						(norm.limited ? '; target is ceiling-limited.' : '.') +
+						'</span>';
+					syncApply ();
+					refreshPreview ();
+				  }
+
+				  function resetLufs () {
+					q._lufsReport = null;
+					q._lufsNorm = null;
+					out.innerHTML = 'Measuring...';
+					syncApply ();
+				  }
 
 				  range.oninput = function() {
-					span.innerHTML = (((range.value/1)*100) >> 0) + '%';
+					if (q._normMode === 'rms')
+						span.innerHTML = (range.value/1).toFixed (1) + ' dBFS';
+					else
+						span.innerHTML = (((range.value/1)*100) >> 0) + '%';
+					refreshPreview ();
+				  };
+					  equally.onchange = restartPreview;
+
+				  function setMode (val) {
+					q._normMode = val;
+					for (var i = 0; i < modes.length; ++i)
+						modes[i].checked = modes[i].value === val;
+					app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+					resetLufs ();
+					simple.style.display = val === 'lufs' ? 'none' : '';
+					lufs.style.display = val === 'lufs' ? '' : 'none';
+					if (val === 'lufs') q.AnalyzeLUFS ();
+					else setSimpleMode ();
+				  }
+
+				  for (var m = 0; m < modes.length; ++m)
+					modes[m].onchange = function () {
+						if (this.checked) setMode (this.value);
+					};
+				  target.onchange = function () {
+					custom.style.display = target.value === 'custom' ? '' : 'none';
+					syncCeiling ();
+					if (q._lufsReport) updateLufs ();
+					else q.AnalyzeLUFS ();
+				  };
+				  customVal.oninput = function () {
+					customOut.innerHTML = (customVal.value / 1).toFixed (1);
+					if (q._lufsReport) updateLufs ();
+					else q.AnalyzeLUFS ();
+				  };
+				  ceiling.oninput = function () {
+					ceilingOut.innerHTML = (ceiling.value / 1).toFixed (1) + ' dBTP';
+					if (q._lufsReport) updateLufs ();
+					else q.AnalyzeLUFS ();
 				  };
 
+				  q.AnalyzeLUFS = function () {
+					if (q._measuring) return ;
+					q._measuring = true;
+					q._lufsNorm = null;
+					syncApply ();
+					out.innerHTML = 'Measuring...';
+					setTimeout (function () {
+						app.fireEvent ('RequestActionFX_Loudness', function (report) {
+							q._measuring = false;
+							if (!report) {
+								out.innerHTML = 'Could not analyze audio.';
+								return ;
+							}
+							q._lufsReport = report;
+							updateLufs ();
+						});
+					}, 20);
+				  };
+				  custom.style.display = target.value === 'custom' ? '' : 'none';
+				  syncCeiling ();
+				  setMode ('peak');
+
 				  app.fireEvent ('RequestPause');
-				  app.ui.InteractionHandler.checkAndSet ('modal');
-					app.ui.KeyHandler.addCallback ('modalTemp', function ( e ) {
+				  app.ui.InteractionHandler.checkAndSet (modal_name);
+					app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
+						if (!app.ui.InteractionHandler.check (modal_name)) return ;
 						q.Destroy ();
 					}, [27]);
 			  }
-			});x.Show();
+			}, app);x.Show();
 		});
 
 
@@ -1044,7 +1289,7 @@
 				},
 			  body:
 				'<div class="pk_row"><input type="checkbox" class="pk_check" id="xighs" name="normEqually">'+
-				'<label for="xighs">Hard Limiting</label></div>' + 
+				'<label for="xighs">Hard Limiting</label></div>' +
 
 				'<div class="pk_row"><label>Limit to</label>'+
 				'<input type="range" min="0.1" max="1.0" class="pk_horiz pk_w180" step="0.01" value="0.99" />'+
@@ -1070,7 +1315,7 @@
 				},
 			  setup:function( q ) {
 				  var ranges = q.el_body.getElementsByClassName('pk_horiz');
-				  
+
 				  ranges[0].oninput = function() {
 					var span = this.parentNode.getElementsByTagName('span')[0];
 					span.innerHTML = (((this.value/1)*100) >> 0) + '%';
@@ -1148,24 +1393,24 @@
 				{
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
-					callback: function( q ) {		
+					callback: function( q ) {
 						var val = getvalue (q);
-						
+
 						app.fireEvent ('RequestActionFX_DELAY', val);
 
 						q.Destroy ();
 					}
 				}
 			  ],
-			  body:'<div class="pk_row"><label class="pk_line">Delay Time</label>' + 
+			  body:'<div class="pk_row"><label class="pk_line">Delay Time</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="6.0" step="0.01" value="0.28" />'+
 				'<span class="pk_val">0.28</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Feedback</label>' + 
+				'<div class="pk_row"><label class="pk_line">Feedback</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.01" value="0.5" />'+
 				'<span class="pk_val">0.5</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Wet</label>' + 
+				'<div class="pk_row"><label class="pk_line">Wet</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.01" value="0.4" />'+
 				'<span class="pk_val">0.4</span></div>',
 				//'<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
@@ -1176,7 +1421,7 @@
 				  inputs[i].oninput = function () {
 					  var span = this.parentNode.getElementsByTagName ('span')[0];
 					  span.innerHTML = (this.value/1).toFixed (3);
-					  
+
 					  updateFilter ();
 				  };
 				}
@@ -1187,7 +1432,7 @@
 				//};
 
 				function updateFilter() {
-					var val = getvalue (q);					
+					var val = getvalue (q);
 					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', val);
 				}
 
@@ -1239,7 +1484,7 @@
 				{
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
-					callback: function( q ) {		
+					callback: function( q ) {
 						var val = getvalue (q);
 						app.fireEvent ('RequestActionFX_DISTORT', val);
 
@@ -1247,7 +1492,7 @@
 					}
 				}
 			  ],
-			  body:'<div class="pk_row"><label class="pk_line">Gain</label>' + 
+			  body:'<div class="pk_row"><label class="pk_line">Gain</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="2.0" step="0.01" value="0.5" />'+
 				'<span class="pk_val">0.5</span></div>',
 				// '<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
@@ -1259,7 +1504,7 @@
 				  inputs[i].oninput = function () {
 					  var span = this.parentNode.getElementsByTagName ('span')[0];
 					  span.innerHTML = (this.value/1).toFixed (2);
-					  
+
 					  updateFilter ();
 				  };
 				}
@@ -1329,29 +1574,29 @@
 				{
 					title:'Apply',
 					clss:'pk_modal_a_accpt',
-					callback: function( q ) {		
+					callback: function( q ) {
 						var inputs = q.el_body.getElementsByTagName('input');
 						var val = {
 							time:     inputs[0].value/1,
 							decay:  inputs[1].value/1,
 							mix:       inputs[2].value/1
 						};
-						
+
 						app.fireEvent ('RequestActionFX_REVERB', val);
 
 						q.Destroy ();
 					}
 				}
 			  ],
-			  body:'<div class="pk_row"><label class="pk_line">Time</label>' + 
+			  body:'<div class="pk_row"><label class="pk_line">Time</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="3.0" step="0.01" value="0.3" />'+
 				'<span class="pk_val">0.3</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Decay</label>' + 
+				'<div class="pk_row"><label class="pk_line">Decay</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="3.0" step="0.01" value="0.05" />'+
 				'<span class="pk_val">0.05</span></div>'+
 
-				'<div class="pk_row"><label class="pk_line">Wet</label>' + 
+				'<div class="pk_row"><label class="pk_line">Wet</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.01" value="0.6" />'+
 				'<span class="pk_val">0.6</span></div>',
 			  setup:function( q ) {
@@ -1361,11 +1606,11 @@
 				  inputs[i].oninput = function () {
 					  var span = this.parentNode.getElementsByTagName ('span')[0];
 					  span.innerHTML = (this.value/1).toFixed (3);
-					  
+
 					  updateFilter ();
 				  };
 				}
-				
+
 				function updateFilter() {
 					var inputs = q.el_body.getElementsByTagName('input');
 					var val = {
@@ -1421,7 +1666,7 @@
 						}
 
 						str += '<div><span style="float:left" class="pk_id3ttl">Cover</span>' +
-								'<span><img style="max-width:340px" src="data:' + 
+								'<span><img style="max-width:340px" src="data:' +
 								image.format + ';base64,' + window.btoa(base64str) + '"/></span></div>';
 					}
 
@@ -1432,21 +1677,21 @@
 				  title:'ID3 Metatags Explorer',
 
 				  ondestroy: function( q ) {
-				  	app.ui.InteractionHandler.forceUnset (modal_id);
+					app.ui.InteractionHandler.forceUnset (modal_id);
 					app.ui.KeyHandler.removeCallback (modal_id + 'esc');
 				  },
 
 				  buttons:[
 				  ],
 				  body:'<input type="file" accept="audio/*" />'+
-				  	'<div class="pk_row pk_ttx">Choose file to view audio metatags!</div>',
+					'<div class="pk_row pk_ttx">Choose file to view audio metatags!</div>',
 				  setup:function( q ) {
-				  		var input  = q.el_body.getElementsByTagName ('input')[0];
-				  		var txt_el = q.el_body.getElementsByClassName ('pk_ttx')[0];
+						var input  = q.el_body.getElementsByTagName ('input')[0];
+						var txt_el = q.el_body.getElementsByClassName ('pk_ttx')[0];
 
-				  		input.onchange = function ( e ) {
+						input.onchange = function ( e ) {
 							var reader = new FileReader();
-							
+
 							reader.onload = function() {
 								var tags = PKAudioEditor.engine.ID3 (this.result);
 
@@ -1458,13 +1703,13 @@
 							};
 
 							reader.readAsArrayBuffer(this.files[0]);
-				  		};
+						};
 
-				  		if (current_tags) {
-				  			render_tags (txt_el, current_tags);
-				  		}
+						if (current_tags) {
+							render_tags (txt_el, current_tags);
+						}
 
-					  	app.ui.InteractionHandler.forceSet (modal_id);
+						app.ui.InteractionHandler.forceSet (modal_id);
 						app.ui.KeyHandler.addCallback (modal_id + 'esc', function ( e ) {
 							if (!app.ui.InteractionHandler.check (modal_id)) return ;
 							q.Destroy ();
@@ -1605,7 +1850,7 @@
 					  clss: is_new ? '' : 'pk_fnt10',
 
 					  ondestroy: function( q ) {
-					  	app.ui.InteractionHandler.forceUnset (modal_id);
+						app.ui.InteractionHandler.forceUnset (modal_id);
 
 						app.ui.KeyHandler.removeCallback (modal_id + 'esc');
 						app.ui.KeyHandler.removeCallback (modal_id + 'ent');
@@ -1649,9 +1894,9 @@
 					  body:'<label for="k07">Preset Name</label>' +
 						'<input style="width:100%;box-sizing:border-box;min-width:0" maxlength="16" placeholder="Please type a name, eg: My Preset" ' + default_txt + ' class="pk_txt" type="text" id="k07" />',
 					  setup:function( q ) {
-					  	  	// app.fireEvent ('RequestPause');
+								// app.fireEvent ('RequestPause');
 
-						  	app.ui.InteractionHandler.forceSet (modal_id);
+							app.ui.InteractionHandler.forceSet (modal_id);
 
 							app.ui.KeyHandler.addCallback (modal_id + 'esc', function ( e ) {
 								if (!app.ui.InteractionHandler.check (modal_id)) return ;
@@ -1680,7 +1925,7 @@
 					// ---
 			}
 
-			// document.querySelector('.pk_modal_main').getElementsByTagName('input')[0].value 
+			// document.querySelector('.pk_modal_main').getElementsByTagName('input')[0].value
 		});
 
 
@@ -1754,7 +1999,7 @@
 				{
 					cur_win.el.style.display = 'none';
 					setTimeout(function() {
-						cur_win.el.style.display = 'block';					
+						cur_win.el.style.display = 'block';
 					},0);
 					el_back.focus ();
 				}
@@ -1865,7 +2110,7 @@
 						cur_win.el.style.left = lw + 'px';
 						// ----
 					}
-					// check if we didn't move - in that return 
+					// check if we didn't move - in that return
 				}
 
 				el_back.onmousemove = null;
@@ -2056,7 +2301,7 @@
 						iframe.parentNode.removeChild ( iframe );
 						iframe = null;
 
-						var ch = app.ui.BarBtm.el.childNodes; 
+						var ch = app.ui.BarBtm.el.childNodes;
 						if (ch.length === 0) {
 							app.ui.BarBtm.Hide ();
 							return ;

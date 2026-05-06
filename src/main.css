@@ -1019,6 +1019,11 @@ a{
 	display:block;float:left;
 	width:80px;padding-right:6px;margin:8px 0;text-align:center;
 }
+.pk_lufs_out{display:block;color:var(--fg-0)}
+.pk_lufs_note{color:var(--fg-1)}
+.pk_lufs_warn{color:var(--warn)}
+.pk_norm_rng .pk_horiz,.pk_lufs_rng .pk_horiz{max-width:180px}
+.pk_norm_modes .pk_check+label{margin-right:14px;font-size:12px;white-space:nowrap}
 
 /* ---------- Form controls ---------- */
 select{
@@ -1379,13 +1384,15 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 
 @media only screen and (max-width:400px){
 	.pk_hdr .pk_btn{margin:2px 4px 0}
-	.pk_timecontainer{width:124px}
+	.pk_timecontainer{width:160px}
 	.pk_timing{font-size:15px;letter-spacing:0;padding:14px 0 0 6px}
-	/* Canvas is drawn at a fixed 150px in JS — scale it down so all 9
-	   chars fit inside the narrow container without being clipped by
-	   contain:strict on .pk_timecontainer */
-	.pk_timingcnv{transform:scale(.74);transform-origin:0 6px}
-	.pk_total_dur,.pk_hover_dur{font-size:11px;right:6px}
+	/* Canvas is drawn at a fixed 150x40 in JS — scale to .6 (≈90×24)
+	   and offset top so it sits vertically centered in the 46px container,
+	   with the total/hover duration spans stacked on the right. */
+	.pk_timingcnv{top:11px;transform:scale(.6);transform-origin:0 0}
+	.pk_total_dur,.pk_hover_dur{font-size:10px;right:8px}
+	.pk_total_dur{top:8px}
+	.pk_hover_dur{top:24px}
 	.pk_hdr .pk_btn .pk_menu{min-width:160px}
 }
 
@@ -1493,7 +1500,7 @@ input,textarea{-webkit-touch-callout:none}
 .pk_mob .pk_mt_knob i{left:14px;top:5px}
 .pk_mob .pk_mt_track .pk_mt_rec{position:absolute;right:5px;top:40px;margin:0}
 .pk_mob .pk_mt_track .pk_mt_del{right:5px;top:6px;margin:0}
-.pk_mob .pk_mt_track .pk_mt_knob{width:34px;height:34px;margin:15px 8px 0 0;vertical-align:top}
+.pk_mob .pk_mt_track .pk_mt_knob{width:34px;height:34px;margin:15px 14px 0 0;vertical-align:top}
 .pk_mob .pk_mt_track .pk_mt_knob:before{top:-8px;font-size:6px}
 .pk_mob .pk_mt_track .pk_mt_knob:after{display:block;left:-7px;top:37px;width:48px;font-size:9px}
 .pk_mob .pk_mt_track.pk_mt_compact .pk_mt_knob:after{display:none}
