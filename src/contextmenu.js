@@ -13,12 +13,12 @@
 		*	it.
 		**/
 	var closeContext = function ( e, force ) {
-			if (!e) return ;
 			if (activeMenu.length === 0) return ;
 
-			var el = e.target || e.srcElement;
+			var el = e && (e.target || e.srcElement);
+			var cls = el && el.className;
 
-			if (!el || el.className.indexOf('_action') === -1 || force)
+			if (!el || (cls + '').indexOf('_action') === -1 || force)
 			{
 				var l = activeMenu.length;
 				while (l--) terminate (activeMenu[ l ]);
@@ -31,13 +31,15 @@
 		*	from the dom also
 		**/
 		terminate = function( e ) {
+			if (!e || !e.currentMenu) return false;
+
 			var children = e.currentMenu.getElementsByTagName('*'),
 			len = children.length;
 
 			while( len-- )
 				children[ len ].parentNode.removeChild( children[ len ] );
 
-			e.currentMenu.removeEventListener( closeEvent, stopPropagation );
+			e.currentMenu.removeEventListener( closeEvent[0], stopPropagation );
 			doc.body.removeChild( e.currentMenu );
 			e.currentMenu = null;
 			return false;
@@ -82,7 +84,7 @@
 			}
 
 			e.currentMenu = div;
-			div.addEventListener( closeEvent, stopPropagation, false );
+			div.addEventListener( closeEvent[0], stopPropagation, false );
 
 			doc.body.appendChild( div );
 
@@ -196,7 +198,7 @@
 
 
 	// todo touch controls too? #### 
-	doc.addEventListener( closeEvent[0], closeContext, false );
+	doc.addEventListener( closeEvent[0], closeContext, true );
 	doc.addEventListener( 'killCTX', closeContext, false );
 
 

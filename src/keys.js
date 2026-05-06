@@ -7,6 +7,15 @@
 		q.keyMap          = {}; // holds a map of all the active keys
 		q.callbacks       = {}; // callbacks for when a key combintation becomes active
 		q.singleCallbacks = {}; // callbacks to the 'keypress' event - not required
+		q.mac             = /mac|iphone|ipad|ipod/.test ((navigator.platform || '').toLowerCase ());
+
+		q.isAccel = function ( e ) {
+			return e && (q.mac ? e.metaKey : e.ctrlKey) && !e.altKey;
+		};
+		q.isEditTarget = function ( e ) {
+			var t = e && e.target;
+			return !!(t && /INPUT|TEXTAREA|SELECT/.test (t.tagName));
+		};
 
 		q.addCallback = function (callback_name, callback_function, keys) {
 			q.callbacks[ callback_name ] = {

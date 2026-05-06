@@ -633,45 +633,78 @@
 		}, [116]);
 		*/
 
-		app.ui.KeyHandler.addCallback ('KeyShiftSpace' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
+		function accelAct ( e, fn ) {
+			if (app.ui.InteractionHandler.on ||
+				app.ui.KeyHandler.isEditTarget ( e ) ||
+				!app.ui.KeyHandler.isAccel ( e )) return ;
+			e.preventDefault ();
+			e.stopPropagation ();
+			fn ();
+		}
+		function accelHeld ( e ) {
+			return e && (e.ctrlKey || e.metaKey);
+		}
+		function accelBind ( name, key, fn ) {
+			app.ui.KeyHandler.addCallback (name + app.id, function ( k, m, e ) {
+				accelAct ( e, function () { fn ( e ); });
+			}, [key]);
+		}
+
+		app.ui.KeyHandler.addCallback ('KeyShiftSpace' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
 			app.fireEvent ('RequestTransportToggle', 'pause');
 		}, [16, 32]);
-		app.ui.KeyHandler.addCallback ('KeySpace' + app.id, function ( key, map ) {
+		app.ui.KeyHandler.addCallback ('KeySpace' + app.id, function ( key, map, e ) {
 			if (app.ui.InteractionHandler.on) return ;
-			if (map[16] === 1) return ;
+			if (map[16] === 1 || accelHeld ( e )) return ;
 
 			app.fireEvent ('RequestTransportToggle', 'stop');
 		}, [32]);
-		app.ui.KeyHandler.addCallback ('KeyShiftCopy' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
-			
+		app.ui.KeyHandler.addCallback ('KeyShiftCopy' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
+
 			app.fireEvent( 'RequestActionCopy');
 		}, [16, 67]);
-		app.ui.KeyHandler.addCallback ('KeyShiftUndo' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
-			
+		accelBind ('KeyModCopy', 67, function () {
+			app.fireEvent( 'RequestActionCopy');
+		});
+		app.ui.KeyHandler.addCallback ('KeyShiftUndo' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
+
 			app.fireEvent ('StateRequestUndo');
 		}, [16, 90]);
-		app.ui.KeyHandler.addCallback ('KeyShiftRedo' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
-			
+		accelBind ('KeyModUndo', 90, function ( e ) {
+			app.fireEvent (e.shiftKey ? 'StateRequestRedo' : 'StateRequestUndo');
+		});
+		app.ui.KeyHandler.addCallback ('KeyShiftRedo' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
+
 			app.fireEvent ('StateRequestRedo');
 		}, [16, 89]);
-		app.ui.KeyHandler.addCallback ('KeyShiftPaste' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
-			
+		accelBind ('KeyModRedo', 89, function () {
+			app.fireEvent ('StateRequestRedo');
+		});
+		app.ui.KeyHandler.addCallback ('KeyShiftPaste' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
+
 			app.fireEvent( 'RequestActionPaste');
 		}, [16, 86]);
-		app.ui.KeyHandler.addCallback ('KeyShiftCut' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
+		accelBind ('KeyModPaste', 86, function () {
+			app.fireEvent( 'RequestActionPaste');
+		});
+		app.ui.KeyHandler.addCallback ('KeyShiftCut' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
 
 			app.fireEvent( 'RequestActionCut', 1);
 		}, [16, 88]);
+		accelBind ('KeyModCut', 88, function () {
+			app.fireEvent( 'RequestActionCut', 1);
+		});
 		app.ui.KeyHandler.addCallback ('KeyCrossfade' + app.id, function ( key, map, e ) {
 			var target = e && e.target;
 			if (app.ui.InteractionHandler.on ||
 				map[16] === 1 ||
+				accelHeld ( e ) ||
 				(target && /INPUT|TEXTAREA|SELECT/.test (target.tagName))) return ;
 
 			app.fireEvent( 'RequestActionCrossfade');
@@ -688,22 +721,28 @@
 
 			app.fireEvent( 'RequestActionCut');
 		}, [46]);
-		app.ui.KeyHandler.addCallback ('KeyShiftSelectAll' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
+		app.ui.KeyHandler.addCallback ('KeyShiftSelectAll' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
 			app.fireEvent ('RequestSelect');
 		}, [16, 65]);
+		accelBind ('KeyModSelectAll', 65, function () {
+			app.fireEvent ('RequestSelect');
+		});
 		app.ui.KeyHandler.addSingleCallback ('KeyLoopToggle', function ( e ) {
 			if (app.ui.InteractionHandler.on) return ;
 			e.preventDefault();
 			e.stopPropagation();
 			app.fireEvent ('RequestSetLoop');
 		}, 108);
-		app.ui.KeyHandler.addCallback ('KeyShiftSave' + app.id, function ( key ) {
-			if (app.ui.InteractionHandler.on) return ;
-			
+		app.ui.KeyHandler.addCallback ('KeyShiftSave' + app.id, function ( key, map, e ) {
+			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
+
 			// fire event to open the save menu
 			document.querySelector('.pk_opt[data-id="dl"]').click();
 		}, [16, 83]);
+		accelBind ('KeyModSave', 83, function () {
+			document.querySelector('.pk_opt[data-id="dl"]').click();
+		});
 
 		wavesurfer.container.addEventListener('mousedown', function(e) {
 			if (e.which === 3) {

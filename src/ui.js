@@ -2544,9 +2544,11 @@
 		UI.KeyHandler.addCallback ('KeyMtChannelDown', function ( key, c, ev ) {
 			mtSelectChannelKey ( 1, ev );
 		}, [40]);
-		UI.KeyHandler.addCallback ('KeyShiftArrowBack', function ( key ) {
+		UI.KeyHandler.addCallback ('KeyShiftArrowBack', function ( key, c, ev ) {
 			var mt_on = activeMultitrackFor ( app );
-			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (UI.InteractionHandler.on ||
+				(ev && (ev.ctrlKey || ev.metaKey)) ||
+				(!PKAudioEditor.engine.is_ready && !mt_on)) return ;
 			if (mt_on) {
 				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
 				if (mt_region)
@@ -2595,9 +2597,11 @@
 			
 			UI.fireEvent( 'RequestSeekTo', 0 );
 		}, [16, 37]);
-		UI.KeyHandler.addCallback ('KeyShiftArrowFront', function ( key ) {
+		UI.KeyHandler.addCallback ('KeyShiftArrowFront', function ( key, c, ev ) {
 			var mt_on = activeMultitrackFor ( app );
-			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (UI.InteractionHandler.on ||
+				(ev && (ev.ctrlKey || ev.metaKey)) ||
+				(!PKAudioEditor.engine.is_ready && !mt_on)) return ;
 			if (mt_on) {
 				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
 				if (mt_region)
@@ -3184,10 +3188,10 @@
 		silence_btn.className = 'pk_btn icon-silence';
 		silence_btn.innerHTML = '<span>Insert Silence (Shift + N)</span>';
 		actions.appendChild ( silence_btn );
-		
-		UI.KeyHandler.addCallback ('KeyShiftN', function( k ) {
-			if (UI.InteractionHandler.on) return ;
-			
+
+		UI.KeyHandler.addCallback ('KeyShiftN', function( k, m, e ) {
+			if (UI.InteractionHandler.on || (e && (e.ctrlKey || e.metaKey))) return ;
+
 			silence_btn.click ();
 		},[16, 78]);
 

@@ -41,6 +41,10 @@
 		var clip_copy = null;
 		var timeline_on = !app.engine || !app.engine.wavesurfer ||
 			app.engine.wavesurfer.params.timeline !== false;
+		var mt_context = null;
+		var context_clip = null;
+		var skip_context = false;
+		var pan_dragged = false;
 
 		var el = null;
 		var side = null;
@@ -540,8 +544,15 @@
 			main.addEventListener ('gesturechange', gestureChange, {passive:false});
 			main.addEventListener ('scroll', syncScroll, false);
 			bindDown ( main, mainDown );
+			buildClipContext ();
 			main.addEventListener ('contextmenu', function ( e ) {
-				if (hasClips ()) e.preventDefault ();
+				if (!hasClips ()) return ;
+				if (skip_context) {
+					skip_context = false;
+					e.preventDefault ();
+					return ;
+				}
+				if (!openClipContext ( e )) e.preventDefault ();
 			}, false);
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
@@ -1364,6 +1375,17 @@
 			return false;
 		}
 
+		function xfadeState ( clip ) {
+			var hit = false;
+			var all = true;
+			for (var i = 0; i < clips.length; ++i) {
+				if (clips[i] === clip || !overlapOf (clip, clips[i])) continue;
+				hit = true;
+				if (!activeXfade (clip, clips[i])) all = false;
+			}
+			return hit ? (all ? 2 : 1) : 0;
+		}
+
 		function xfadeGainAt ( clip, time ) {
 			var gain = 1;
 			for (var i = 0; i < clips.length; ++i) {
@@ -1581,6 +1603,64 @@
 		function clipNodeAtEvent ( e ) {
 			var node = regionNodeAtEvent ( e );
 			return clipNodeFrom ( node ) ? node : null;
+		}
+
+		function clipFromContext ( e ) {
+			var cn = clipNodeFrom ( e.target );
+			if (!cn) cn = clipNodeFrom ( clipNodeAtEvent ( e ) );
+			return cn && findClip ( cn.getAttribute ('data-clip') );
+		}
+
+		function setContextClip ( clip ) {
+			if (!clip || findClip (clip.id) !== clip) return null;
+			selectClip ( clip );
+			context_clip = clip;
+			return clip;
+		}
+
+		function buildClipContext () {
+			if (!app._deps.ContextMenu) return ;
+			mt_context = app._deps.ContextMenu ( main );
+			mt_context.addOption ('Open in Editor', function () {
+				var clip = setContextClip ( context_clip );
+				clip && loadClip ( clip );
+			}, false);
+			mt_context.addOption ('Crossfade', function () {
+				var clip = setContextClip ( context_clip );
+				clip && xfadeState ( clip ) && toggleXfade ();
+			}, false);
+			mt_context.addOption ('Copy Clip', function () {
+				setContextClip ( context_clip ) && copySelectedClip ();
+			}, false);
+			mt_context.addOption ('Split at Cursor', function () {
+				setContextClip ( context_clip ) && splitSelectedClip ();
+			}, false);
+			mt_context.addOption ('Delete Clip', function () {
+				setContextClip ( context_clip ) && deleteSelectedClip ();
+			}, false);
+			mt_context.onOpen = function ( menu, div ) {
+				var a = div.childNodes;
+				var x = xfadeState ( context_clip );
+				a[1].innerHTML = x === 2 ? 'Turn Crossfade Off' :
+					(x ? 'Turn Crossfade On' : 'Crossfade');
+				if (!x) a[1].className += ' pk_inact';
+				Pause ();
+			};
+		}
+
+		function openClipContext ( e ) {
+			if (pan_dragged) {
+				pan_dragged = false;
+				return false;
+			}
+			var clip = clipFromContext ( e );
+			if (!clip || !mt_context) return false;
+			focusMain ();
+			e.preventDefault ();
+			e.stopPropagation ();
+			setContextClip ( clip );
+			mt_context.open ( e );
+			return true;
 		}
 
 		function cloneMouseEvent ( e ) {
@@ -2256,8 +2336,11 @@
 			e.stopPropagation ();
 			if (!app.ui.InteractionHandler.checkAndSet ('multitrack-pan')) return false;
 
+			pan_dragged = false;
 			var x = e.clientX;
 			var y = e.clientY;
+			var down = e;
+			var moved = false;
 			var stop_drag = bindDrag ( e, move, up );
 			main.classList.add ('pk_grabbing');
 			setActiveDrag ( up );
@@ -2267,6 +2350,7 @@
 				var dy = y - ev.clientY;
 				if (!dx && !dy) return ;
 				ev.preventDefault ();
+				moved = pan_dragged = true;
 				panView ( dx, dy );
 				x = ev.clientX;
 				y = ev.clientY;
@@ -2277,6 +2361,7 @@
 				clearActiveDrag ( up );
 				main.classList.remove ('pk_grabbing');
 				app.ui.InteractionHandler.forceUnset ('multitrack-pan');
+				if (!moved && openClipContext ( down )) skip_context = true;
 				if (ev) {
 					ev.preventDefault ();
 					ev.stopPropagation ();
