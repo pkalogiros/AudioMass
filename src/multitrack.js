@@ -1618,32 +1618,48 @@
 			return clip;
 		}
 
+		function doContextClip ( fn ) {
+			var clip = setContextClip ( context_clip );
+			return clip && fn ( clip );
+		}
+
 		function buildClipContext () {
 			if (!app._deps.ContextMenu) return ;
 			mt_context = app._deps.ContextMenu ( main );
 			mt_context.addOption ('Open in Editor', function () {
-				var clip = setContextClip ( context_clip );
-				clip && loadClip ( clip );
+				doContextClip ( loadClip );
 			}, false);
-			mt_context.addOption ('Crossfade', function () {
-				var clip = setContextClip ( context_clip );
-				clip && xfadeState ( clip ) && toggleXfade ();
+			mt_context.addOption ('Rename Clip', function () {
+				doContextClip ( renameSelectedClip );
+			}, false);
+			mt_context.addOption ('Duplicate Clip', function () {
+				doContextClip ( duplicateSelectedClip );
 			}, false);
 			mt_context.addOption ('Copy Clip', function () {
-				setContextClip ( context_clip ) && copySelectedClip ();
+				doContextClip ( copySelectedClip );
 			}, false);
 			mt_context.addOption ('Split at Cursor', function () {
-				setContextClip ( context_clip ) && splitSelectedClip ();
+				doContextClip ( splitSelectedClip );
 			}, false);
 			mt_context.addOption ('Delete Clip', function () {
-				setContextClip ( context_clip ) && deleteSelectedClip ();
+				doContextClip ( deleteSelectedClip );
+			}, false);
+			mt_context.addOption ('Crossfade', function () {
+				doContextClip (function ( clip ) {
+					xfadeState ( clip ) && toggleXfade ();
+				});
+			}, false);
+			mt_context.addOption ('Fade In', function () {
+				doContextClip (function () { applyFx ('FadeIn'); });
+			}, false);
+			mt_context.addOption ('Fade Out', function () {
+				doContextClip (function () { applyFx ('FadeOut'); });
 			}, false);
 			mt_context.onOpen = function ( menu, div ) {
 				var a = div.childNodes;
 				var x = xfadeState ( context_clip );
-				a[1].innerHTML = x === 2 ? 'Turn Crossfade Off' :
-					(x ? 'Turn Crossfade On' : 'Crossfade');
-				if (!x) a[1].className += ' pk_inact';
+				a[6].innerHTML = x === 2 ? 'Turn Crossfade Off' : 'Turn Crossfade On';
+				a[6].className = 'pk_ctx_action' + (x ? '' : ' pk_inact');
 				Pause ();
 			};
 		}
@@ -1876,7 +1892,7 @@
 				lane.appendChild ( rec_el );
 			}
 
-			var seconds = rec.buffers.length * rec.size / rec.ctx.sampleRate;
+			var seconds = (rec.len || rec.buffers.length * rec.size) / rec.ctx.sampleRate;
 			var cw = Math.max (36, (seconds * px_per_sec) >> 0);
 			var ch = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16);
 			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
@@ -2611,6 +2627,50 @@
 			};
 			app.fireEvent ('DidCopy', buffer);
 			OneUp ('Copied clip');
+			return true;
+		}
+
+		function renameSelectedClip () {
+			var clip = findClip ( selected_clip );
+			if (!clip) return true;
+
+			var name = w.prompt ('Rename Clip', clip.name || 'Audio');
+			if (name === null) return true;
+			name = name.replace (/^\s+|\s+$/g, '');
+			if (!name || name === clip.name) return true;
+
+			var prev = cloneState ();
+			clip.name = name;
+			pushState ( prev, 'Rename Clip' );
+			render ();
+			app.fireEvent ('DidUpdateMultitrack');
+			return true;
+		}
+
+		function duplicateSelectedClip () {
+			var clip = findClip ( selected_clip );
+			if (!clip) return true;
+
+			var prev = cloneState ();
+			var dup = {
+				id: 'mc' + (clip_uid++),
+				track: clip.track,
+				start: clipEnd ( clip ),
+				in: clipIn ( clip ),
+				out: clipOut ( clip ),
+				name: clip.name,
+				buffer: clip.buffer
+			};
+
+			clips.splice (clips.indexOf ( clip ) + 1, 0, dup);
+			selected_track = dup.track;
+			selected_clip = dup.id;
+			pushState ( prev, 'Duplicate Clip' );
+			queuePlayRefresh ( true );
+			render ();
+			app.fireEvent ('DidSelectClip', dup);
+			app.fireEvent ('DidUpdateMultitrack');
+			OneUp ('Duplicated clip', 900);
 			return true;
 		}
 
@@ -3393,11 +3453,12 @@
 
 		function Play ( x ) {
 			if (rec) {
-				var clip = RecordStop ();
-				if (clip) {
-					setCursorTime ( clip.start );
-					schedulePlayback ( false );
-				}
+				RecordStop (function ( clip ) {
+					if (clip) {
+						setCursorTime ( clip.start );
+						schedulePlayback ( false );
+					}
+				});
 				return ;
 			}
 			if (!clips.length) return ;
@@ -3859,23 +3920,27 @@
 			var ctx = audioCtx ();
 			var size = 4096;
 			var buffers = [];
-			var stream = null;
-			var source = null;
-			var node = null;
 			var skip = 4;
+			var r = rec = {
+				ctx: ctx,
+				track: tr.id,
+				size: size,
+				buffers: buffers,
+				start: cursor,
+				len: 0
+			};
 
-			navigator.mediaDevices.getUserMedia ({audio:true, video:false}).then (function ( s ) {
-				stream = s;
-				source = ctx.createMediaStreamSource ( stream );
-				node = ctx.createScriptProcessor ( size, 1, 1 );
-				source.connect ( node );
-				node.connect ( ctx.destination );
-				node.onaudioprocess = function ( ev ) {
+			if (!app.rec.startCapture ({
+				ctx: ctx,
+				chunkSize: size,
+				ondata: function ( b ) {
+					if (rec !== r) return ;
 					if (skip > 0) {
 						--skip;
 						return ;
 					}
-					buffers.push ( ev.inputBuffer.getChannelData (0).slice (0) );
+					buffers.push ( b );
+					r.len += b.length;
 					if (++rec_redraw >= 3) {
 						rec_redraw = 0;
 						if (!rec_raf)
@@ -3884,76 +3949,66 @@
 								renderRecPreview ();
 							});
 					}
-				};
-
-				rec = {
-					ctx: ctx,
-					track: tr.id,
-					size: size,
-					buffers: buffers,
-					stream: stream,
-					source: source,
-					node: node,
-					start: cursor
-				};
-				rec_redraw = 0;
-				renderRecPreview ();
-				app.fireEvent ('DidActionRecordStart');
-				OneUp ('Recording ' + tr.name, 1000);
-			}).catch (function () {
-				OneUp ('No recording device found', 1200);
-			});
+				},
+				onstart: function () {
+					if (rec !== r) return ;
+					rec_redraw = 0;
+					renderRecPreview ();
+					app.fireEvent ('DidActionRecordStart');
+					OneUp ('Recording ' + tr.name, 1000);
+				},
+				onerror: function () {
+					if (rec === r) rec = null;
+					OneUp ('No recording device found', 1200);
+				}
+			})) {
+				rec = null;
+				return ;
+			}
 		}
 
-		function RecordStop () {
-			if (!rec) return ;
+		function RecordStop ( done ) {
+			if (!rec || rec.stopping) return ;
 			var r = rec;
-			rec = null;
-			if (rec_raf) {
-				w.cancelAnimationFrame ( rec_raf );
-				rec_raf = 0;
-			}
+			r.stopping = true;
+			app.rec.stopCapture (function () {
+				rec = null;
+				if (rec_raf) {
+					w.cancelAnimationFrame ( rec_raf );
+					rec_raf = 0;
+				}
 
-			if (r.node) {
-				r.node.onaudioprocess = null;
-				try { r.node.disconnect (); } catch (e) {}
-			}
-			if (r.source) {
-				try { r.source.disconnect (); } catch (e2) {}
-			}
-			if (r.stream) {
-				r.stream.getTracks ().forEach (function ( stream ) {
-					stream.stop ();
-				});
-			}
+				app.fireEvent ('DidActionRecordStop', !!r.buffers.length);
+				if (!r.buffers.length) {
+					rec_el = null;
+					render ();
+					done && done ( null );
+					return ;
+				}
 
-			app.fireEvent ('DidActionRecordStop', !!r.buffers.length);
-			if (!r.buffers.length) {
-				rec_el = null;
+				var prev = cloneState ();
+				var len = r.len || r.buffers.reduce(function (sum, b) {
+					return sum + b.length;
+				}, 0);
+				var buffer = r.ctx.createBuffer (1, len, r.ctx.sampleRate);
+				var chan = buffer.getChannelData (0);
+				for (var i = 0, off = 0; i < r.buffers.length; ++i) {
+					chan.set ( r.buffers[i], off );
+					off += r.buffers[i].length;
+				}
+
+				var clip = makeClip ( r.track, r.start, buffer, 'Recording' );
+				clips.push ( clip );
+				selected_track = r.track;
+				selected_clip = clip.id;
+				pushState ( prev, 'Record Clip' );
 				render ();
-				return null;
-			}
-
-			var prev = cloneState ();
-			var len = r.buffers.length * r.size;
-			var buffer = r.ctx.createBuffer (1, len, r.ctx.sampleRate);
-			var chan = buffer.getChannelData (0);
-			for (var i = 0, off = 0; i < r.buffers.length; ++i) {
-				chan.set ( r.buffers[i], off );
-				off += r.buffers[i].length;
-			}
-
-			var clip = makeClip ( r.track, r.start, buffer, 'Recording' );
-			clips.push ( clip );
-			selected_track = r.track;
-			selected_clip = clip.id;
-			pushState ( prev, 'Record Clip' );
-			render ();
-			rec_el = null;
-			app.fireEvent ('DidUpdateMultitrack');
-			app.fireEvent ('DidSelectClip', clip);
-			OneUp ('Recorded clip', 1000);
-			return clip;
+				rec_el = null;
+				app.fireEvent ('DidUpdateMultitrack');
+				app.fireEvent ('DidSelectClip', clip);
+				OneUp ('Recorded clip', 1000);
+				done && done ( clip );
+			});
 		}
 
 		function deleteSelectedClip () {

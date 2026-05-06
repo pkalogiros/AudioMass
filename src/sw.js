@@ -18,6 +18,7 @@ const assets = [
 	'./actions.js',
 	'./drag.js',
 	'./recorder.js',
+	'./recorder-worklet.js',
 	'./welcome.js',
 	'./fx-pg-eq.js',
 	'./fx-auto.js',
