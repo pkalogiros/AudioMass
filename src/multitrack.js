@@ -1880,7 +1880,7 @@
 		}
 
 		function renderRecPreview () {
-			if (!rec || !rec.buffers.length) return ;
+			if (!rec) return ;
 
 			var lane = lane_by_track[rec.track];
 			if (!lane) return ;
@@ -1892,13 +1892,22 @@
 				lane.appendChild ( rec_el );
 			}
 
-			var seconds = (rec.len || rec.buffers.length * rec.size) / rec.ctx.sampleRate;
+			var seconds = Math.max (
+				(rec.len || rec.buffers.length * rec.size) / rec.ctx.sampleRate,
+				rec.t0 ? (w.performance.now () - rec.t0) / 1000 : 0
+			);
 			var cw = Math.max (36, (seconds * px_per_sec) >> 0);
 			var ch = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16);
 			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
 			rec_el.style.width = cw + 'px';
 			rec_el.style.height = ch + 'px';
 			drawRecWave ( rec.buffers, rec_el.getElementsByTagName ('canvas')[0], cw, ch );
+
+			if (!rec.buffers.length && !rec.stopping && !rec_raf)
+				rec_raf = w.requestAnimationFrame (function () {
+					rec_raf = 0;
+					renderRecPreview ();
+				});
 		}
 
 		function drawRecWave ( buffers, canvas, w, h ) {
@@ -1906,7 +1915,16 @@
 			var ph = h !== undefined ? h : canvas.parentNode.offsetHeight;
 			var wdt = Math.min (1000, Math.max (64, pw || 64));
 			var hgt = Math.max (22, ph - 8);
-			var total = buffers.length ? buffers.length * buffers[0].length : 1;
+			if (!buffers.length) {
+				canvas.width = wdt;
+				canvas.height = hgt;
+				var bg = canvas.getContext ('2d', {alpha:false});
+				bg.fillStyle = '#101008';
+				bg.fillRect (0, 0, wdt, hgt);
+				return ;
+			}
+
+			var total = buffers.length * buffers[0].length;
 			var step = Math.max (1, (total / wdt) >> 0);
 			var mid = hgt >> 1;
 
@@ -3927,7 +3945,8 @@
 				size: size,
 				buffers: buffers,
 				start: cursor,
-				len: 0
+				len: 0,
+				t0: 0
 			};
 
 			if (!app.rec.startCapture ({
@@ -3941,7 +3960,7 @@
 					}
 					buffers.push ( b );
 					r.len += b.length;
-					if (++rec_redraw >= 3) {
+					if (buffers.length === 1 || ++rec_redraw >= 3) {
 						rec_redraw = 0;
 						if (!rec_raf)
 							rec_raf = w.requestAnimationFrame (function () {
@@ -3953,6 +3972,7 @@
 				onstart: function () {
 					if (rec !== r) return ;
 					rec_redraw = 0;
+					r.t0 = w.performance.now ();
 					renderRecPreview ();
 					app.fireEvent ('DidActionRecordStart');
 					OneUp ('Recording ' + tr.name, 1000);

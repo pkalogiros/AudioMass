@@ -615,6 +615,7 @@ a{
 }
 .pk_mt_clip.pk_mt_clip_xf{border-color:#d5b64c}
 .pk_mt_clip.pk_mt_rec_clip{
+	z-index:9;
 	background:#1a0a0a;
 	border-color:#e13030;
 	box-shadow:0 0 6px rgba(225,48,48,.35);
