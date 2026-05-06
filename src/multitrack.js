@@ -16,7 +16,7 @@
 		var min_track_h = app.isMobile ? 74 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
-		var snap_px = 10;
+		var snap_px = 8;
 		var row_h = default_row_h;
 		var cursor = 0;
 		var marker = 0;
@@ -2067,6 +2067,9 @@
 			var moved = false;
 			var did_move = false;
 			var stop_drag = null;
+			var last_ns = 0;
+			var stick_t = null;
+			var stick_edge = 0;
 
 			bindDown ( ce, function ( e ) {
 				if (e._touch && selected_clip !== clip.id) {
@@ -2100,6 +2103,9 @@
 				old_out = clipOut ( clip );
 				old_fi = clip.fi || 0;
 				old_fo = clip.fo || 0;
+				last_ns = old_start;
+				stick_t = null;
+				stick_edge = 0;
 				prev = cloneState ();
 				moved = false;
 				did_move = false;
@@ -2199,21 +2205,41 @@
 					return ;
 				}
 
-				var ns = Math.max (0, old_start + dx / px_per_sec);
-				var a = snapTime ( ns, e, clip );
-				var b = snapTime ( ns + clipLen ( clip ), e, clip ) - clipLen ( clip );
-				clip.start = Math.max (0, Math.abs (a - ns) < Math.abs (b - ns) ? a : b);
-				ce.style.transform = 'translate3d(' +
-					(((clip.start - old_start) * px_per_sec) >> 0) +
-					'px,0,0)';
-
 				var new_index = trackIndexAt ( old_top + (old_h / 2) + dy );
 				if (tracks[new_index] && tracks[new_index].id !== clip.track) {
 					clip.track = tracks[new_index].id;
 					selected_track = clip.track;
 					lane_by_track[clip.track].appendChild ( ce );
 					ce.style.height = Math.max (30, trackHeight ( tracks[new_index] ) - 16) + 'px';
+					stick_edge = 0; stick_t = null;
 				}
+
+				var ns_raw = Math.max (0, old_start + dx / px_per_sec);
+				var ns = ns_raw;
+				var len = clipLen ( clip );
+				if (stick_edge) {
+					var raw = stick_edge < 0 ? ns_raw : ns_raw + len;
+					if (Math.abs (raw - stick_t) < snap_px / px_per_sec) raw = stick_t;
+					else { stick_edge = 0; stick_t = null; }
+					if (stick_edge) ns = stick_edge < 0 ? raw : raw - len;
+				}
+				if (!stick_edge) {
+					var sl = snapPassTime ( ns_raw, last_ns, e, clip );
+					var sr = snapPassTime ( ns_raw + len, last_ns + len, e, clip );
+					if (sl !== null || sr !== null) {
+						if (sr === null || (sl !== null && Math.abs (sl - ns_raw) <= Math.abs (sr - ns_raw - len))) {
+							stick_edge = -1; stick_t = sl; ns = sl;
+						}
+						else {
+							stick_edge = 1; stick_t = sr; ns = sr - len;
+						}
+					}
+				}
+				clip.start = Math.max (0, ns);
+				last_ns = ns_raw;
+				ce.style.transform = 'translate3d(' +
+					(((clip.start - old_start) * px_per_sec) >> 0) +
+					'px,0,0)';
 				queuePlayRefresh ();
 			}
 
@@ -2426,46 +2452,50 @@
 			return Math.max (0, (e.clientX - rect.left) / px_per_sec);
 		}
 
-		function snapTime ( t, e, skip, flags ) {
-			if (e && e.altKey) return Math.max (0, t);
-			var lim = snap_px / px_per_sec;
-			var best = t;
-			var v = cursor;
-			var dlt = Math.abs (v - t);
-			if (dlt < lim) { lim = dlt; best = v; }
-			v = marker;
-			dlt = Math.abs (v - t);
-			if (dlt < lim) { lim = dlt; best = v; }
+		function eachSnap ( skip, flags, fn ) {
+			fn ( cursor );
+			fn ( marker );
 			if (!(flags & 1) && region) {
-				v = region.start;
-				dlt = Math.abs (v - t);
-				if (dlt < lim) { lim = dlt; best = v; }
-				v = region.end;
-				dlt = Math.abs (v - t);
-				if (dlt < lim) { lim = dlt; best = v; }
+				fn ( region.start );
+				fn ( region.end );
 			}
 			for (var i = 0; i < clips.length; ++i) {
 				var c = clips[i];
 				if (c === skip) continue;
-				v = c.start;
-				dlt = Math.abs (v - t);
-				if (dlt < lim) { lim = dlt; best = v; }
+				if (skip && skip.track && c.track !== skip.track) continue;
+				fn ( c.start );
 				var ce = clipEnd ( c );
-				v = ce;
-				dlt = Math.abs (v - t);
-				if (dlt < lim) { lim = dlt; best = v; }
-				if (c.fi) {
-					v = c.start + c.fi;
-					dlt = Math.abs (v - t);
-					if (dlt < lim) { lim = dlt; best = v; }
-				}
-				if (c.fo) {
-					v = ce - c.fo;
-					dlt = Math.abs (v - t);
-					if (dlt < lim) { lim = dlt; best = v; }
-				}
+				fn ( ce );
+				if (c.fi) fn ( c.start + c.fi );
+				if (c.fo) fn ( ce - c.fo );
 			}
+		}
+
+		function snapTime ( t, e, skip, flags ) {
+			if (e && e.altKey) return Math.max (0, t);
+			var lim = snap_px / px_per_sec;
+			var best = t;
+			eachSnap (skip, flags, function ( v ) {
+				var dlt = Math.abs (v - t);
+				if (dlt < lim) { lim = dlt; best = v; }
+			});
 			return Math.max (0, best);
+		}
+
+		function snapPassTime ( t, from, e, skip, flags ) {
+			if (e && e.altKey) return null;
+			var lim = snap_px / px_per_sec;
+			var best = null;
+			var dir = t < from ? -1 : (t > from ? 1 : 0);
+			if (!dir) return null;
+			eachSnap (skip, flags, function ( v ) {
+				var dlt = Math.abs (v - t);
+				if (dlt >= lim) return ;
+				if (dir < 0 ? !(from >= v && t <= v) :
+					!(from <= v && t >= v)) return ;
+				lim = dlt; best = v;
+			});
+			return best;
 		}
 
 		function stopEdgePan () {
