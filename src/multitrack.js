@@ -1393,6 +1393,8 @@
 			return hit ? (all ? 2 : 1) : 0;
 		}
 
+		var fadeGain = app.fadeGain;
+
 		function fadeGainAt ( clip, time ) {
 			var len = clipLen ( clip );
 			var pos = time - clip.start;
@@ -1400,8 +1402,8 @@
 			var fi = Math.min (clip.fi || 0, len);
 			var fo = Math.min (clip.fo || 0, len - fi);
 
-			if (fi && pos < fi) gain *= Math.max (0, pos / fi);
-			if (fo && pos > len - fo) gain *= Math.max (0, (len - pos) / fo);
+			if (fi && pos < fi) gain *= fadeGain (pos / fi);
+			if (fo && pos > len - fo) gain *= fadeGain ((len - pos) / fo);
 			return gain;
 		}
 
@@ -3202,9 +3204,16 @@
 					points.push ({t: t, v: base * clipGainAt (clip, t)});
 			}
 
+			function addSteps ( from, to ) {
+				if (to <= from) return ;
+				var steps = Math.max (4, Math.min (24, ((to - from) / 0.03) >> 0));
+				for (var j = 0; j <= steps; ++j)
+					addPoint (from + ((to - from) * j / steps));
+			}
+
 			param.cancelScheduledValues ( when );
-			addPoint ( clip.start + (clip.fi || 0) );
-			addPoint ( clipEnd ( clip ) - (clip.fo || 0) );
+			if (clip.fi) addSteps (start, Math.min (end, clip.start + clip.fi));
+			if (clip.fo) addSteps (Math.max (start, clipEnd ( clip ) - clip.fo), end);
 
 			for (var i = 0; i < clips.length; ++i) {
 				var other = clips[i];
@@ -3217,11 +3226,7 @@
 				var to = Math.min (end, ov[1]);
 				if (to <= from) continue;
 
-				var steps = Math.max (4, Math.min (24, ((to - from) / 0.03) >> 0));
-				for (var j = 0; j <= steps; ++j) {
-					var t = from + ((to - from) * j / steps);
-					points.push ({t: t, v: base * clipGainAt (clip, t)});
-				}
+				addSteps (from, to);
 			}
 			points.push ({t: end, v: base * clipGainAt (clip, end)});
 

@@ -65,6 +65,7 @@
 		};
 
 		q.keyPress = function ( keyCode, e ) {
+			if (q.isEditTarget ( e )) return ;
 			for (var key in q.singleCallbacks) {
 				var group = q.singleCallbacks[key];
 				if (!group) continue;

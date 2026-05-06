@@ -80,6 +80,11 @@
 			return Math.max (0.2, Math.min (5, Math.pow (1.0025, -delta)));
 		};
 
+		q.fadeGain = function ( p ) {
+			p = p < 0 ? 0 : (p > 1 ? 1 : p);
+			return p * p;
+		};
+
 		q.init = function ( el_id ) {
 			var el = d.getElementById( el_id );
 			if (!el) {

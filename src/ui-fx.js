@@ -1559,7 +1559,8 @@
 
 					new PKSimpleModal({
 					  title:title,
-					  
+					  clss: is_new ? '' : 'pk_fnt10',
+
 					  ondestroy: function( q ) {
 					  	app.ui.InteractionHandler.forceUnset (modal_id);
 

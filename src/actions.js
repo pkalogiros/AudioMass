@@ -7,6 +7,7 @@
 		var audio_destination = wavesurfer.backend.analyser;
 		var audio_ctx   = wavesurfer.backend.ac;
 		var audio_script_node = audio_ctx.createScriptProcessor(256);
+		var fadeGain = master.fadeGain;
 
 		function loadDecoded ( new_buffer ) {
 			wavesurfer.loadDecodedBuffer ( new_buffer );
@@ -933,7 +934,16 @@
 			if (!this.previewing) return ;
 			this.PreviewUpdate && this.PreviewUpdate ( this.PreviewFilter, audio_ctx, val, this.PreviewSource );
 		}
-		
+
+		function fadeCurve ( rev ) {
+			var c = new Float32Array (32);
+			var i = 32, p;
+			while (i--) {
+				p = i / 31;
+				c[i] = fadeGain (rev ? 1 - p : p);
+			}
+			return c;
+		}
 
 		// EFFECTS LOGIC
 		var FXBank = {
@@ -987,8 +997,8 @@
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var gain = audio_ctx.createGain ();
 						gain.gain.setValueAtTime (0, audio_ctx.currentTime);
-						gain.gain.linearRampToValueAtTime (1, audio_ctx.currentTime + duration/1);
-						gain.connect (destination);	
+						gain.gain.setValueCurveAtTime (fadeCurve (), audio_ctx.currentTime, duration || 0.001);
+						gain.connect (destination);
 						source.connect (gain);
 
 						return (gain);
@@ -1001,8 +1011,8 @@
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var gain = audio_ctx.createGain ();
 						gain.gain.setValueAtTime (1, audio_ctx.currentTime);
-						gain.gain.linearRampToValueAtTime (0, audio_ctx.currentTime + duration/1);
-						gain.connect (destination);			
+						gain.gain.setValueCurveAtTime (fadeCurve (1), audio_ctx.currentTime, duration || 0.001);
+						gain.connect (destination);
 						source.connect (gain);
 
 						return (gain);
