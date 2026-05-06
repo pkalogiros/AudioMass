@@ -598,14 +598,26 @@
 			  title : 'Apply Compression to selected range',
 			  clss  : 'pk_bigger',
 			ondestroy: function ( q ) {
+				if (q._grRAF) cancelAnimationFrame (q._grRAF);
+				q._grRAF = null;
 				app.ui.InteractionHandler.on = false;
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 			},
 				presets:[
+					{name:'Vocal — Lead',val:'-18,6,3,0.005,0.15'},
+					{name:'Vocal — Broadcast',val:'-20,2,4,0.003,0.1'},
+					{name:'Drum Bus Glue',val:'-10,3,2,0.03,0.3'},
+					{name:'Snare Punch',val:'-15,1,4,0.001,0.06'},
+					{name:'Kick Tighten',val:'-12,2,4,0.01,0.1'},
+					{name:'Bass Even-Out',val:'-15,4,3,0.015,0.15'},
+					{name:'Acoustic Smooth',val:'-18,6,2.5,0.01,0.15'},
+					{name:'Master Glue',val:'-8,6,1.5,0.03,0.3'},
+					{name:'Parallel Crush',val:'-30,0,8,0.002,0.1'},
+					{name:'Brickwall Limit',val:'-3,0,20,0.001,0.05'},
+					{name:'Classic 3:1',val:'-18,6,3,0.01,0.1'},
+					{name:'Light Touch',val:'-12,2,2,0.005,0.08'},
 					{name:'Classic',val:'-40,5,7,0.002,0.1'},
-					{name:'Light',val:'-6,2,2.5,0.002,0.05'},
-					{name:'Dashed Distortion',val:'-45,26,2.05,0.233,0.0'},
-					{name:'Chaotic Distortion',val:'-60,14,11.07,0.036,0.00'}
+					{name:'Dashed Distortion',val:'-45,26,2.05,0.233,0.0'}
 				],
 				custom_pres:custom_presets.Get (filter_id),
 			preview: function ( q ) {
@@ -644,9 +656,13 @@
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.001" value="0.003" />'+
 				'<span class="pk_val">0.003</span></div>'+
 
-				'<div class="pk_row" style="border:none"><label class="pk_line">Release</label>' + 
+				'<div class="pk_row"><label class="pk_line">Release</label>' +
 				'<input class="pk_horiz" type="range" min="0.0" max="1.0" step="0.001" value="0.25" />'+
-				'<span class="pk_val">0.25</span></div>',
+				'<span class="pk_val">0.25</span></div>'+
+
+				'<div class="pk_row pk_grmtr_r" style="border:none"><label class="pk_line">Reduction</label>' +
+				'<div class="pk_grmtr"><div class="pk_grmtr_f"></div></div>'+
+				'<span class="pk_val pk_grmtr_v">0.0 dB</span></div>',
 				//'<a style="float:left;margin:0" class="pk_modal_a_bottom">Volume Graph</a></div>',
 			  setup:function( q ) {
 				var inputs = q.el_body.getElementsByTagName ('input');
@@ -676,6 +692,24 @@
 					if (!app.ui.InteractionHandler.check (modal_name)) return ;
 					q.Destroy ();
 				}, [27]);
+
+				// Gain reduction meter — reads compressor.reduction during preview
+				var grFill = q.el_body.getElementsByClassName ('pk_grmtr_f')[0];
+				var grVal  = q.el_body.getElementsByClassName ('pk_grmtr_v')[0];
+				function tickGR () {
+					q._grRAF = requestAnimationFrame (tickGR);
+					var host = app.engine && app.engine.FXPreviewHost;
+					var node = host && host.PreviewFilter;
+					var r = 0;
+					if (host && host.previewing && node) {
+						r = node.reduction;
+						if (typeof r !== 'number') r = (r && r.value) || 0;
+					}
+					var pct = Math.min (100, Math.max (0, (-r) / 20 * 100));
+					grFill.style.width = pct + '%';
+					grVal.innerHTML = r.toFixed (1) + ' dB';
+				}
+				tickGR ();
 				// ---
 			  }
 			}, app);

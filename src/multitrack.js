@@ -16,7 +16,7 @@
 		var min_track_h = app.isMobile ? 74 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
-		var snap_px = 8;
+		var snap_px = 10;
 		var row_h = default_row_h;
 		var cursor = 0;
 		var marker = 0;

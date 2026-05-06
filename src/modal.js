@@ -85,7 +85,7 @@
 				var curr = config.toolbar[i];
 				if (!curr.title || !curr.callback) continue;
 				var a_link = d.createElement ('a');
-				a_link.innerHTML = curr.title;
+				a_link.innerHTML = curr.title + (curr.tooltip ? '<span>' + curr.tooltip + '</span>' : '');
 				a_link.className = 'pk_modal_a_top ' + (curr.clss ? curr.clss : '');
 				el_title.appendChild ( a_link );
 
@@ -138,6 +138,7 @@
 				{
 					title:'ON',
 					clss:'pk_inact',
+					tooltip:'Toggle Bypass',
 					callback: function ( q, el ) {
 						app.fireEvent ('RequestActionFX_TOGGLE');
 					}
@@ -211,8 +212,7 @@
 
 			  q._evtoggle = function ( val ) {
 				  var el = q.els.toolbar[0];
-				  if (val) el.innerHTML = 'ON';
-				  else el.innerHTML = 'OFF';									
+				  el.firstChild.nodeValue = val ? 'ON' : 'OFF';
 			  };
 
 			  var stopped_listening = false;

@@ -917,11 +917,45 @@ a{
 .pk_modal .pk_txt:focus{border-color:var(--ac);box-shadow:0 0 10px var(--ac-glow)}
 
 .pk_modal_a_top{
-	float:right;display:block;
+	float:right;display:block;position:relative;
 	padding:2px var(--s1);
 	color:var(--ac-2);font-size:11px;
 }
 .pk_modal_a_top.pk_act{color:var(--ac);text-decoration:underline}
+
+/* Modal toolbar tooltip (hover) */
+.pk_modal_a_top span{
+	position:absolute;left:50%;top:24px;
+	display:block;padding:0 6px;
+	transform:translate(-50%,0);
+	background:#000;color:#eee;
+	font:11px/22px Arial,sans-serif;letter-spacing:normal;font-weight:normal;
+	white-space:nowrap;
+	border-radius:3px;
+	visibility:hidden;opacity:0;pointer-events:none;
+	user-select:none;
+	transition:opacity 320ms 296ms;
+	z-index:6;
+}
+.pk_modal_a_top:hover span{visibility:visible;opacity:1}
+.pk_mob .pk_modal_a_top span{visibility:hidden;display:none}
+
+/* Compressor gain-reduction meter */
+.pk_grmtr{
+	float:left;position:relative;
+	width:200px;max-width:60%;height:14px;margin:9px 0;
+	background:var(--bg-0,#111);
+	border:1px solid var(--bd,#444);
+	border-radius:3px;
+	overflow:hidden;
+}
+.pk_grmtr_f{
+	position:absolute;right:0;top:0;bottom:0;
+	width:0%;
+	background:linear-gradient(to left, #ffc107, #ff5722);
+	transition:width 50ms linear;
+}
+.pk_grmtr_v{min-width:60px;text-align:right}
 
 .pk_modal_anim{animation:pk_ppr .22s var(--ease) 0ms 1}
 
