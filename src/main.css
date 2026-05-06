@@ -592,6 +592,10 @@ a{
 .pk_mt_trim{position:absolute;top:0;bottom:0;width:8px;z-index:2;cursor:ew-resize}
 .pk_mt_trim_l{left:0}
 .pk_mt_trim_r{right:0}
+.pk_mt_fade{position:absolute;top:0;width:10px;height:12px;z-index:3;cursor:ew-resize}
+.pk_mt_fade:before{content:"";position:absolute;top:0;width:0;height:0;border-top:9px solid #f0d878}
+.pk_mt_fade_l:before{left:0;border-right:9px solid transparent}
+.pk_mt_fade_r:before{right:0;border-left:9px solid transparent}
 .pk_mt_trim:after{
 	content:"";position:absolute;top:8px;bottom:10px;left:3px;
 	border-left:1px solid rgba(245,197,66,.7);
@@ -1415,6 +1419,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 .pk_mt_knob,
 .pk_mt_clip,
 .pk_mt_trim,
+.pk_mt_fade,
 .pk_mt_region,
 .pk_mt_ruler,
 .pk_zoombtn button,
@@ -1434,7 +1439,7 @@ input,textarea{-webkit-touch-callout:none}
 /* Multitrack track-list sidebar momentum scrolling on iOS. */
 .pk_mt_tracks_wrap{-webkit-overflow-scrolling:touch}
 .pk_mt_main,.pk_mt_lanes,.pk_mt_lane{touch-action:pan-y}
-.pk_mt_clip.pk_mt_clip_sel,.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,
+.pk_mt_clip.pk_mt_clip_sel,.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,.pk_mt_clip.pk_mt_clip_sel .pk_mt_fade,
 .pk_mt_region,.pk_mt_knob,.pk_mt_resize{touch-action:none}
 
 /* ---------- Mobile-only sizing & visibility (.pk_mob) ---------- */

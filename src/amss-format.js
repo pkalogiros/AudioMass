@@ -131,6 +131,8 @@
 				wtr.f32 (c.start);
 				wtr.f32 (c.in || 0);
 				wtr.f32 (c.out);
+				wtr.f32 (c.fi || 0);
+				wtr.f32 (c.fo || 0);
 				wtr.str (c.name);
 			}
 			for (i = 0; i < xf.length; ++i) {
@@ -230,6 +232,8 @@
 					start: f32 (),
 					inp: f32 (),
 					out: f32 (),
+					fi: f32 (),
+					fo: f32 (),
 					name: str ()
 				});
 
@@ -263,6 +267,8 @@
 					start: rc.start,
 					in: rc.inp,
 					out: rc.out,
+					fi: rc.fi || 0,
+					fo: rc.fo || 0,
 					name: rc.name || audio[rc.audio].name,
 					buffer: audio[rc.audio].buffer
 				});

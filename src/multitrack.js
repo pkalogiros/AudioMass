@@ -16,6 +16,7 @@
 		var min_track_h = app.isMobile ? 74 : 58;
 		var max_track_h = 240;
 		var px_per_sec = 86;
+		var snap_px = 8;
 		var row_h = default_row_h;
 		var cursor = 0;
 		var marker = 0;
@@ -43,6 +44,7 @@
 			app.engine.wavesurfer.params.timeline !== false;
 		var mt_context = null;
 		var context_clip = null;
+		var context_time = 0;
 		var skip_context = false;
 		var pan_dragged = false;
 
@@ -209,6 +211,8 @@
 						start: c.start,
 						in: c.in || 0,
 						out: c.out,
+						fi: c.fi || 0,
+						fo: c.fo || 0,
 						name: c.name,
 						buffer: c.buffer
 					};
@@ -255,10 +259,13 @@
 					start: c.start || 0,
 					in: c.in || 0,
 					out: c.out,
+					fi: c.fi || 0,
+					fo: c.fo || 0,
 					name: c.name,
 					buffer: c.buffer
 				};
 			});
+			for (var i = 0; i < clips.length; ++i) clampClipFades ( clips[i] );
 			track_uid = state.track_uid || nextNum (tracks, 'mt');
 			clip_uid = state.clip_uid || nextNum (clips, 'mc');
 			selected_track = state.selected_track || (tracks[0] && tracks[0].id);
@@ -536,7 +543,7 @@
 			ruler.onclick = function ( e ) {
 				if (!hasClips ()) return ;
 				focusMain ();
-				setCursorTime ( timeFromEvent ( e ) );
+				setCursorTime ( snapTime ( timeFromEvent ( e ), e ) );
 			};
 
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
@@ -1386,8 +1393,21 @@
 			return hit ? (all ? 2 : 1) : 0;
 		}
 
-		function xfadeGainAt ( clip, time ) {
+		function fadeGainAt ( clip, time ) {
+			var len = clipLen ( clip );
+			var pos = time - clip.start;
 			var gain = 1;
+			var fi = Math.min (clip.fi || 0, len);
+			var fo = Math.min (clip.fo || 0, len - fi);
+
+			if (fi && pos < fi) gain *= Math.max (0, pos / fi);
+			if (fo && pos > len - fo) gain *= Math.max (0, (len - pos) / fo);
+			return gain;
+		}
+
+		function clipGainAt ( clip, time ) {
+			var gain = 1;
+			var hit = false;
 			for (var i = 0; i < clips.length; ++i) {
 				var other = clips[i];
 				if (other === clip || !activeXfade (clip, other)) continue;
@@ -1401,8 +1421,25 @@
 				gain *= first ?
 					Math.cos (p * Math.PI * 0.5) :
 					Math.sin (p * Math.PI * 0.5);
+				hit = true;
 			}
-			return gain;
+			return gain * (hit ? 1 : fadeGainAt (clip, time));
+		}
+
+		function setClipFade ( clip, left, val ) {
+			var len = clipLen ( clip );
+			var fi = clip.fi || 0;
+			var fo = clip.fo || 0;
+
+			if (left) fi = Math.max (0, Math.min (val, len - fo));
+			else fo = Math.max (0, Math.min (val, len - fi));
+			clip.fi = fi < 0.005 ? 0 : fi;
+			clip.fo = fo < 0.005 ? 0 : fo;
+		}
+
+		function clampClipFades ( clip ) {
+			setClipFade ( clip, 1, clip.fi || 0 );
+			setClipFade ( clip, 0, clip.fo || 0 );
 		}
 
 		function toggleXfade () {
@@ -1437,6 +1474,14 @@
 			return true;
 		}
 
+		function placeFadeHandles ( ce, clip, cw ) {
+			var l = ce.getElementsByClassName ('pk_mt_fade_l')[0];
+			var r = ce.getElementsByClassName ('pk_mt_fade_r')[0];
+			var max = Math.max (0, cw - 10);
+			if (l) l.style.left = Math.max (0, Math.min (max, ((clip.fi || 0) * px_per_sec - 5) >> 0)) + 'px';
+			if (r) r.style.right = Math.max (0, Math.min (max, ((clip.fo || 0) * px_per_sec - 5) >> 0)) + 'px';
+		}
+
 		function renderClip ( clip ) {
 			var lane = lane_by_track[clip.track];
 			if (!lane) return ;
@@ -1465,6 +1510,15 @@
 			ce.appendChild ( canvas );
 			ce.appendChild ( trim_l );
 			ce.appendChild ( trim_r );
+			if (clip.id === selected_clip) {
+				var fade_l = d.createElement ('b');
+				var fade_r = d.createElement ('b');
+				fade_l.className = 'pk_mt_fade pk_mt_fade_l';
+				fade_r.className = 'pk_mt_fade pk_mt_fade_r';
+				ce.appendChild ( fade_l );
+				ce.appendChild ( fade_r );
+				placeFadeHandles ( ce, clip, cw );
+			}
 			ce.appendChild ( label );
 			if (has_xf) {
 				var xf = d.createElement ('em');
@@ -1638,8 +1692,8 @@
 			mt_context.addOption ('Copy Clip', function () {
 				doContextClip ( copySelectedClip );
 			}, false);
-			mt_context.addOption ('Split at Cursor', function () {
-				doContextClip ( splitSelectedClip );
+			mt_context.addOption ('Split Here', function () {
+				doContextClip (function () { splitSelectedClip ( context_time ); });
 			}, false);
 			mt_context.addOption ('Delete Clip', function () {
 				doContextClip ( deleteSelectedClip );
@@ -1674,6 +1728,7 @@
 			focusMain ();
 			e.preventDefault ();
 			e.stopPropagation ();
+			context_time = timeFromEvent ( e );
 			setContextClip ( clip );
 			mt_context.open ( e );
 			return true;
@@ -1746,7 +1801,7 @@
 			setActiveDrag ( up );
 
 			function move ( ev ) {
-				var time = timeFromEvent ( ev );
+				var time = snapTime ( timeFromEvent ( ev ), ev, null, 1 );
 
 				ev.preventDefault ();
 				moved = true;
@@ -1795,6 +1850,10 @@
 				var time = timeFromEvent ( ev );
 				var start = Math.max (0, Math.min (duration () - len,
 					old_start + time - down_time));
+				var a = snapTime ( start, ev, null, 1 );
+				var b = snapTime ( start + len, ev, null, 1 ) - len;
+				start = Math.max (0, Math.min (duration () - len,
+					Math.abs (a - start) < Math.abs (b - start) ? a : b));
 				ev.preventDefault ();
 				setRegion ( start, start + len );
 				edgePan ( ev, edgeDirFromRegion ( time, last_time ), move );
@@ -1817,8 +1876,42 @@
 				if (track) selected_track = track;
 				clearSelectedClip ( true );
 				clearRegion ();
-				setCursorTime ( timeFromEvent ( ev ) );
+				setCursorTime ( snapTime ( timeFromEvent ( ev ), ev ) );
 				render ();
+			}
+		}
+
+		function drawClipFades ( ctx, clip, wdt, hgt ) {
+			var dur = clipLen ( clip );
+			if (dur <= 0 || !(clip.fi || clip.fo)) return ;
+			var fi = Math.min (wdt, (clip.fi || 0) / dur * wdt);
+			var fo = Math.min (wdt, (clip.fo || 0) / dur * wdt);
+			ctx.strokeStyle = 'rgba(240,216,120,.75)';
+			ctx.fillStyle = 'rgba(240,216,120,.08)';
+			if (fi > 1) {
+				ctx.beginPath ();
+				ctx.moveTo (0, hgt);
+				ctx.lineTo (fi, 0);
+				ctx.lineTo (fi, hgt);
+				ctx.closePath ();
+				ctx.fill ();
+				ctx.beginPath ();
+				ctx.moveTo (0, hgt);
+				ctx.lineTo (fi, 0);
+				ctx.stroke ();
+			}
+			if (fo > 1) {
+				var x = wdt - fo;
+				ctx.beginPath ();
+				ctx.moveTo (x, 0);
+				ctx.lineTo (wdt, hgt);
+				ctx.lineTo (x, hgt);
+				ctx.closePath ();
+				ctx.fill ();
+				ctx.beginPath ();
+				ctx.moveTo (x, 0);
+				ctx.lineTo (wdt, hgt);
+				ctx.stroke ();
 			}
 		}
 
@@ -1863,6 +1956,7 @@
 					}
 					ctx.fillRect (x, mid - (max * mid), 1, Math.max (1, (max - min) * mid));
 				}
+				drawClipFades ( ctx, clip, wdt, hgt );
 				return ;
 			}
 
@@ -1877,6 +1971,7 @@
 				}
 				ctx.fillRect (x2, mid - (max2 * mid), 1, Math.max (1, (max2 - min2) * mid));
 			}
+			drawClipFades ( ctx, clip, wdt, hgt );
 		}
 
 		function renderRecPreview () {
@@ -1961,6 +2056,8 @@
 			var old_h = 0;
 			var old_in = 0;
 			var old_out = 0;
+			var old_fi = 0;
+			var old_fo = 0;
 			var drag_mode = 0;
 			var trim_canvas = null;
 			var trim_redraw = 0;
@@ -1981,10 +2078,12 @@
 				e.stopPropagation ();
 				var cls = e.target && e.target.classList;
 				drag_mode = cls && cls.contains ('pk_mt_trim_l') ? 1 :
-					(cls && cls.contains ('pk_mt_trim_r') ? 2 : 0);
+					(cls && cls.contains ('pk_mt_trim_r') ? 2 :
+					(cls && cls.contains ('pk_mt_fade_l') ? 3 :
+					(cls && cls.contains ('pk_mt_fade_r') ? 4 : 0)));
 				if (!drag_mode && selected_clip !== clip.id) {
 					return startRangeSelect ( e, function ( ev ) {
-						setCursorTime ( timeFromEvent ( ev || e ) );
+						setCursorTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ) );
 						selectClip ( clip );
 					});
 				}
@@ -1997,6 +2096,8 @@
 				old_h = trackHeight ( findTrack ( old_track ) );
 				old_in = clipIn ( clip );
 				old_out = clipOut ( clip );
+				old_fi = clip.fi || 0;
+				old_fo = clip.fo || 0;
 				prev = cloneState ();
 				moved = false;
 				did_move = false;
@@ -2037,7 +2138,7 @@
 					if (moved || !ev) return ;
 					ev.preventDefault ();
 					ev.stopPropagation ();
-					setCursorTime ( timeFromEvent ( ev ) );
+					setCursorTime ( snapTime ( timeFromEvent ( ev ), ev ) );
 					selectClip ( clip );
 				}
 			}
@@ -2078,17 +2179,28 @@
 				moved = true;
 				did_move = true;
 
-				if (drag_mode) {
-					trimClip ( dx / px_per_sec );
+				if (drag_mode === 1 || drag_mode === 2) {
+					trimClip ( dx / px_per_sec, e );
 					var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
 					ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 					ce.style.width = cw + 'px';
+					placeFadeHandles ( ce, clip, cw );
+					updateTrimView ();
+					queuePlayRefresh ();
+					return ;
+				}
+				if (drag_mode === 3 || drag_mode === 4) {
+					fadeClip ( dx / px_per_sec, e );
+					placeFadeHandles ( ce, clip, Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0) );
 					updateTrimView ();
 					queuePlayRefresh ();
 					return ;
 				}
 
-				clip.start = Math.max (0, old_start + dx / px_per_sec);
+				var ns = Math.max (0, old_start + dx / px_per_sec);
+				var a = snapTime ( ns, e, clip );
+				var b = snapTime ( ns + clipLen ( clip ), e, clip ) - clipLen ( clip );
+				clip.start = Math.max (0, Math.abs (a - ns) < Math.abs (b - ns) ? a : b);
 				ce.style.transform = 'translate3d(' +
 					(((clip.start - old_start) * px_per_sec) >> 0) +
 					'px,0,0)';
@@ -2116,20 +2228,22 @@
 					Math.abs (clip.start - old_start) > 0.001 ||
 					Math.abs (clipIn (clip) - old_in) > 0.001 ||
 					Math.abs (clipOut (clip) - old_out) > 0.001 ||
+					Math.abs ((clip.fi || 0) - old_fi) > 0.001 ||
+					Math.abs ((clip.fo || 0) - old_fo) > 0.001 ||
 					clip.track !== old_track
 				)) {
-					pushState ( prev, drag_mode ? 'Trim Clip' : 'Move Clip' );
+					pushState ( prev, drag_mode > 2 ? 'Fade Clip' : (drag_mode ? 'Trim Clip' : 'Move Clip') );
 					queuePlayRefresh ( true );
 					render ();
 					return ;
 				}
 
 				if (!e) return ;
-				setCursorTime ( timeFromEvent ( e ) );
+				setCursorTime ( snapTime ( timeFromEvent ( e ), e ) );
 				selectClip ( clip );
 			}
 
-			function trimClip ( diff ) {
+			function trimClip ( diff, e ) {
 				var min = Math.min (0.05, clip.buffer.duration);
 				if (drag_mode === 1) {
 					var next_in = old_in + diff;
@@ -2147,12 +2261,34 @@
 						next_in = old_out - min;
 						next_start = old_start + (next_in - old_in);
 					}
+					next_start = snapTime ( next_start, e, clip );
+					next_in = old_in + next_start - old_start;
+					if (next_in < 0) {
+						next_start -= next_in;
+						next_in = 0;
+					}
+					if (next_in > old_out - min) {
+						next_in = old_out - min;
+						next_start = old_start + (next_in - old_in);
+					}
 
 					clip.in = Math.max (0, next_in);
 					clip.start = Math.max (0, next_start);
 				}
 				else {
-					clip.out = Math.max (old_in + min, Math.min (clip.buffer.duration, old_out + diff));
+					var next_out = Math.max (old_in + min, Math.min (clip.buffer.duration, old_out + diff));
+					var end = snapTime ( old_start + next_out - old_in, e, clip );
+					clip.out = Math.max (old_in + min, Math.min (clip.buffer.duration, old_in + end - old_start));
+				}
+				clampClipFades ( clip );
+			}
+
+			function fadeClip ( diff, e ) {
+				if (drag_mode === 3)
+					setClipFade ( clip, 1, snapTime ( clip.start + old_fi + diff, e, clip ) - clip.start );
+				else {
+					var end = clipEnd ( clip );
+					setClipFade ( clip, 0, end - snapTime ( end - old_fo + diff, e, clip ) );
 				}
 			}
 		}
@@ -2288,6 +2424,48 @@
 			return Math.max (0, (e.clientX - rect.left) / px_per_sec);
 		}
 
+		function snapTime ( t, e, skip, flags ) {
+			if (e && e.altKey) return Math.max (0, t);
+			var lim = snap_px / px_per_sec;
+			var best = t;
+			var v = cursor;
+			var dlt = Math.abs (v - t);
+			if (dlt < lim) { lim = dlt; best = v; }
+			v = marker;
+			dlt = Math.abs (v - t);
+			if (dlt < lim) { lim = dlt; best = v; }
+			if (!(flags & 1) && region) {
+				v = region.start;
+				dlt = Math.abs (v - t);
+				if (dlt < lim) { lim = dlt; best = v; }
+				v = region.end;
+				dlt = Math.abs (v - t);
+				if (dlt < lim) { lim = dlt; best = v; }
+			}
+			for (var i = 0; i < clips.length; ++i) {
+				var c = clips[i];
+				if (c === skip) continue;
+				v = c.start;
+				dlt = Math.abs (v - t);
+				if (dlt < lim) { lim = dlt; best = v; }
+				var ce = clipEnd ( c );
+				v = ce;
+				dlt = Math.abs (v - t);
+				if (dlt < lim) { lim = dlt; best = v; }
+				if (c.fi) {
+					v = c.start + c.fi;
+					dlt = Math.abs (v - t);
+					if (dlt < lim) { lim = dlt; best = v; }
+				}
+				if (c.fo) {
+					v = ce - c.fo;
+					dlt = Math.abs (v - t);
+					if (dlt < lim) { lim = dlt; best = v; }
+				}
+			}
+			return Math.max (0, best);
+		}
+
 		function stopEdgePan () {
 			edge_pan_dir = 0;
 			edge_pan_ev = edge_pan_update = null;
@@ -2417,7 +2595,7 @@
 			}
 
 			var track = regionTrack ( e );
-			var start = timeFromEvent ( e );
+			var start = snapTime ( timeFromEvent ( e ), e, null, 1 );
 			var down_x = e.clientX;
 			var down_y = e.clientY;
 			var is_touch = e._touch;
@@ -2446,7 +2624,7 @@
 					clearSelectedClip ( true );
 				}
 				ev.preventDefault ();
-				last = timeFromEvent ( ev );
+				last = snapTime ( timeFromEvent ( ev ), ev, null, 1 );
 				setRegion ( start, last );
 				edgePan ( ev, edgeDirFromEvent ( ev ), move );
 			}
@@ -2457,7 +2635,7 @@
 				clearActiveDrag ( up );
 				if (active) {
 					app.ui.InteractionHandler.forceUnset ('multitrack-region');
-					if (ev) last = timeFromEvent ( ev );
+					if (ev) last = snapTime ( timeFromEvent ( ev ), ev, null, 1 );
 					setRegion ( start, last, true );
 					if (!region)
 						setCursorTime ( start );
@@ -2609,6 +2787,8 @@
 				start: Math.max (0, start || 0),
 				in: 0,
 				out: buffer.duration,
+				fi: 0,
+				fo: 0,
 				name: name || 'Audio',
 				buffer: buffer
 			};
@@ -2641,6 +2821,8 @@
 				buffer: clip.buffer,
 				in: clipIn ( clip ),
 				out: clipOut ( clip ),
+				fi: clip.fi || 0,
+				fo: clip.fo || 0,
 				name: clip.name
 			};
 			app.fireEvent ('DidCopy', buffer);
@@ -2676,6 +2858,8 @@
 				start: clipEnd ( clip ),
 				in: clipIn ( clip ),
 				out: clipOut ( clip ),
+				fi: clip.fi || 0,
+				fo: clip.fo || 0,
 				name: clip.name,
 				buffer: clip.buffer
 			};
@@ -2956,6 +3140,8 @@
 			if (meta) {
 				clip.in = meta.in;
 				clip.out = meta.out;
+				clip.fi = meta.fi || 0;
+				clip.fo = meta.fo || 0;
 			}
 			clips.push ( clip );
 			selected_track = track;
@@ -3009,9 +3195,16 @@
 		function applyClipEnvelope ( param, clip, base, when, offset, play_len ) {
 			var start = clipTimelineStart ( clip, offset );
 			var end = start + play_len;
-			var points = [{t: start, v: base * xfadeGainAt (clip, start)}];
+			var points = [{t: start, v: base * clipGainAt (clip, start)}];
+
+			function addPoint ( t ) {
+				if (t > start && t < end)
+					points.push ({t: t, v: base * clipGainAt (clip, t)});
+			}
 
 			param.cancelScheduledValues ( when );
+			addPoint ( clip.start + (clip.fi || 0) );
+			addPoint ( clipEnd ( clip ) - (clip.fo || 0) );
 
 			for (var i = 0; i < clips.length; ++i) {
 				var other = clips[i];
@@ -3027,9 +3220,10 @@
 				var steps = Math.max (4, Math.min (24, ((to - from) / 0.03) >> 0));
 				for (var j = 0; j <= steps; ++j) {
 					var t = from + ((to - from) * j / steps);
-					points.push ({t: t, v: base * xfadeGainAt (clip, t)});
+					points.push ({t: t, v: base * clipGainAt (clip, t)});
 				}
 			}
+			points.push ({t: end, v: base * clipGainAt (clip, end)});
 
 			points.sort (function ( a, b ) {
 				return a.t - b.t;
@@ -3059,7 +3253,7 @@
 				var pan = tr.pan || 0;
 				var gl = gain * (pan > 0 ? 1 - pan : 1);
 				var gr = gain * (pan < 0 ? 1 + pan : 1);
-				var env = xfadeGainAt (clip, time);
+				var env = clipGainAt (clip, time);
 				var l = mixSample ( clip.buffer, 0, src ) * gl * env;
 				var r = mixSample (
 					clip.buffer,
@@ -3112,7 +3306,7 @@
 
 				for (var j = 0; j < len; ++j) {
 					var t = src + (j / rate);
-					var env = xfadeGainAt ( clip, start + (j / rate) ) * master_vol;
+					var env = clipGainAt ( clip, start + (j / rate) ) * master_vol;
 					left[off + j] += mixSample ( clip.buffer, 0, t ) * gl * env;
 					right[off + j] += mixSample (
 						clip.buffer,
@@ -3467,6 +3661,7 @@
 			if (clipOut ( clip ) > buffer.duration) clip.out = buffer.duration;
 			if (clipIn ( clip ) > clipOut ( clip ) - 0.05)
 				clip.in = Math.max (0, clipOut ( clip ) - 0.05);
+			clampClipFades ( clip );
 		}
 
 		function Play ( x ) {
@@ -4054,13 +4249,13 @@
 			return true;
 		}
 
-		function splitSelectedClip () {
+		function splitSelectedClip ( at ) {
 			if (!selected_clip) return false;
 
 			var clip = findClip ( selected_clip );
 			if (!clip) return false;
 
-			var at = play ? playingCursor () : marker;
+			if (at === undefined) at = play ? playingCursor () : marker;
 			var rel = at - clip.start;
 			var len = clipLen ( clip );
 
@@ -4077,11 +4272,16 @@
 				start: at,
 				in: split,
 				out: clipOut ( clip ),
+				fi: 0,
+				fo: clip.fo || 0,
 				name: clip.name,
 				buffer: clip.buffer
 			};
 
 			clip.out = split;
+			clip.fo = 0;
+			clampClipFades ( clip );
+			clampClipFades ( right );
 			clips.splice (clips.indexOf ( clip ) + 1, 0, right);
 			selected_clip = right.id;
 			selected_track = right.track;
@@ -4222,7 +4422,8 @@
 				return toggleFxPreview ( arg1 );
 			}
 			if (id === 'RequestActionFX_UPDATE_PREVIEW') {
-				return updateFxPreview ( arg1 );
+				updateFxPreview ( arg1 );
+				return false;
 			}
 			if (fxEventName (id, true)) {
 				return previewFx ( fxEventName (id, true), arg1 );
