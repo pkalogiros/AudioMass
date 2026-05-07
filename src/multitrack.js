@@ -2222,6 +2222,10 @@
 					(cls && cls.contains ('pk_mt_fade_l') ? 3 :
 					(cls && cls.contains ('pk_mt_fade_r') ? 4 : 0)));
 				if (!drag_mode && selected_clip !== clip.id) {
+					if (e.shiftKey) {
+						selectClip ( clip );
+						return ;
+					}
 					return startRangeSelect ( e, function ( ev ) {
 						setClickTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ), false );
 						selectClip ( clip );
