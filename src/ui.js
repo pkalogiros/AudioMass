@@ -41,11 +41,11 @@
 	}
 
 	function activeSeekRampFor ( app ) {
-		return activeMultitrackFor ( app ) ? 0.15 : 0.05;
+		return 0.15;
 	}
 
 	function activeSeekWarmupFor ( app ) {
-		return activeMultitrackFor ( app ) ? 2 : 4;
+		return 2;
 	}
 
 	function activeReadyFor ( app ) {
@@ -2338,6 +2338,7 @@
 		///////////////////////////////////////////////////////////
 		// REWING / BACK BTN
 		var btn_back_focus = false;
+		var btn_back_hold = false;
 		var btn_back_tm = null;
 		btn_back_jump.onclick = function() {
 
@@ -2358,9 +2359,19 @@
 
 			this.blur();
 			btn_back_focus = false;
+			btn_back_hold = false;
+		};
+		btn_back_jump.onmousedown = function () {
+			btn_back_hold = true;
+			this.focus ();
+			if (!btn_back_tm) this.onfocus ();
+		};
+		btn_back_jump.onmouseup = function () {
+			btn_back_hold = false;
 		};
 
 		btn_back_jump.onmouseleave = function () {
+			btn_back_hold = false;
 			if (btn_back_tm) {
 				clearTimeout(btn_back_tm);
 				btn_back_tm = null;
@@ -2371,26 +2382,20 @@
 		btn_back_jump.onfocus = function() {
 			var btn = this;
 			btn_back_focus = false;
+			if (btn_back_tm) clearTimeout ( btn_back_tm );
 
 			var step = function ( num, count ) {
-				if (document.activeElement === btn)
+				if (btn_back_hold || document.activeElement === btn)
 				{
 					btn_back_focus = true;
 
 					UI.fireEvent ('RequestSkipBack', num);
 
-					var block = 4450;
+					if (count >= activeSeekWarmupFor ( app ))
+						num += num * activeSeekRampFor ( app );
 
-					var middle_step = activeDurationFor ( app ) / block;
-					var zoom = activeZoomFor ( app );
-					middle_step /= zoom;
-
-					if (count < 12) {
-						middle_step = 0;
-					}
-
-					setTimeout(function() {
-						step (num + middle_step, ++count);
+					btn_back_tm = setTimeout(function() {
+						step (num, ++count);
 					},40);
 				}
 			};
@@ -2405,7 +2410,7 @@
 				}
 
 				step (small, 0);
-			},390);
+			},220);
 		};
 		////////////////////////
 
@@ -2416,6 +2421,7 @@
 		transport.appendChild ( btn_front_jump );
 
 		var btn_frnt_focus = false;
+		var btn_frnt_hold = false;
 		var btn_frnt_tm = null;
 		btn_front_jump.onclick = function() {
 			if (!btn_frnt_focus)
@@ -2435,8 +2441,18 @@
 
 			this.blur();
 			btn_frnt_focus = false;
+			btn_frnt_hold = false;
+		};
+		btn_front_jump.onmousedown = function () {
+			btn_frnt_hold = true;
+			this.focus ();
+			if (!btn_frnt_tm) this.onfocus ();
+		};
+		btn_front_jump.onmouseup = function () {
+			btn_frnt_hold = false;
 		};
 		btn_front_jump.onmouseleave = function () {
+			btn_frnt_hold = false;
 			if (btn_frnt_tm) {
 				clearTimeout(btn_frnt_tm);
 				btn_frnt_tm = null;
@@ -2446,26 +2462,20 @@
 		btn_front_jump.onfocus = function() {
 			var btn = this;
 			btn_frnt_focus = false;
+			if (btn_frnt_tm) clearTimeout ( btn_frnt_tm );
 
 			var step = function ( num, count ) {
-				if (document.activeElement === btn)
+				if (btn_frnt_hold || document.activeElement === btn)
 				{
 					btn_frnt_focus = true;
 
 					UI.fireEvent ('RequestSkipFront', num);
 
-					var block = 4450;
+					if (count >= activeSeekWarmupFor ( app ))
+						num += num * activeSeekRampFor ( app );
 
-					var middle_step = activeDurationFor ( app ) / block;
-					var zoom = activeZoomFor ( app );
-					middle_step /= zoom;
-
-					if (count < 12) {
-						middle_step = 0;
-					}
-
-					setTimeout(function() {
-						step (num + middle_step, ++count);
+					btn_frnt_tm = setTimeout(function() {
+						step (num, ++count);
 					},40);
 				}
 			};
@@ -2480,7 +2490,7 @@
 				}
 
 				step (small, 0);
-			},390);
+			},220);
 		};
 		////////////////////////
 

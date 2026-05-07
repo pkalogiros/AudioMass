@@ -2007,6 +2007,13 @@
 				if (!ev) return ;
 
 				var target = regionNodeAtEvent ( ev );
+				var clip_node = clipNodeFrom ( target );
+				var clip = clip_node && findClip ( clip_node.getAttribute ('data-clip') );
+				if (clip) {
+					selectClip ( clip );
+					setClickTime ( snapTime ( timeFromEvent ( ev ), ev ), false );
+					return ;
+				}
 				var track = regionTrack ({target: target});
 				if (track) selected_track = track;
 				clearSelectedClip ( true );
@@ -2228,6 +2235,7 @@
 					}
 					return startRangeSelect ( e, function ( ev ) {
 						setClickTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ), false );
+						clearRegion ();
 						selectClip ( clip );
 					});
 				}
@@ -2383,6 +2391,7 @@
 
 				if (!e) return ;
 				setClickTime ( snapTime ( timeFromEvent ( e ), e ), false );
+				if (!e._touch) clearRegion ();
 				selectClip ( clip );
 			}
 
