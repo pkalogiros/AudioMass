@@ -21,6 +21,8 @@ const assets = [
 	'./recorder-worklet.js',
 	'./welcome.js',
 	'./fx-pg-eq.js',
+	'./tempo-estimator.js',
+	'./tempo-worker.js',
 	'./fx-auto.js',
 	'./local.js',
 	'./id3.js',

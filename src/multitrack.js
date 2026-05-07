@@ -3389,6 +3389,20 @@
 			return out;
 		}
 
+		function GetTempoBuffer ( selection_only ) {
+			if (selection_only)
+				return Mixdown (region ? [ region.start, region.end ] : false);
+
+			var clip = findClip ( selected_clip );
+			if (clip) return copyClipBuffer ({
+				buffer: clip.buffer,
+				in: clipIn ( clip ),
+				out: clipOut ( clip )
+			});
+
+			return Mixdown ( false );
+		}
+
 		function addSilence ( offset, seconds ) {
 			var track = selected_track || (tracks[0] && tracks[0].id);
 			if (!track) return true;
@@ -4405,6 +4419,7 @@
 		q.GetRegion = function () { return region; };
 		q.HasClips = hasClips;
 		q.Mixdown = Mixdown;
+		q.GetTempoBuffer = GetTempoBuffer;
 		q.RecordToggle = RecordToggle;
 		q.RecordStart = RecordStart;
 		q.RecordStop = RecordStop;

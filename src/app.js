@@ -85,6 +85,35 @@
 			return p * p;
 		};
 
+		var scripts = {};
+		q.loadScript = function ( src, ok, fail ) {
+			if (scripts[src] === true) {
+				ok && ok ();
+				return ;
+			}
+			if (scripts[src]) {
+				scripts[src].push ([ ok, fail ]);
+				return ;
+			}
+
+			scripts[src] = [[ ok, fail ]];
+			var script = d.createElement ('script');
+			script.onload = function () {
+				var list = scripts[src];
+				scripts[src] = true;
+				for (var i = 0; i < list.length; ++i)
+					list[i][0] && list[i][0] ();
+			};
+			script.onerror = function () {
+				var list = scripts[src];
+				scripts[src] = null;
+				for (var i = 0; i < list.length; ++i)
+					list[i][1] && list[i][1] ();
+			};
+			script.src = src;
+			d.head.appendChild (script);
+		};
+
 		q.init = function ( el_id ) {
 			var el = d.getElementById( el_id );
 			if (!el) {

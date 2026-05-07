@@ -1460,7 +1460,7 @@
 	var TempoToolsModal = function ( app ) {
 		app.fireEvent ('RequestSelect', 1);
 		var filter_id = 'tempo_tools';
-		var act_index = 1;
+		var act_index = 0;
 		var act_tool  = null;
 
 		// ------
@@ -2222,6 +2222,11 @@
 			};
 
 			q.Destroy = function () {
+				if (q.worker) {
+					q.worker.terminate ();
+					q.worker = null;
+				}
+
 				if (q.body) {
 					q.body.parentNode.removeChild ( q.body );
 					q.body = null;
@@ -2230,245 +2235,249 @@
 				q.app = null;
 			};
 
-			q.Est = function ( selection ) {
+			q.Est = function () {
 				var q = this;
+				var status = q.body.getElementsByClassName ('pk_tmp_est_status')[0];
+				var vals = q.body.getElementsByClassName ('pk_val');
+				var sel = q.body.querySelector ('input[value="sel"]').checked;
+				var buffer = getBuffer ( q, sel );
+				var job = (q.job_id || 0) + 1;
+				if (!buffer) return ;
 
-				var wavesurfer = q.app.engine.wavesurfer;
-				var buffer     = wavesurfer.backend.buffer;
-
-				var starting_time = 20.375;
-				var ending_time   = wavesurfer.getDuration ();
-				var sample_rate   = buffer.sampleRate;
-
-				var look_ahead    = 10 * sample_rate;
-				var offset_rate   = starting_time * sample_rate;
-				var duration_rate = ending_time * sample_rate;
-				var dist_rhythm   = {};
-
-				// now run offline 
-				var audio_ctx = getOfflineAudioContext (
-						1,
-						buffer.sampleRate,
-						buffer.length
-				);
-
-				var source = audio_ctx.createBufferSource ();
-				source.buffer = buffer;
-
-                var filter = audio_ctx.createBiquadFilter ();
-                filter.type = 'highpass';
-                filter.frequency.value = 50;
-                filter.Q.value = 1.1;
-                source.connect (filter);
-
-                var filter2 = audio_ctx.createBiquadFilter ();
-                filter2.type = 'lowpass';
-                filter2.frequency.value = 140;
-                filter2.Q.value = 2.5;
-                filter.connect (filter2);
-                filter2.connect (audio_ctx.destination);
-
-				source.start (0);
-
-				var offline_callback = function( rendered_buffer ) {
-					_pass ( rendered_buffer, offset_rate, duration_rate );
-				};
-
-				var _pass = function ( rendered_buffer, offset, duration ) {
-
-					var chan_data = rendered_buffer.getChannelData ( 0 );
-					var new_arr = [];
-					var diff_arr = [];
-	                var currval = 0;
-	                var prev_val = 0;
-	                var bottom = 100000;
-	                var top = -100000;
-	                var found_pick = false;
-	                var going_up = false;
-	                var peak_dist = 0;
-	                var peak_prev = 0;
-	                var next_offset = offset + look_ahead;
-
-					var trimmed_arr = [];
-					var modulus_coefficient = Math.round (look_ahead / 200);
-					var plus_one = look_ahead + modulus_coefficient;
-
-					for (var i = 0; i < plus_one; ++i) {
-						if (i % modulus_coefficient === 0) {
-
-							// look into 50 neighboring entries for higher values.
-							var val_clean = chan_data[ offset + i ];
-							var val = Math.abs (val_clean);
-
-							//console.log( "was ", val_clean );
-
-							var tmp_val = 0;
-							for (var uu = 1; uu < 50; ++uu) {
-								tmp_val = Math.abs (chan_data[ offset + i - uu ]);
-
-								if (tmp_val > val) {
-									val_clean = chan_data[ offset + i - uu ];
-									val = Math.abs (val_clean);
-								}
-							}
-
-							for (var uu = 1; uu < 50; ++uu) {
-								tmp_val = Math.abs (chan_data[ offset + i + uu ]);
-
-								if (tmp_val > val) {
-									val_clean = chan_data[ offset + i + uu ];
-									val = Math.abs (val_clean);
-								}
-							}
-
-							//console.log( "added ", val_clean );
-							//console.log("-----");
-
-							trimmed_arr.push ( val_clean );
-						}
-					}
-
-					trimmed_arr = _normalize_array2 (trimmed_arr);
-					trimmed_arr.pop ();
-
-					// ------------
-					prev_val = trimmed_arr[0];
-					for (var j = 1; j < trimmed_arr.length; ++j) {
-						currval = trimmed_arr[j];
-
-						if (currval > prev_val) {
-
-               				if (!going_up) {
-               					if (bottom > prev_val) {
-               						bottom = prev_val;
-               						top = -100000;
-               					}
-               				}
-
-               				going_up = true;
-						}
-               			else if (currval < prev_val ) {
-
-               				if (going_up) {
-
-               					// console.log (":: peak: ", prev_val.toFixed(2)/1, "  bottom: ", bottom.toFixed(2)/1, "  diff: ", Math.abs(prev_val-bottom).toFixed(2)/1 );
-
-               					found_pick = true;
-
-               					if (peak_dist < 3 && Math.abs (new_arr[peak_prev] - prev_val) < 150) {
-               						// debugger;
-
-               						if (prev_val > new_arr[peak_prev]) {
-               							new_arr[peak_prev] = 0;
-               							diff_arr.pop ();
-               						}
-               						else {
-               							found_pick = false;
-               						}
-               					}
-
-               					if (found_pick) {
-               						diff_arr.push (Math.abs (prev_val - bottom));
-
-               						peak_dist = 0;
-               						new_arr.push ( prev_val );
-
-               						peak_prev = new_arr.length - 1;
-
-               						if (prev_val > top) {
-               							top = prev_val;
-               							bottom = 100000;
-               						}
-               					}
-               					// -----
-               				}
-
-               				going_up = false;
-               			}
-
-               			prev_val = currval;
-
-						if (!found_pick) {
-							new_arr.push ( 0 );
-							//console.log( "ZEROED ", new_arr.length - 1 );
-							++peak_dist;
-						}
-						else {
-							found_pick = false;
-						}
-					}
-
-					// console.log( trimmed_arr );
-					// console.log( new_arr );
-					// window.trimmed_arr = trimmed_arr;
-					// window.new_arr = new_arr;
-					// window.chan = chan_data;
-
-					// ----
-                    var ret = _group_rhythm ( new_arr, diff_arr );
-                    if (!ret) return ;
-
-                    var distances = ret[0];
-
-                    // console.log( diff_arr );
-                    // console.log( ret[1] );
-
-                    for (var k in distances) {
-                    	if (!dist_rhythm[ k ]) dist_rhythm[ k ] = 0;
-
-                    	dist_rhythm[ k ] += distances[ k ];
-                    }
-
-                    // console.log( ' ---------------- ' );
-                    // console.log ('--------- END OF PASS -------  ',  offset, ' / ', duration);
-
-                    if (next_offset + look_ahead >= duration) {
-
-                    	 // Done... 
-                    } else {
-                   // 	_pass ( rendered_buffer, next_offset, duration );
-                    }
-                    // ----
-				};
-
-
-				var offline_renderer = audio_ctx.startRendering(); 
-				if (offline_renderer)
-					offline_renderer.then( offline_callback ).catch(function() {});
-				else
-					audio_ctx.oncomplete = function ( e ) {
-						offline_callback ( e.renderedBuffer );
-					};
+				q.job_id = job;
+				setBusy (q, true);
+				status.innerHTML = 'Preparing audio for background analysis...';
+				runEstimator (q, buffer, job, function ( ret ) {
+					if (q.job_id !== job) return ;
+					vals[0].value = ret.bpm;
+					vals[1].value = ret.tempo.toFixed (1);
+					vals[2].value = ret.beats;
+					vals[3].value = ret.confidence + '%';
+					status.innerHTML = 'Estimated ' + ret.beats + ' beats over ' + ret.duration + 's.';
+					setBusy (q, false);
+				}, function ( msg ) {
+					if (q.job_id !== job) return ;
+					status.innerHTML = msg;
+					setBusy (q, false);
+				});
 			};
 
-			function _make_ui ( q ) {
-				var el_drawer = d.createElement ('div');
-				el_drawer.className = 'pk_row';
+				function loadEstimator ( q, ok, fail ) {
+					if (w.PKTempoEstimator) {
+						ok ();
+						return ;
+					}
+					q.app.loadScript ('tempo-estimator.js?v=mt2', ok, fail);
+				}
 
-				// Estimate tempo for selected area button
-				el_drawer.innerHTML = '<div class="pk_row">' + 
-				'<input type="radio" class="pk_check" id="tt4" name="xport" checked value="whole">'+
-				'<label for="tt4">Whole track</label>'+
-				'<input type="radio" class="pk_check" id="tt5" name="xport" value="sel">'+
-				'<label class="pk_lblmp3" for="tt5">Estimate for Selection Only</label></div>' +
-				'<div class="pk_row">' + 
-				'<a class="pk_modal_a_bottom" style="margin:0;float:left">Estimate</a>'+
-				'</div>';
+				function setBusy ( q, on ) {
+					var btn = q.body && q.body.getElementsByTagName ('a')[0];
+					q.busy = !!on;
+					if (!btn) return ;
+					btn.innerHTML = on ? 'Working...' : 'Estimate';
+					btn.style.opacity = on ? '0.55' : '';
+				}
+
+				function packBuffer ( buffer ) {
+					var channels = [];
+					var transfer = [];
+					var total = Math.max (1, Math.min (2, buffer.numberOfChannels || 1));
+
+					for (var i = 0; i < total; ++i) {
+						var src = buffer.getChannelData (i);
+						var copy = new Float32Array (src.length);
+						copy.set (src);
+						channels.push (copy);
+						transfer.push (copy.buffer);
+					}
+
+					return ({
+						data: {
+							sampleRate: buffer.sampleRate,
+							length: buffer.length,
+							channels: channels
+						},
+						transfer: transfer
+					});
+				}
+
+				function runMainEstimator ( q, buffer, job, ok, fail, msg ) {
+					var status = q.body.getElementsByClassName ('pk_tmp_est_status')[0];
+					status.innerHTML = msg || 'Loading tempo detector...';
+					loadEstimator (q, function () {
+						if (q.job_id !== job) return ;
+						status.innerHTML = 'Analyzing audio. This can take a while on long files.';
+						w.PKTempoEstimator.estimate (buffer).then (ok).catch (function ( e ) {
+							fail (e && e.message ? e.message : 'Could not estimate tempo.');
+						});
+					}, function () {
+						fail ('Could not load tempo detector.');
+					});
+				}
+
+				function runEstimator ( q, buffer, job, ok, fail ) {
+					if (!w.Worker) {
+						runMainEstimator (q, buffer, job, ok, fail);
+						return ;
+					}
+
+					setTimeout (function () {
+						var payload = null;
+						if (q.job_id !== job) return ;
+
+						try { payload = packBuffer (buffer); }
+						catch (e) {
+							fail ('Could not prepare audio for tempo analysis.');
+							return ;
+						}
+
+						try {
+							if (q.worker) q.worker.terminate ();
+							q.worker = new Worker ('tempo-worker.js?v=mt1');
+						}
+						catch (e2) {
+							runMainEstimator (
+								q,
+								buffer,
+								job,
+								ok,
+								fail,
+								'Worker unavailable; analyzing here...'
+							);
+							return ;
+						}
+
+						q.worker.onmessage = function ( ev ) {
+							var data = ev.data || {};
+							if (data.id !== job) return ;
+							q.worker.terminate ();
+							q.worker = null;
+
+							if (data.error) fail (data.error);
+							else ok (data.result);
+						};
+						q.worker.onerror = function () {
+							if (q.worker) q.worker.terminate ();
+							q.worker = null;
+							runMainEstimator (
+								q,
+								buffer,
+								job,
+								ok,
+								fail,
+								'Worker unavailable; analyzing here...'
+							);
+						};
+
+						q.body.getElementsByClassName ('pk_tmp_est_status')[0].innerHTML =
+							'Analyzing audio in the background. This can take a while.';
+
+						try {
+							q.worker.postMessage ({
+								type: 'estimate',
+								id: job,
+								buffer: payload.data
+							}, payload.transfer);
+						}
+						catch (e3) {
+							try {
+								q.worker.postMessage ({
+									type: 'estimate',
+									id: job,
+									buffer: payload.data
+								});
+							}
+							catch (e4) {
+								q.worker.terminate ();
+								q.worker = null;
+								fail ('Could not start tempo analysis.');
+							}
+						}
+					}, 20);
+				}
+
+				function getBuffer ( q, sel ) {
+					var mt = q.app.multitrack;
+					var mt_on = mt && mt.IsOn && mt.IsOn ();
+					var region = null;
+
+					if (mt_on) {
+						if (!mt.HasClips || !mt.HasClips ()) {
+							OneUp ('Nothing to estimate', 1200);
+							return (null);
+						}
+						region = mt.GetRegion && mt.GetRegion ();
+						if (sel && !region) {
+							OneUp ('Make a selection first', 1200);
+							return (null);
+						}
+						if (mt.GetTempoBuffer)
+							return mt.GetTempoBuffer ( sel );
+						return mt.Mixdown (sel && region ? [ region.start, region.end ] : false);
+					}
+
+				var wavesurfer = q.app.engine.wavesurfer;
+				if (!wavesurfer.isReady || !wavesurfer.backend.buffer) {
+					OneUp ('Load audio first', 1200);
+					return (null);
+				}
+				if (sel) {
+					var copy = q.app.engine.GetSel && q.app.engine.GetSel ();
+					if (!copy) OneUp ('Make a selection first', 1200);
+					return (copy || null);
+				}
+				return (wavesurfer.backend.buffer);
+			}
+
+				function _make_ui ( q ) {
+					var el_drawer = d.createElement ('div');
+					var mt = q.app.multitrack;
+					var mt_on = mt && mt.IsOn && mt.IsOn ();
+					var whole_label = mt_on ? 'Selected Clip' : 'Whole track';
+					var sel_label = mt_on ? 'Region Only' : 'Selection Only';
+					el_drawer.className = 'pk_row';
+
+					el_drawer.innerHTML = '<div class="pk_row">' +
+						'<input type="radio" class="pk_check" id="tt4" name="xport" checked value="whole">'+
+						'<label for="tt4">' + whole_label + '</label>'+
+						'<input type="radio" class="pk_check" id="tt5" name="xport" value="sel">'+
+						'<label class="pk_lblmp3" for="tt5">' + sel_label + '</label></div>' +
+
+						'<div class="pk_row pk_pgeq_els">' +
+						'<span>BPM</span>'+
+						'<input style="margin-left:2px;min-width:64px;max-width:64px" '+
+						'type="text" class="pk_val pk_gain" value="-">'+
+						'<span>Tempo</span>'+
+						'<input style="margin-left:2px;min-width:64px;max-width:64px" '+
+						'type="text" class="pk_val pk_gain" value="-"></div>'+
+
+						'<div class="pk_row pk_pgeq_els">' +
+						'<span>Beats</span>'+
+						'<input style="margin-left:2px;min-width:64px;max-width:64px" '+
+						'type="text" class="pk_val pk_gain" value="-">'+
+						'<span>Confidence</span>'+
+						'<input style="margin-left:2px;min-width:64px;max-width:64px" '+
+						'type="text" class="pk_val pk_gain" value="-"></div>'+
+
+						'<div class="pk_row">' +
+						'<a class="pk_modal_a_bottom" style="margin:0;float:left">Estimate</a>'+
+						'<span class="pk_tmp_est_status" style="display:block;margin-left:120px;line-height:32px;color:#aaa">Runs in the background when you click Estimate.</span>'+
+						'</div>';
 
 				q.body = el_drawer;
 				q.el.appendChild ( el_drawer );
 			};
 
-			function _make_evs ( q ) {
-				var btn_est = q.body.getElementsByTagName ('a')[0];
-				if (!btn_est) return ;
+				function _make_evs ( q ) {
+					var btn_est = q.body.getElementsByTagName ('a')[0];
+					if (!btn_est) return ;
 
-				btn_est.onclick = function () {
-					q.Est && q.Est (1);
-					// q.app && q.app.fireEvent ('ReqEst', 1);
-				};
+					btn_est.onclick = function () {
+						if (q.busy) return ;
+						q.Est && q.Est ();
+					};
+					};
 			};
-		};
 
 		var x = new PKAudioFXModal ({
 			id: filter_id,
@@ -2483,8 +2492,8 @@
 				app.fireEvent ('RequestStop');
 			},
 
-			body: '<div class="pk_tbs">' +
-				'<a class="pk_tbsa pk_inact">Tempo Estimation</a>' +
+				body: '<div class="pk_tbs">' +
+					'<a class="pk_tbsa">Tempo Estimation</a>' +
 				'<a class="pk_tbsa">Tempo Tap</a>' +
 				'<a class="pk_tbsa">Metronome</a></div>',
 
@@ -2510,9 +2519,8 @@
 					var activate = function () {
 						// get the active state
 						if (act_index === 0) {
-							// toplinks[0].className += ' pk_act';
-							// act_tool = new TempoEstimation ( app, q );
-							return ;
+							toplinks[0].className += ' pk_act';
+							act_tool = new TempoEstimation ( app, q );
 						}
 						else if (act_index === 1) {
 							toplinks[1].className += ' pk_act';
@@ -2526,11 +2534,12 @@
 						act_tool && act_tool.Init ( q.el_body );
 					};
 
-					//toplinks[0].onclick = function() {
-					//	destroy ();
-					//	act_index = 0;
-					//	activate ();
-					//};
+					toplinks[0].onclick = function() {
+						if (act_index === 0) return ;
+
+						destroy (); act_index = 0;
+						activate ();
+					};
 					toplinks[1].onclick = function() {
 						if (act_index === 1) return ;
 
