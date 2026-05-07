@@ -385,7 +385,7 @@ a{
 /* ---------- Multitrack ---------- */
 .pk_mt{
 	display:none;position:relative;z-index:0;
-	height:calc(100vh - 168px);min-height:280px;
+	height:0;min-height:0;
 	background:var(--bg-1);
 	border-bottom:1px solid var(--bd);
 	box-sizing:border-box;
@@ -1324,7 +1324,6 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 @media only screen and (max-height:438px){
 	.pk_zoombtn .pk_zoom_out_v,
 	.pk_zoombtn .pk_zoom_in_v{display:none!important}
-	.pk_mob .pk_mt{height:calc(100dvh - 168px);min-height:0}
 }
 
 @media only screen and (max-width:1250px){

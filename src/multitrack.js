@@ -39,9 +39,10 @@
 		var active_drag = null;
 		var touch_zoom = null;
 		var touch_zoom_doc = false;
-		var gesture_zoom = false;
+		var gesture_zoom = null;
 		var zoom_dirty = false;
 		var wheel_zoom_delta = 0;
+		var clip_els = {};
 		var edge_pan_raf = 0;
 		var edge_pan_dir = 0;
 		var edge_pan_ev = null;
@@ -726,6 +727,7 @@
 			if (!el) return ;
 
 			lane_by_track = {};
+			clip_els = {};
 			cleanXfades ();
 			var old_top = main ? main.scrollTop : 0;
 			rec_el = null;
@@ -1532,15 +1534,8 @@
 			if (r) r.style.right = Math.max (0, Math.min (max, ((clip.fo || 0) * px_per_sec - 5) >> 0)) + 'px';
 		}
 
-		function clipNode ( id ) {
-			var nodes = lanes.getElementsByClassName ('pk_mt_clip');
-			for (var i = 0; i < nodes.length; ++i)
-				if (nodes[i].getAttribute ('data-clip') === id) return nodes[i];
-			return null;
-		}
-
 		function layoutClip ( clip ) {
-			var ce = clipNode ( clip.id );
+			var ce = clip_els[clip.id];
 			if (!ce) return ;
 			var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
 			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
@@ -1592,6 +1587,7 @@
 				ce.appendChild ( xf );
 			}
 			lane.appendChild ( ce );
+			clip_els[clip.id] = ce;
 
 			drawWave ( clip, canvas, cw, ch );
 			bindClipDrag ( ce, clip );
@@ -2474,6 +2470,19 @@
 			return (val && prev && (val < 0) !== (prev < 0)) ? 0 : val;
 		}
 
+		function pinchStep ( e, delta, prev, last, x ) {
+			delta = zeroZoomFlip ( delta, last || 0 );
+			if (delta) zoomAtEvent ( x === undefined ? e : {clientX: x}, (prev + delta) / prev );
+			return delta;
+		}
+
+		function beginTouchZoom ( info ) {
+			cancelActiveDrag ();
+			touch_zoom = info;
+			touch_zoom.delta = 0;
+			touchZoomDoc ( true );
+		}
+
 		function zoomAtEvent ( e, factor ) {
 			var rect = main.getBoundingClientRect ();
 			var x = typeof e.clientX === 'number' ?
@@ -2493,9 +2502,7 @@
 			cancelActiveDrag ();
 			touch_zoom = null;
 			touchZoomDoc ( false );
-			gesture_zoom = true;
-			main._pk_scale = e.scale || 1;
-			main._pk_scale_delta = 0;
+			gesture_zoom = {scale: e.scale || 1, delta: 0};
 		}
 
 		function gestureChange ( e ) {
@@ -2503,18 +2510,14 @@
 			if (!hasClips ()) return ;
 			if (!gesture_zoom) gestureStart ( e );
 			var scale = e.scale || 1;
-			var prev = main._pk_scale || 1;
-			var delta = scale - prev;
-			var zoom_delta = zeroZoomFlip ( delta, main._pk_scale_delta || 0 );
-			main._pk_scale_delta = delta;
-			main._pk_scale = scale;
-			if (zoom_delta)
-				zoomAtEvent ( e, (prev + zoom_delta) / prev );
+			var prev = gesture_zoom.scale || 1;
+			gesture_zoom.delta = pinchStep ( e, scale - prev, prev, gesture_zoom.delta );
+			gesture_zoom.scale = scale;
 		}
 
 		function gestureEnd ( e ) {
 			if (e) e.preventDefault ();
-			gesture_zoom = false;
+			gesture_zoom = null;
 			finishZoom ();
 		}
 
@@ -2538,10 +2541,7 @@
 
 			e.preventDefault ();
 			e.stopPropagation ();
-			cancelActiveDrag ();
-			touch_zoom = info;
-			touch_zoom.delta = 0;
-			touchZoomDoc ( true );
+			beginTouchZoom ( info );
 		}
 
 		function touchZoomMove ( e ) {
@@ -2551,25 +2551,15 @@
 
 			e.preventDefault ();
 			e.stopPropagation ();
-				if (!touch_zoom) {
-					cancelActiveDrag ();
-					touch_zoom = info;
-					touch_zoom.delta = 0;
-					touchZoomDoc ( true );
-					return ;
-				}
+			if (!touch_zoom) return beginTouchZoom ( info );
 			if (!touch_zoom.dist || !info.dist) return ;
 
 			var now = w.performance.now ();
 			if (now - throttle_wheel < 16) return ;
 			throttle_wheel = now;
 			var prev = touch_zoom;
-			var delta = info.dist - prev.dist;
-			var zoom_delta = zeroZoomFlip ( delta, prev.delta || 0 );
-			info.delta = delta;
+			info.delta = pinchStep ( null, info.dist - prev.dist, prev.dist, prev.delta, info.x );
 			touch_zoom = info;
-			if (zoom_delta)
-				zoomAtEvent ({clientX: info.x}, (prev.dist + zoom_delta) / prev.dist);
 		}
 
 		function touchZoomEnd () {
@@ -3676,6 +3666,7 @@
 			var zoom = captureZoom ();
 			var pending = multi_sample_files.length;
 			var items = new Array ( pending );
+			var completed = new Array ( pending );
 			var replace = !clips.length;
 
 			app.fireEvent ('WillDownloadFile');
@@ -3695,12 +3686,15 @@
 						pan: info.p,
 						clips: info.c
 					};
-					done ();
+					finishMultiSampleFile ( index );
 					return ;
 				}
 
+				var settled = false;
 				fetchArrayBuffer ( url, function ( arr ) {
 					decodeMp3Buffer ( arr, function ( buffer ) {
+						if (settled) return ;
+						settled = true;
 						sample_cache[info.f] = buffer;
 						items[index] = {
 							buffer: buffer,
@@ -3709,14 +3703,22 @@
 							pan: info.p,
 							clips: info.c
 						};
-						done ();
+						finishMultiSampleFile ( index );
 					}, fail);
 				}, fail);
 
 				function fail () {
+					if (settled) return ;
+					settled = true;
 					if (retry < 2) loadMultiSampleFile ( index, info, retry + 1 );
-					else done ();
+					else finishMultiSampleFile ( index );
 				}
+			}
+
+			function finishMultiSampleFile ( index ) {
+				if (completed[index]) return ;
+				completed[index] = true;
+				done ();
 			}
 
 			function done () {
@@ -3821,8 +3823,19 @@
 		}
 
 		function decodeMp3Buffer ( arr, ok, bad ) {
-			var ret = audioCtx ().decodeAudioData ( arr, ok, bad );
-			if (ret && ret.then) ret.then ( ok ).catch ( bad );
+			var called = false;
+			var done = function ( buffer ) {
+				if (called) return ;
+				called = true;
+				ok ( buffer );
+			};
+			var fail = function () {
+				if (called) return ;
+				called = true;
+				bad && bad ();
+			};
+			var ret = audioCtx ().decodeAudioData ( arr, done, fail );
+			if (ret && ret.then) ret.then ( done ).catch ( fail );
 		}
 
 		function decodeArrayBuffer ( arr, ok, bad ) {
@@ -4926,15 +4939,7 @@
 		});
 		app.listenFor ('RequestResize', function () {
 			if (!el) return ;
-			if (app.ui && app.ui.MainHeight)
-				el.style.height = app.ui.MainHeight () + 'px';
-			else {
-				var h = w.innerHeight;
-				var bottom = app.ui && app.ui.BarBtm && app.ui.BarBtm.on ?
-					app.ui.BarBtm.height :
-					0;
-				el.style.height = ((h < 280 ? 280 : h) - 168 - bottom) + 'px';
-			}
+			el.style.height = app.ui.MainHeight () + 'px';
 			syncScroll ();
 			resizeTrackers ( tracksHeight () );
 			redrawRuler ();

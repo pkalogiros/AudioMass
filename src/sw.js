@@ -27,22 +27,26 @@ const assets = [
 	'./test.mp3'
 ];
 
-self.addEventListener( 'install', async function () {
-	const cache = await caches.open( CACHE_NAME );
-	assets.forEach( function ( asset ) {
-		cache.add( asset ).catch( function () {
-			console.error( '[SW] Could not cache:', asset );
-		});
-	});
-	self.skipWaiting();
+self.addEventListener( 'install', function ( event ) {
+	event.waitUntil(( async function () {
+		const cache = await caches.open( CACHE_NAME );
+		await Promise.all( assets.map( function ( asset ) {
+			return cache.add( asset ).catch( function () {
+				console.warn( '[SW] Could not cache:', asset );
+			});
+		}));
+		await self.skipWaiting();
+	})());
 });
 
-self.addEventListener( 'activate', async function () {
-	const keys = await caches.keys();
-	await Promise.all( keys.map( function ( key ) {
-		if ( key !== CACHE_NAME ) return caches.delete( key );
-	}));
-	self.clients.claim();
+self.addEventListener( 'activate', function ( event ) {
+	event.waitUntil(( async function () {
+		const keys = await caches.keys();
+		await Promise.all( keys.map( function ( key ) {
+			if ( key !== CACHE_NAME ) return caches.delete( key );
+		}));
+		await self.clients.claim();
+	})());
 });
 
 self.addEventListener( 'fetch', async function ( event ) {
@@ -51,11 +55,10 @@ self.addEventListener( 'fetch', async function ( event ) {
 });
 
 async function cacheFirst( request ) {
+	if ( request.method !== 'GET' ) return fetch( request );
+
 	const cachedResponse = await caches.match( request, { ignoreSearch: true } );
-	if ( cachedResponse === undefined ) {
-		console.error( '[SW] Not cached:', request.url );
-		return fetch( request );
-	}
+	if ( cachedResponse === undefined ) return fetch( request );
 
 	return cachedResponse;
 }

@@ -4,9 +4,7 @@
 	function PKEng ( app ) {
 		var q = this;
 		function mainHeight () {
-			var h = app.ui && app.ui.MainHeight ?
-				app.ui.MainHeight () :
-				((w.innerHeight < 280 ? 280 : w.innerHeight) - 168);
+			var h = app.ui.MainHeight ();
 			var av = app.el.getElementsByClassName ('pk_av')[0];
 			if (av) h -= av.offsetHeight - av.clientHeight;
 			return Math.max (1, h);
