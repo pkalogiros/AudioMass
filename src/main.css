@@ -144,9 +144,12 @@ a{
 	cursor:pointer;text-decoration:inherit;white-space:nowrap;
 	font:inherit;letter-spacing:.2px;
 }
+.pk_hdr .pk_btn>button{border-radius:var(--r);transition:background var(--tr),color var(--tr),box-shadow var(--tr)}
 
-.pk_hdr .pk_btn:hover{background:var(--bg-3);color:var(--ac)}
-.pk_hdr .pk_btn.pk_act{background:var(--ac);color:var(--ac-ink);text-shadow:none;text-decoration:none;box-shadow:0 0 12px var(--ac-glow)}
+.pk_hdr .pk_btn:hover{background:transparent;color:var(--ac)}
+.pk_hdr .pk_btn:hover>button{background:var(--bg-3);color:var(--ac)}
+.pk_hdr .pk_btn.pk_act{background:transparent;color:var(--ac-ink);text-shadow:none;text-decoration:none;box-shadow:none}
+.pk_hdr .pk_btn.pk_act>button{background:var(--ac);color:var(--ac-ink);box-shadow:0 0 12px var(--ac-glow)}
 
 .pk_hdr .pk_btn .pk_menu{
 	position:absolute;top:24px;left:-2px;
@@ -761,6 +764,7 @@ a{
 	background:var(--bg-0);
 	border:1px solid var(--bd-s);border-radius:var(--r);
 	overflow:hidden;contain:strict;overscroll-behavior:none;
+	-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
 }
 .pk_wavedrag{
 	cursor:grab;border-radius:var(--r);
@@ -1352,9 +1356,9 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 @media only screen and (max-width:779px){
 	.pk_selection{display:none!important}
 	.pk_mob .pk_selection{
-		display:inline-block!important;min-width:0;height:36px;
-		margin:0 4px 0 0;padding:0;border:0;background:transparent;box-shadow:none;
-		vertical-align:top;
+		float:none;display:inline-flex!important;align-items:center;min-width:0;height:36px;
+		margin:0 8px 0 4px;padding:0;border:0;background:transparent;box-shadow:none;
+		vertical-align:middle;
 	}
 	.pk_mob .pk_selection .pk_sellist{display:none}
 	.pk_mob .pk_selection .icon-clearsel{
@@ -1376,7 +1380,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 		scrollbar-width:none;
 	}
 	.pk_tbc::-webkit-scrollbar{width:0;height:0}
-	.pk_tb{padding:6px 0 6px 14px;border-bottom:none;white-space:nowrap}
+	.pk_tb{padding:6px 0 6px 14px;border-bottom:none;white-space:nowrap;display:inline-block;min-width:max-content}
 	.pk_mob .pk_ctns,.pk_mob .pk_transport{height:36px}
 	.pk_mark1{font-size:8px}
 	.pk_tmpMsg{width:240px;margin-left:-120px;font-size:14px;line-height:28px}
@@ -1384,8 +1388,14 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_mob .pk_transport,
 	.pk_mob .pk_ctns,
 	.pk_mob .pk_btngroup{float:none;display:inline-block}
+	.pk_mob .pk_selection{display:inline-flex!important}
 	.pk_mob .pk_btngroup{padding-top:8px}
 	.pk_mob .pk_tb .pk_btn{width:32px;height:32px;margin:0 4px;font-size:16px;line-height:24px}
+	.pk_mob .pk_tb .pk_selection .icon-clearsel{
+		width:auto;min-width:54px;height:32px;
+		margin:0 8px;padding:0 10px;
+		font-size:11px;line-height:1;
+	}
 	.pk_h200 .pk_col{width:20%;overflow:hidden}
 	.pk_zoombtn button{height:19px}
 	.pk_wavescroll{height:16px;margin-bottom:8px}
@@ -1420,6 +1430,7 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 @media (hover:none){
 	a:hover,
 	.pk_hdr .pk_btn:hover,
+	.pk_hdr .pk_btn:hover>button,
 	.pk_hdr .pk_btn .pk_menu_el:hover button,
 	.pk_prc button:hover,
 	.pk_tb .pk_btn:not(.pk_act):hover,
@@ -1457,8 +1468,13 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	}
 	.pk_hdr .pk_btn.pk_act,
 	.pk_hdr .pk_btn.pk_act:hover{
-		background:var(--ac);color:var(--ac-ink);
+		background:transparent;color:var(--ac-ink);
 		text-shadow:none;text-decoration:none;
+		box-shadow:none;
+	}
+	.pk_hdr .pk_btn.pk_act>button,
+	.pk_hdr .pk_btn.pk_act:hover>button{
+		background:var(--ac);color:var(--ac-ink);
 		box-shadow:0 0 12px var(--ac-glow);
 	}
 }
@@ -1490,7 +1506,7 @@ input,textarea{-webkit-touch-callout:none}
 
 /* Multitrack track-list sidebar momentum scrolling on iOS. */
 .pk_mt_tracks_wrap,.pk_mt_main{-webkit-overflow-scrolling:touch;overscroll-behavior:none}
-.pk_mt_main,.pk_mt_lanes,.pk_mt_lane{touch-action:pan-y}
+.pk_mt_tracks_wrap,.pk_mt_main,.pk_mt_lanes,.pk_mt_lane{touch-action:pan-y}
 .pk_mt_clip.pk_mt_clip_sel,.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,.pk_mt_clip.pk_mt_clip_sel .pk_mt_fade,
 .pk_mt_region,.pk_mt_knob,.pk_mt_resize{touch-action:none}
 
@@ -1500,6 +1516,10 @@ input,textarea{-webkit-touch-callout:none}
 .pk_mob .pk_mt_head button span,
 .pk_mob .pk_mt_track button span,
 .pk_mob .pk_mt_knob span{visibility:hidden;display:none}
+.pk_mob .pk_mt_tracks_wrap{overflow-y:scroll}
+.pk_mob .pk_mt_main{overflow-x:auto;overflow-y:scroll;scrollbar-width:none}
+.pk_mob .pk_mt_main::-webkit-scrollbar{width:0;height:0}
+.pk_mob .pk_mt_clip{min-width:24px;touch-action:pan-y}
 
 /* Larger hit targets for fiddly mt controls on mobile. */
 .pk_mob .pk_mt_side{flex:0 0 154px;width:154px}

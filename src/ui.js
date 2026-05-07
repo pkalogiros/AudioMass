@@ -339,10 +339,11 @@
 												k6.disabled = k7.disabled = !!off;
 											}
 											if (mt_on) {
-												document.getElementById ('k04').checked = true;
-												mp3conf.style.display = 'none';
-												chanOff ( true );
-												setExt ('.amss');
+												document.getElementById ('k01').checked = true;
+												mp3conf.style.display = 'block';
+												flacconf.style.display = 'none';
+												chanOff ( false );
+												setExt ('.mp3');
 											}
 
 											document.getElementById('flac-comp').oninput = function() {
@@ -2831,6 +2832,10 @@
 			main_context.addOption ('Reset Zoom', function( e ) {
 				UI.fireEvent ('RequestZoomUI', 0);
 			}, false );
+
+			UI.listenFor ('DidHoverTime', function ( time ) {
+				hover_duration.textContent = formatTime ( time );
+			});
 
 			main_context.addOption ('Set Volume/Gain', function( e ) {
 				UI.fireEvent ('RequestFXUI_Gain');

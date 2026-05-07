@@ -18,6 +18,7 @@
 		var px_per_sec = 86;
 		var snap_px = 9;
 		var row_h = default_row_h;
+		var clip_min_w = app.isMobile ? 24 : 36;
 		var cursor = 0;
 		var marker = 0;
 		var region = null;
@@ -27,6 +28,7 @@
 		var play_sync = 0;
 		var render_raf = 0;
 		var throttle_wheel = 0;
+		var throttle_hover = 0;
 		var ruler_left = -1;
 		var playhead_x = null;
 		var marker_x = null;
@@ -36,6 +38,8 @@
 		var did_init_zoom = false;
 		var active_drag = null;
 		var touch_zoom = null;
+		var touch_zoom_doc = false;
+		var gesture_zoom = false;
 		var edge_pan_raf = 0;
 		var edge_pan_dir = 0;
 		var edge_pan_ev = null;
@@ -82,14 +86,14 @@
 		var sample_loading = false;
 		var sample_cache = {};
 		var multi_sample_files = [
-			{f:'guitar-lead.mp3', p:0.20},
-			{f:'guitar-rhythm.mp3', p:-0.10},
+			{f:'guitar-lead.mp3', p:0.20, c:[[0,0,7.09],[14.01,14.01]]},
+			{f:'guitar-rhythm.mp3', p:-0.10, c:[[7.077,7.077]]},
 			'drums.mp3',
 			'bass.mp3',
-			{f:'piano.mp3', v:0.92},
-			'harp-2.mp3',
-			{f:'picolo-1.mp3', v:0.78},
-			'flute-1.mp3'
+			{f:'piano.mp3', v:0.92, c:[[28.275,0]]},
+			{f:'harp-2.mp3', p:0.12, c:[[28.275,0]]},
+			{f:'picolo-1.mp3', v:0.78, c:[[28.275,0]]},
+			{f:'flute-1.mp3', p:-0.20, c:[[28.275,0]]}
 		];
 
 		function setActiveDrag ( fn ) {
@@ -550,14 +554,15 @@
 			};
 
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
-			main.addEventListener ('gesturestart', gestureStart, {passive:false});
-			main.addEventListener ('gesturechange', gestureChange, {passive:false});
-			main.addEventListener ('gestureend', gestureEnd, {passive:false});
-			main.addEventListener ('touchstart', touchZoomStart, {passive:false});
-			main.addEventListener ('touchmove', touchZoomMove, {passive:false});
-			main.addEventListener ('touchend', touchZoomEnd, false);
-			main.addEventListener ('touchcancel', touchZoomEnd, false);
+			main.addEventListener ('gesturestart', gestureStart, {passive:false,capture:true});
+			main.addEventListener ('gesturechange', gestureChange, {passive:false,capture:true});
+			main.addEventListener ('gestureend', gestureEnd, {passive:false,capture:true});
+			main.addEventListener ('touchstart', touchZoomStart, {passive:false,capture:true});
+			main.addEventListener ('touchmove', touchZoomMove, {passive:false,capture:true});
+			main.addEventListener ('touchend', touchZoomEnd, true);
+			main.addEventListener ('touchcancel', touchZoomEnd, true);
 			main.addEventListener ('scroll', syncScroll, false);
+			main.addEventListener ('mousemove', hoverTime, false);
 			bindDown ( main, mainDown );
 			buildClipContext ();
 			main.addEventListener ('contextmenu', function ( e ) {
@@ -1498,7 +1503,7 @@
 			if (!lane) return ;
 
 			var has_xf = clipHasXfade ( clip );
-			var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
+			var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
 			var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
 			var ce = d.createElement ('div');
 			ce.className = 'pk_mt_clip' +
@@ -2010,7 +2015,7 @@
 				(rec.len || rec.buffers.length * rec.size) / rec.ctx.sampleRate,
 				rec.t0 ? (w.performance.now () - rec.t0) / 1000 : 0
 			);
-			var cw = Math.max (36, (seconds * px_per_sec) >> 0);
+			var cw = Math.max (clip_min_w, (seconds * px_per_sec) >> 0);
 			var ch = Math.max (30, trackHeight ( findTrack ( rec.track ) ) - 16);
 			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
 			rec_el.style.width = cw + 'px';
@@ -2179,7 +2184,7 @@
 
 				if (drag_mode === 1 || drag_mode === 2) {
 					trimClip ( dx / px_per_sec, e );
-					var cw = Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0);
+					var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
 					ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 					ce.style.width = cw + 'px';
 					placeFadeHandles ( ce, clip, cw );
@@ -2189,7 +2194,7 @@
 				}
 				if (drag_mode === 3 || drag_mode === 4) {
 					fadeClip ( dx / px_per_sec, e );
-					placeFadeHandles ( ce, clip, Math.max (36, (clipLen ( clip ) * px_per_sec) >> 0) );
+					placeFadeHandles ( ce, clip, Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0) );
 					updateTrimView ();
 					queuePlayRefresh ();
 					return ;
@@ -2426,14 +2431,17 @@
 		function gestureStart ( e ) {
 			e.preventDefault ();
 			if (!hasClips ()) return ;
+			cancelActiveDrag ();
 			touch_zoom = null;
-			main._pk_gesture = true;
+			touchZoomDoc ( false );
+			gesture_zoom = true;
 			main._pk_scale = e.scale || 1;
 		}
 
 		function gestureChange ( e ) {
 			e.preventDefault ();
 			if (!hasClips ()) return ;
+			if (!gesture_zoom) gestureStart ( e );
 			var scale = e.scale || 1;
 			zoomAtEvent ( e, scale / (main._pk_scale || 1) );
 			main._pk_scale = scale;
@@ -2441,8 +2449,7 @@
 
 		function gestureEnd ( e ) {
 			if (e) e.preventDefault ();
-			if (main) main._pk_gesture = false;
-			touch_zoom = null;
+			gesture_zoom = false;
 		}
 
 		function touchZoomInfo ( e ) {
@@ -2459,7 +2466,7 @@
 		}
 
 		function touchZoomStart ( e ) {
-			if (main._pk_gesture) return ;
+			if (gesture_zoom) return ;
 			var info = touchZoomInfo ( e );
 			if (!info || !hasClips ()) return ;
 
@@ -2467,29 +2474,54 @@
 			e.stopPropagation ();
 			cancelActiveDrag ();
 			touch_zoom = info;
+			touchZoomDoc ( true );
 		}
 
 		function touchZoomMove ( e ) {
-			if (main._pk_gesture) return touchZoomEnd ();
+			if (gesture_zoom) return ;
 			var info = touchZoomInfo ( e );
-			if (!touch_zoom || !info || !hasClips ()) return touchZoomEnd ();
-			if (!touch_zoom.dist || !info.dist) return ;
+			if (!info || !hasClips ()) return touchZoomEnd ();
 
 			e.preventDefault ();
 			e.stopPropagation ();
-			if (e.timeStamp - throttle_wheel < 16) return ;
-			throttle_wheel = e.timeStamp;
+			if (!touch_zoom) {
+				cancelActiveDrag ();
+				touch_zoom = info;
+				touchZoomDoc ( true );
+				return ;
+			}
+			if (!touch_zoom.dist || !info.dist) return ;
+
+			var now = w.performance.now ();
+			if (now - throttle_wheel < 16) return ;
+			throttle_wheel = now;
 			zoomAtEvent ({clientX: info.x}, info.dist / touch_zoom.dist);
 			touch_zoom = info;
 		}
 
 		function touchZoomEnd () {
 			touch_zoom = null;
+			touchZoomDoc ( false );
+		}
+
+		function touchZoomDoc ( on ) {
+			if (touch_zoom_doc === on) return ;
+			var fn = on ? 'addEventListener' : 'removeEventListener';
+			d[fn] ('touchmove', touchZoomMove, {passive:false,capture:true});
+			d[fn] ('touchend', touchZoomEnd, true);
+			d[fn] ('touchcancel', touchZoomEnd, true);
+			touch_zoom_doc = on;
 		}
 
 		function timeFromEvent ( e ) {
 			var rect = lanes.getBoundingClientRect ();
 			return Math.max (0, (e.clientX - rect.left) / px_per_sec);
+		}
+
+		function hoverTime ( e ) {
+			if (e.timeStamp - throttle_hover < 58) return ;
+			throttle_hover = e.timeStamp;
+			app.fireEvent ('DidHoverTime', clampTime ( timeFromEvent ( e ) ));
 		}
 
 		function eachSnap ( skip, flags, fn ) {
@@ -3505,10 +3537,16 @@
 		}
 
 		function GetTempoBuffer ( selection_only ) {
-			if (selection_only)
-				return Mixdown (region ? [ region.start, region.end ] : false);
-
 			var clip = findClip ( selected_clip );
+			if (selection_only) {
+				if (!region) return null;
+				if (clip) {
+					var part = clipRegionPart ( clip );
+					if (part.region) return copyClipBuffer ( part );
+				}
+				return Mixdown ([ region.start, region.end ]);
+			}
+
 			if (clip) return copyClipBuffer ({
 				buffer: clip.buffer,
 				in: clipIn ( clip ),
@@ -3580,20 +3618,22 @@
 						buffer: cached,
 						name: fileName ( url ),
 						vol: info.v,
-						pan: info.p
+						pan: info.p,
+						clips: info.c
 					};
 					done ();
 					return ;
 				}
 
 				fetchArrayBuffer ( url, function ( arr ) {
-					decodeArrayBuffer ( arr, function ( buffer ) {
+					decodeMp3Buffer ( arr, function ( buffer ) {
 						sample_cache[info.f] = buffer;
 						items[index] = {
 							buffer: buffer,
 							name: fileName ( url ),
 							vol: info.v,
-							pan: info.p
+							pan: info.p,
+							clips: info.c
 						};
 						done ();
 					}, fail);
@@ -3633,10 +3673,16 @@
 				var track = makeTrack ( trackName ( items[i].name ) );
 				if (items[i].vol !== undefined) track.vol = items[i].vol;
 				if (items[i].pan !== undefined) track.pan = items[i].pan;
-				var clip = makeClip ( track.id, 0, items[i].buffer, items[i].name );
+				var parts = items[i].clips || [[0,0]];
 
 				tracks.push ( track );
-				clips.push ( clip );
+				for (var j = 0; j < parts.length; ++j) {
+					var p = parts[j];
+					var clip = makeClip ( track.id, p[0], items[i].buffer, items[i].name );
+					clip.in = Math.min (clip.buffer.duration, p[1] || 0);
+					if (p[2] !== undefined) clip.out = Math.min (clip.buffer.duration, p[2]);
+					if (clip.out > clip.in) clips.push ( clip );
+				}
 				if (!first) first = track.id;
 				++added;
 			}
@@ -3698,6 +3744,11 @@
 				decodeArrayBuffer ( reader.result, ok, bad );
 			};
 			reader.readAsArrayBuffer ( file );
+		}
+
+		function decodeMp3Buffer ( arr, ok, bad ) {
+			var ret = audioCtx ().decodeAudioData ( arr, ok, bad );
+			if (ret && ret.then) ret.then ( ok ).catch ( bad );
 		}
 
 		function decodeArrayBuffer ( arr, ok, bad ) {
