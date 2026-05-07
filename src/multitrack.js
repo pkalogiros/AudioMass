@@ -55,6 +55,7 @@
 		var context_time = 0;
 		var skip_context = false;
 		var pan_dragged = false;
+		var published_duration = -1;
 
 		var el = null;
 		var side = null;
@@ -371,6 +372,15 @@
 			return dur;
 		}
 
+		function publishDuration ( force ) {
+			var dur = duration ();
+			if (force || Math.abs (dur - published_duration) > 0.001) {
+				published_duration = dur;
+				app.fireEvent ('DidUpdateLen', dur);
+			}
+			return dur;
+		}
+
 		function hasClips () {
 			return !!clips.length;
 		}
@@ -515,7 +525,7 @@
 
 		function emitState () {
 			updatePlayhead ();
-			app.fireEvent ('DidUpdateLen', duration ());
+			publishDuration ( true );
 			if (region) app.fireEvent ('DidCreateRegion', region);
 			else app.fireEvent ('DidDestroyRegion');
 			app.fireEvent ('DidSetLoop', region && region.loop);
@@ -749,7 +759,7 @@
 			tracks_el.innerHTML = '';
 			lanes.innerHTML = '';
 
-			var dur = duration ();
+			var dur = publishDuration ();
 			var width = Math.max (800, (dur * px_per_sec) >> 0);
 			var height = tracksHeight ();
 			var top = 0;
@@ -787,7 +797,7 @@
 		function renderZoom () {
 			if (!el) return ;
 
-			var dur = duration ();
+			var dur = publishDuration ();
 			var width = Math.max (800, (dur * px_per_sec) >> 0);
 			lanes.style.width = width + 'px';
 			ruler.style.width = width + 'px';
@@ -2248,6 +2258,7 @@
 
 				if (drag_mode === 1 || drag_mode === 2) {
 					trimClip ( dx / px_per_sec, e );
+					publishDuration ();
 					var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
 					ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 					ce.style.width = cw + 'px';
@@ -2296,6 +2307,7 @@
 				}
 				clip.start = Math.max (0, ns);
 				last_ns = ns_raw;
+				publishDuration ();
 				ce.style.transform = 'translate3d(' +
 					(((clip.start - old_start) * px_per_sec) >> 0) +
 					'px,0,0)';
