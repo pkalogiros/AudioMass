@@ -574,12 +574,6 @@
 				e.preventDefault ();
 				loadMultiSample ();
 			};
-			ruler.onclick = function ( e ) {
-				if (!hasClips ()) return ;
-				focusMain ();
-				setCursorTime ( snapTime ( timeFromEvent ( e ), e ) );
-			};
-
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
 			main.addEventListener ('gesturestart', gestureStart, {passive:false,capture:true});
 			main.addEventListener ('gesturechange', gestureChange, {passive:false,capture:true});
@@ -977,7 +971,7 @@
 			row.addEventListener ('drop', function ( e ) {
 				stopDrag ( e );
 				selected_track = track.id;
-				addFiles ( e.dataTransfer.files, track.id, cursor );
+				addFiles ( e.dataTransfer.files, track.id, marker );
 			}, false);
 
 			var lane = d.createElement ('div');
@@ -1679,9 +1673,10 @@
 			if (b - a < 0.005) return clearRegion ();
 
 			region = makeRegion ( a, b, region && region.loop );
+			if (seek && !play) setCursorTime ( region.start );
+			else setMarkerTime ( region.start );
 			renderRegion ();
 			app.fireEvent ('DidCreateRegion', region);
-			if (seek && !play) setCursorTime ( region.start );
 			return region;
 		}
 
@@ -1971,7 +1966,7 @@
 				if (track) selected_track = track;
 				clearSelectedClip ( true );
 				clearRegion ();
-				setCursorTime ( snapTime ( timeFromEvent ( ev ), ev ) );
+				setClickTime ( snapTime ( timeFromEvent ( ev ), ev ), false );
 				render ();
 			}
 		}
@@ -2183,7 +2178,7 @@
 					(cls && cls.contains ('pk_mt_fade_r') ? 4 : 0)));
 				if (!drag_mode && selected_clip !== clip.id) {
 					return startRangeSelect ( e, function ( ev ) {
-						setCursorTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ) );
+						setClickTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ), false );
 						selectClip ( clip );
 					});
 				}
@@ -2338,7 +2333,7 @@
 				}
 
 				if (!e) return ;
-				setCursorTime ( snapTime ( timeFromEvent ( e ), e ) );
+				setClickTime ( snapTime ( timeFromEvent ( e ), e ), false );
 				selectClip ( clip );
 			}
 
@@ -2612,6 +2607,15 @@
 			return Math.max (0, (e.clientX - rect.left) / px_per_sec);
 		}
 
+		function isRulerEvent ( e ) {
+			var target = e && e.target;
+			if (target === ruler || target === ruler_canvas) return true;
+			return !!(target && target.classList && (
+				target.classList.contains ('pk_mt_tick') ||
+				target.classList.contains ('pk_mt_timeline')
+			));
+		}
+
 		function hoverTime ( e ) {
 			if (e.timeStamp - throttle_hover < 58) return ;
 			throttle_hover = e.timeStamp;
@@ -2792,6 +2796,7 @@
 				return true;
 			}
 
+			var seek_on_click = isRulerEvent ( e );
 			var track = regionTrack ( e );
 			var start = snapTime ( timeFromEvent ( e ), e, null, 1 );
 			var down_x = e.clientX;
@@ -2836,7 +2841,7 @@
 					if (ev) last = snapTime ( timeFromEvent ( ev ), ev, null, 1 );
 					setRegion ( start, last, true );
 					if (!region)
-						setCursorTime ( start );
+						setClickTime ( start, seek_on_click );
 				}
 				else {
 					if (!ev) return ;
@@ -2844,11 +2849,21 @@
 					else {
 						clearSelectedClip ( true );
 						clearRegion ();
-						setCursorTime ( start );
+						setClickTime ( start, seek_on_click );
 					}
 				}
 				render ();
 			}
+		}
+
+		function setClickTime ( time, seek ) {
+			if (seek || !play) setCursorTime ( time );
+			else setMarkerTime ( time );
+		}
+
+		function setMarkerTime ( time ) {
+			marker = clampTime ( time );
+			updatePlayhead ();
 		}
 
 		function setCursorTime ( time ) {
@@ -3366,7 +3381,7 @@
 			if (!track) return true;
 
 			var prev = cloneState ();
-			var clip = makeClip ( track, cursor, buffer, meta ? meta.name : 'Paste' );
+			var clip = makeClip ( track, marker, buffer, meta ? meta.name : 'Paste' );
 			if (meta) {
 				clip.in = meta.in;
 				clip.out = meta.out;
@@ -3377,7 +3392,7 @@
 			selected_track = track;
 			selected_clip = clip.id;
 			clearRegion ();
-			setCursorTime ( clip.start );
+			setMarkerTime ( clip.start );
 			pushState ( prev, 'Paste Clip' );
 			queuePlayRefresh ( true );
 			render ();
@@ -3655,9 +3670,9 @@
 			var track = selected_track || (tracks[0] && tracks[0].id);
 			if (!track) return true;
 			if (!seconds || seconds < 0) seconds = 1;
-			if (offset === undefined) offset = cursor;
+			if (offset === undefined) offset = marker;
 
-			Pause ();
+			if (rec) Pause ();
 			var prev = cloneState ();
 			var clip = makeClip (
 				track,
@@ -3670,7 +3685,7 @@
 			selected_track = track;
 			selected_clip = clip.id;
 			clearRegion ();
-			setCursorTime ( clip.start );
+			setMarkerTime ( clip.start );
 			pushState ( prev, 'Silence' );
 			queuePlayRefresh ( true );
 			render ();
@@ -3683,7 +3698,7 @@
 		function addURL ( url, name ) {
 			fetchBlob ( url, function ( blob ) {
 				blob.name = fileName ( url, name );
-				addFiles ( [ blob ], selected_track || (tracks[0] && tracks[0].id), cursor );
+				addFiles ( [ blob ], selected_track || (tracks[0] && tracks[0].id), marker );
 			}, function () {
 				OneUp ('Could not load audio', 1200);
 			});
@@ -4201,11 +4216,8 @@
 		function tick () {
 			if (!play) return ;
 			cursor = playingCursor ();
-			if (region && cursor >= region.end) {
-				if (region.loop)
-					setCursorTime ( region.start );
-				else
-					Stop ();
+			if (region && region.loop && cursor >= region.end) {
+				setCursorTime ( region.start );
 				return ;
 			}
 			if (cursor >= play.dur) {
@@ -4676,12 +4688,12 @@
 			var clip = findClip ( selected_clip );
 			if (!clip) return false;
 
-			if (at === undefined) at = play ? playingCursor () : marker;
+			if (at === undefined) at = marker;
 			var rel = at - clip.start;
 			var len = clipLen ( clip );
 
 			if (rel <= 0.005 || rel >= len - 0.005) {
-				OneUp ('Move cursor inside selected clip', 1200);
+				OneUp ('Move marker inside selected clip', 1200);
 				return false;
 			}
 
@@ -4823,7 +4835,7 @@
 			}
 			if (id === 'RequestLoadPickedFiles') {
 				var track = selected_track || (tracks[0] && tracks[0].id);
-				if (track) addFiles ( arg1, track, cursor );
+				if (track) addFiles ( arg1, track, marker );
 				return true;
 			}
 			if (id === 'RequestLoadSampleFile') {
