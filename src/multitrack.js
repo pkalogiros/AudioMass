@@ -102,7 +102,7 @@
 			['#0d0f13', '#879db1', '#4d6277']
 		];
 		var multi_sample_files = [
-			{f:'guitar-lead.mp3', p:0.20, c:[[0,0,7.09],[14.01,14.01]]},
+			{f:'guitar-lead.mp3', p:0.25, c:[[0,0,7.09],[14.01,14.01]]},
 			{f:'guitar-rhythm.mp3', p:-0.10, c:[[7.077,7.077]]},
 			'drums.mp3',
 			'bass.mp3',
@@ -1910,7 +1910,6 @@
 
 		function startRegionEdit ( e ) {
 			if (!region || (e.button !== undefined && e.button !== 0)) return ;
-			if (passRegionEventToClip ( e )) return ;
 			if (!isRegionHandleEvent ( e )) {
 				startRegionBodyEdit ( e );
 				return ;
