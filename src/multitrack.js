@@ -17,6 +17,7 @@
 		var max_track_h = 240;
 		var px_per_sec = 86;
 		var snap_px = 9;
+		var region_snap_px = 5;
 		var row_h = default_row_h;
 		var clip_min_w = app.isMobile ? 24 : 36;
 		var cursor = 0;
@@ -51,7 +52,10 @@
 		var timeline_on = !app.engine || !app.engine.wavesurfer ||
 			app.engine.wavesurfer.params.timeline !== false;
 		var mt_context = null;
+		var mt_lane_context = null;
 		var context_clip = null;
+		var context_track = null;
+		var context_index = 0;
 		var context_time = 0;
 		var skip_context = false;
 		var pan_dragged = false;
@@ -593,7 +597,13 @@
 					e.preventDefault ();
 					return ;
 				}
-				if (!openClipContext ( e )) e.preventDefault ();
+				if (pan_dragged) {
+					pan_dragged = false;
+					e.preventDefault ();
+					return ;
+				}
+				if (!openClipContext ( e ) && !openLaneContext ( e ))
+					e.preventDefault ();
 			}, false);
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
@@ -610,7 +620,7 @@
 			btn_clear_mute = makeButton ('M', 'Clear Mute', false, 'pk_mt_clear pk_mt_mute pk_inact');
 			btn_clear_solo = makeButton ('S', 'Clear Solo', false, 'pk_mt_clear pk_mt_solo pk_inact');
 
-			add.onclick = addTrack;
+			add.onclick = function () { addTrack (); };
 			btn_clear_mute.onclick = function ( e ) {
 				e.stopPropagation ();
 				clearTrackFlag ( 'mute', 'Clear Mute' );
@@ -626,11 +636,12 @@
 			head.appendChild ( btn_clear_solo );
 		}
 
-		function addTrack () {
+		function addTrack ( index ) {
 			var prev = cloneState ();
 			var tr = makeTrack ();
 			tr.name = 'Channel ' + (tracks.length + 1);
-			tracks.push ( tr );
+			if (index === undefined) tracks.push ( tr );
+			else tracks.splice ( Math.max (0, Math.min (index, tracks.length)), 0, tr );
 			selected_track = tr.id;
 			pushState ( prev, 'Add Channel' );
 			render ();
@@ -1800,6 +1811,41 @@
 				a[6].className = 'pk_ctx_action' + (x ? '' : ' pk_inact');
 				Pause ();
 			};
+
+			mt_lane_context = app._deps.ContextMenu ( lanes );
+			mt_lane_context.addOption ('Select Visible View', function () {
+				app.fireEvent ('RequestRegionSet');
+			}, false);
+			mt_lane_context.addOption ('Add New Channel Here', function () {
+				addTrack ( context_index );
+			}, false);
+			mt_lane_context.addOption ('Reset Zoom', function () {
+				app.fireEvent ('RequestZoomUI', 0);
+			}, false);
+			mt_lane_context.addOption ('Add Silence', function () {
+				if (context_track) selected_track = context_track;
+				setCursorTime ( context_time );
+				app.fireEvent ('RequestFXUI_Silence');
+			}, false);
+			mt_lane_context.onOpen = function () {
+				Pause ();
+			};
+		}
+
+		function openLaneContext ( e ) {
+			if (!mt_lane_context || clipFromContext ( e )) return false;
+			var track = regionTrack ( e );
+			if (!track) return false;
+			focusMain ();
+			e.preventDefault ();
+			e.stopPropagation ();
+			context_track = track;
+			context_index = trackIndex ( track ) +
+				(e.clientY > lane_by_track[track].getBoundingClientRect ().top +
+					lane_by_track[track].offsetHeight / 2 ? 1 : 0);
+			context_time = timeFromEvent ( e );
+			mt_lane_context.open ( e );
+			return true;
 		}
 
 		function openClipContext ( e ) {
@@ -2643,7 +2689,7 @@
 
 		function snapTime ( t, e, skip, flags ) {
 			if (e && e.altKey) return Math.max (0, t);
-			var lim = snap_px / px_per_sec;
+			var lim = ((flags & 1) ? region_snap_px : snap_px) / px_per_sec;
 			var best = t;
 			eachSnap (skip, flags, function ( v ) {
 				var dlt = Math.abs (v - t);
@@ -2654,7 +2700,7 @@
 
 		function snapPassTime ( t, from, e, skip, flags ) {
 			if (e && e.altKey) return null;
-			var lim = snap_px / px_per_sec;
+			var lim = ((flags & 1) ? region_snap_px : snap_px) / px_per_sec;
 			var best = null;
 			var dir = t < from ? -1 : (t > from ? 1 : 0);
 			if (!dir) return null;
