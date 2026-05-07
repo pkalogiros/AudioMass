@@ -3,15 +3,17 @@
 
 setTimeout(function () {
 
-	PKAudioEditor._deps.Wlc = function () {
-			var body_str = '';
-			var body_str2 = '';
+		PKAudioEditor._deps.Wlc = function () {
+				var body_str = '';
+				var body_str2 = '';
+				var mobile_note = '';
 
-			if (PKAE.isMobile) {
-				change -= 15;
-				body_str = 'Tips:<br/>Please make sure your device is not in silent mode. You might need to physically flip the silent switch. '+
-				'<img src="phone-switch.jpg" style="max-width:224px;max-height:126px;width:40%;margin: 10px auto; display: block;"/>'+
-				'<br/><br/>';
+				if (PKAE.isMobile) {
+					change -= 15;
+					mobile_note = '(Optimized for desktop - sorry)<br/><br/>';
+					body_str = 'Tips:<br/>Please make sure your device is not in silent mode. You might need to physically flip the silent switch. '+
+					'<img src="phone-switch.jpg" style="max-width:224px;max-height:126px;width:40%;margin: 10px auto; display: block;"/>'+
+					'<br/><br/>';
 			}
 			else {
 				body_str = 'Tips:<br/>Please keep in mind that most key shortcuts rely on the <strong>Shift + <u>key</u></strong> combo. (eg Shift+Z for undo, Shift+C copy, Shift+X cut... etc )<br/><br/>';
@@ -24,12 +26,13 @@ setTimeout(function () {
 				ondestroy: function( q ) {
 					PKAE.ui.InteractionHandler.on = false;
 					PKAE.ui.KeyHandler.removeCallback ('modalTemp');
-			},
-			body:'<div style="overflow:auto;-webkit-overflow-scrolling:touch;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
-				'AudioMass is a free, open source, web-based Audio and Waveform Editor.<br />It runs entirely in the browser with no backend and no plugins required!'+
-				'<br/><br/><br/>'+
-				body_str+
-				'You can load any type of audio your browser supports and perform operations such as fade in, cut, trim, change the volume, '+
+				},
+				body:'<div style="overflow:auto;-webkit-overflow-scrolling:touch;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
+					mobile_note+
+					'AudioMass is a free, open source, web-based Audio and Waveform Editor.<br />It runs entirely in the browser with no backend and no plugins required!'+
+					'<br/><br/><br/>'+
+					body_str+
+					'You can load any type of audio your browser supports and perform operations such as fade in, cut, trim, change the volume, '+
 				'and apply a plethora of audio effects.<br/><br/>'+
 				body_str2+
 				'</div>',
