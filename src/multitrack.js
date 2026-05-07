@@ -73,6 +73,7 @@
 		var play = null;
 		var rec = null;
 		var rec_el = null;
+		var rec_canvas = null;
 		var fx_preview = null;
 		var fx_preview_on = true;
 		var wave_peak_step = 128;
@@ -714,6 +715,7 @@
 			cleanXfades ();
 			var old_top = main ? main.scrollTop : 0;
 			rec_el = null;
+			rec_canvas = null;
 			tracks_el.innerHTML = '';
 			lanes.innerHTML = '';
 
@@ -1986,8 +1988,10 @@
 				rec_el = d.createElement ('div');
 				rec_el.className = 'pk_mt_clip pk_mt_rec_clip';
 				rec_el.innerHTML = '<canvas></canvas><span>Recording</span>';
+				rec_canvas = rec_el.firstChild;
 				lane.appendChild ( rec_el );
 			}
+			else if (!rec_canvas) rec_canvas = rec_el.firstChild;
 
 			var seconds = Math.max (
 				(rec.len || rec.buffers.length * rec.size) / rec.ctx.sampleRate,
@@ -1998,7 +2002,7 @@
 			rec_el.style.left = ((rec.start * px_per_sec) >> 0) + 'px';
 			rec_el.style.width = cw + 'px';
 			rec_el.style.height = ch + 'px';
-			drawRecWave ( rec.buffers, rec_el.getElementsByTagName ('canvas')[0], cw, ch );
+			drawRecWave ( rec.buffers, rec_canvas, cw, ch );
 
 			if (!rec.buffers.length && !rec.stopping && !rec_raf)
 				rec_raf = w.requestAnimationFrame (function () {
@@ -4263,6 +4267,7 @@
 				app.fireEvent ('DidActionRecordStop', !!r.buffers.length);
 				if (!r.buffers.length) {
 					rec_el = null;
+					rec_canvas = null;
 					render ();
 					done && done ( null );
 					return ;
@@ -4286,6 +4291,7 @@
 				pushState ( prev, 'Record Clip' );
 				render ();
 				rec_el = null;
+				rec_canvas = null;
 				app.fireEvent ('DidUpdateMultitrack');
 				app.fireEvent ('DidSelectClip', clip);
 				OneUp ('Recorded clip', 1000);

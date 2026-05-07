@@ -11,6 +11,8 @@
 
 		var _is_render_scheduled  = false;
 		var _is_render_scheduled2 = false;
+		var _render_raf = 0;
+		var _bars_raf = 0;
 
 		q.act = null;
 		q.ranges = [];
@@ -93,6 +95,7 @@
 		var _fillstyle = '#d9d955';
 
 		var _anim_render = function () {
+			_render_raf = 0;
 			_render ( q );
 		};
 
@@ -102,7 +105,7 @@
 			if (_is_render_scheduled) return ;
 			_is_render_scheduled = true;
 
-			requestAnimationFrame (_anim_render);
+			_render_raf = requestAnimationFrame (_anim_render);
 		};
 
 		this.RenderBars = function (_, freq) {
@@ -111,9 +114,23 @@
 			if (_is_render_scheduled2) return ;
 			_is_render_scheduled2 = true;
 
-			requestAnimationFrame (function () {
+			_bars_raf = requestAnimationFrame (function () {
+				_bars_raf = 0;
 				_render_bars ( q, freq );
 			});
+		};
+
+		this.Destroy = function () {
+			if (_render_raf) {
+				cancelAnimationFrame ( _render_raf );
+				_render_raf = 0;
+				_is_render_scheduled = false;
+			}
+			if (_bars_raf) {
+				cancelAnimationFrame ( _bars_raf );
+				_bars_raf = 0;
+				_is_render_scheduled2 = false;
+			}
 		};
 
 		var _render_bars = function( q, freq ) {
@@ -1138,6 +1155,7 @@
 				app.ui.InteractionHandler.on = false;
 				app.ui.KeyHandler.removeCallback (modal_esc_key);
 
+				PGEQ && PGEQ.Destroy ();
 				PGEQ = null;
 			},
 

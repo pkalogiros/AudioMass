@@ -138,7 +138,14 @@
 			aggr_i = 0;
 
 			var id = ++capture_id;
-			navigator.mediaDevices.getUserMedia ({audio:true, video:false}).then(function ( stream ) {
+			navigator.mediaDevices.getUserMedia ({
+				audio: {
+					echoCancellation: false,
+					noiseSuppression: false,
+					autoGainControl: false
+				},
+				video: false
+			}).then(function ( stream ) {
 				if (id !== capture_id) {
 					stream.getTracks ().forEach (function ( t ) { t.stop (); });
 					return ;

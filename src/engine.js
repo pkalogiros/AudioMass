@@ -508,8 +508,25 @@
 
 			wavesurfer.stop ( val );
 		});
+		var record_stop_done = null;
+		function afterRecordStop ( ok, dims ) {
+			var done = record_stop_done;
+			record_stop_done = null;
+			done && done ( ok, dims );
+		}
+		function playAfterRecordStop () {
+			app.fireEvent ('RequestActionRecordStop', function ( ok ) {
+				if (ok && !wavesurfer.isPlaying ()) wavesurfer.play ();
+			});
+		}
+
 		app.listenFor ('RequestPlay', function ( x ) { // unique listener
 			if (q.in_fx) return ;
+
+			if (app.rec.isActive ()) {
+				playAfterRecordStop ();
+				return ;
+			}
 
 			app.fireEvent ('RequestActionRecordStop');
 
@@ -536,6 +553,11 @@
 		app.listenFor ('RequestTransportToggle', function ( mode ) {
 			if (mode === 'pause') {
 				wavesurfer.playPause();
+				return ;
+			}
+
+			if (app.rec.isActive ()) {
+				playAfterRecordStop ();
 				return ;
 			}
 
@@ -1245,10 +1267,14 @@
 			}
 		});
 
-		app.listenFor ('RequestActionRecordStop', function () {
+		app.listenFor ('RequestActionRecordStop', function ( done ) {
 			if (!q.is_ready) return ;
-			if (!app.rec.isActive ()) return (false);
+			if (!app.rec.isActive ()) {
+				done && done (false);
+				return (false);
+			}
 
+			record_stop_done = done || null;
 			app.rec.stop ();
 		});
 
@@ -1275,6 +1301,7 @@
 				app.fireEvent ('DidActionRecordStop', !!buffers);
 				if (!buffers)
 				{
+					afterRecordStop (false);
 					return ;
 				}
 
@@ -1291,6 +1318,7 @@
 
 				app.fireEvent ('RequestSeekTo', (dims[0]/wavesurfer.getDuration()));
 				OneUp ('Recorded Audio ' + dims[0].toFixed(2), 982);
+				afterRecordStop (true, dims);
 			}, function () {
 				// on start
 				app.fireEvent ('DidActionRecordStart');
