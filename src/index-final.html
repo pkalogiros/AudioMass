@@ -30,17 +30,14 @@
 <body>
 	<div id="app"></div>
 	<script src="all.build.js"></script>
-
-<!--
-	<script src="multitrack.js"></script>
-	<script src="multitrack-ui.js"></script>
--->
 	<script>
 		var editor = PKAudioEditor.init ('app');
 		if ('serviceWorker' in navigator) {
-			try {
-				navigator.serviceWorker.register( 'sw.js' );
-			} catch ( error ) {}
+			window.addEventListener('load', () => {
+				try {
+					navigator.serviceWorker.register( 'sw.js' );
+				} catch ( error ) {}
+			});
 		}
 	</script>
 

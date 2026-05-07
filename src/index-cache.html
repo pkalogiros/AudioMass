@@ -34,6 +34,13 @@
 	<script src="all.build.js"></script>
 	<script>
 		var editor = PKAudioEditor.init ('app');
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', () => {
+				try {
+					navigator.serviceWorker.register( 'sw.js' );
+				} catch ( error ) {}
+			});
+		}
 	</script>
 </body>
 </html>
