@@ -6,6 +6,14 @@ Live: [https://audiomass.co](https://audiomass.co)
 
 ---
 
+### Now with multitrack support!
+
+AudioMass now ships with a full multitrack mode -- layer multiple tracks, drag clips around, crossfade overlaps, record onto armed channels, and bounce the whole thing back down to a single file. More details on the [about page](https://audiomass.co/about.html).
+
+![AudioMass Multitrack](https://audiomass.co/about/multitrack.png)
+
+---
+
 ## Getting it to Run!
 1. please checkout this repo (or download it as zip)
 2. navigate to it through your favorite CLI, then access the ```src``` dir
