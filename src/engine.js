@@ -3,6 +3,14 @@
 
 	function PKEng ( app ) {
 		var q = this;
+		function mainHeight () {
+			var h = app.ui && app.ui.MainHeight ?
+				app.ui.MainHeight () :
+				((w.innerHeight < 280 ? 280 : w.innerHeight) - 168);
+			var av = app.el.getElementsByClassName ('pk_av')[0];
+			if (av) h -= av.offsetHeight - av.clientHeight;
+			return Math.max (1, h);
+		}
 
 		var wavesurfer = WaveSurfer.create ({
 			container: '#' + 'pk_av_' + app.id,
@@ -14,7 +22,7 @@
 			progressColor:'rgba(128,85,85,0.24)',
 			splitChannels:true,
 			autoCenter:true,
-			height:w.innerHeight - 168,
+			height:mainHeight (),
 			plugins: [
 				WaveSurfer.regions.create({
 					dragSelection: {
@@ -440,15 +448,7 @@
 
 		app.listenFor ('RequestResize', function () {
 			wavesurfer.fireEvent ('resize');
-
-			var h = window.innerHeight;
-			var bottom = 0;
-
-			if (app.ui && app.ui.BarBtm) {
-				bottom = (app.ui.BarBtm.on ? app.ui.BarBtm.height : 0);
-			}
-
-			wavesurfer.setHeight( (h < 280 ? 280 : h) - 168 - bottom);
+			wavesurfer.setHeight ( mainHeight () );
 			// app.fireEvent ('DidResize');
 		});
 

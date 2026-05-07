@@ -40,6 +40,8 @@
 		var touch_zoom = null;
 		var touch_zoom_doc = false;
 		var gesture_zoom = false;
+		var zoom_dirty = false;
+		var wheel_zoom_delta = 0;
 		var edge_pan_raf = 0;
 		var edge_pan_dir = 0;
 		var edge_pan_ev = null;
@@ -91,7 +93,7 @@
 			'drums.mp3',
 			'bass.mp3',
 			{f:'piano.mp3', v:0.92, c:[[28.275,0]]},
-			{f:'harp-2.mp3', p:0.12, c:[[28.275,0]]},
+			{f:'harp-2.mp3', v:0.93, p:0.12, c:[[28.275,0]]},
 			{f:'picolo-1.mp3', v:0.78, c:[[28.275,0]]},
 			{f:'flute-1.mp3', p:-0.20, c:[[28.275,0]]}
 		];
@@ -766,6 +768,30 @@
 			fireZoom ();
 		}
 
+		function renderZoom () {
+			if (!el) return ;
+
+			var dur = duration ();
+			var width = Math.max (800, (dur * px_per_sec) >> 0);
+			lanes.style.width = width + 'px';
+			ruler.style.width = width + 'px';
+			drawRuler ( dur, width );
+
+			for (var i = 0; i < clips.length; ++i)
+				layoutClip ( clips[i] );
+
+			renderRegion ();
+			updatePlayhead ();
+			fireZoom ();
+			zoom_dirty = true;
+		}
+
+		function finishZoom () {
+			if (!zoom_dirty) return ;
+			zoom_dirty = false;
+			render ();
+		}
+
 		function drawRuler ( dur, width ) {
 			var left = main ? main.scrollLeft : 0;
 			var visible = Math.max (1, main ? main.clientWidth : (ruler.clientWidth || width));
@@ -1164,6 +1190,14 @@
 		function dbPct ( db ) {
 			return db === undefined ? 0 : Math.max (0, Math.min (1, (db + 80) / 80));
 		}
+		function meterDb ( arr ) {
+			var peak = 0;
+			for (var i = 0; i < arr.length; ++i) {
+				var v = Math.abs ( arr[i] );
+				if (v > peak) peak = v;
+			}
+			return peak > 0.00001 ? 20 * Math.log (peak) / Math.LN10 + 0.001 : -100;
+		}
 
 		function MixerData () {
 			var list = [];
@@ -1496,6 +1530,22 @@
 			var max = Math.max (0, cw - 10);
 			if (l) l.style.left = Math.max (0, Math.min (max, ((clip.fi || 0) * px_per_sec - 5) >> 0)) + 'px';
 			if (r) r.style.right = Math.max (0, Math.min (max, ((clip.fo || 0) * px_per_sec - 5) >> 0)) + 'px';
+		}
+
+		function clipNode ( id ) {
+			var nodes = lanes.getElementsByClassName ('pk_mt_clip');
+			for (var i = 0; i < nodes.length; ++i)
+				if (nodes[i].getAttribute ('data-clip') === id) return nodes[i];
+			return null;
+		}
+
+		function layoutClip ( clip ) {
+			var ce = clipNode ( clip.id );
+			if (!ce) return ;
+			var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
+			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
+			ce.style.width = cw + 'px';
+			placeFadeHandles ( ce, clip, cw );
 		}
 
 		function renderClip ( clip ) {
@@ -2405,14 +2455,23 @@
 			if (!hasClips ()) return ;
 
 			if (info.pinch) {
-				if (!info.y) return ;
-				if (e.timeStamp - throttle_wheel < 16) return ;
-				throttle_wheel = e.timeStamp;
-				zoomAtEvent ( e, app.wheelZoomFactor ( info.y * 1.45 ) );
+				var now = e.timeStamp || w.performance.now ();
+				if (now - throttle_wheel > 180) wheel_zoom_delta = 0;
+				var y = zeroZoomFlip ( info.y, wheel_zoom_delta );
+				wheel_zoom_delta = info.y;
+				if (!y) return ;
+				if (now - throttle_wheel < 16) return ;
+				throttle_wheel = now;
+				zoomAtEvent ( e, app.wheelZoomFactor ( y * 1.45 ) );
 				return ;
 			}
 
+			wheel_zoom_delta = 0;
 			if (info.x || info.y) panView ( info.x, info.y );
+		}
+
+		function zeroZoomFlip ( val, prev ) {
+			return (val && prev && (val < 0) !== (prev < 0)) ? 0 : val;
 		}
 
 		function zoomAtEvent ( e, factor ) {
@@ -2436,6 +2495,7 @@
 			touchZoomDoc ( false );
 			gesture_zoom = true;
 			main._pk_scale = e.scale || 1;
+			main._pk_scale_delta = 0;
 		}
 
 		function gestureChange ( e ) {
@@ -2443,13 +2503,19 @@
 			if (!hasClips ()) return ;
 			if (!gesture_zoom) gestureStart ( e );
 			var scale = e.scale || 1;
-			zoomAtEvent ( e, scale / (main._pk_scale || 1) );
+			var prev = main._pk_scale || 1;
+			var delta = scale - prev;
+			var zoom_delta = zeroZoomFlip ( delta, main._pk_scale_delta || 0 );
+			main._pk_scale_delta = delta;
 			main._pk_scale = scale;
+			if (zoom_delta)
+				zoomAtEvent ( e, (prev + zoom_delta) / prev );
 		}
 
 		function gestureEnd ( e ) {
 			if (e) e.preventDefault ();
 			gesture_zoom = false;
+			finishZoom ();
 		}
 
 		function touchZoomInfo ( e ) {
@@ -2474,6 +2540,7 @@
 			e.stopPropagation ();
 			cancelActiveDrag ();
 			touch_zoom = info;
+			touch_zoom.delta = 0;
 			touchZoomDoc ( true );
 		}
 
@@ -2484,24 +2551,31 @@
 
 			e.preventDefault ();
 			e.stopPropagation ();
-			if (!touch_zoom) {
-				cancelActiveDrag ();
-				touch_zoom = info;
-				touchZoomDoc ( true );
-				return ;
-			}
+				if (!touch_zoom) {
+					cancelActiveDrag ();
+					touch_zoom = info;
+					touch_zoom.delta = 0;
+					touchZoomDoc ( true );
+					return ;
+				}
 			if (!touch_zoom.dist || !info.dist) return ;
 
 			var now = w.performance.now ();
 			if (now - throttle_wheel < 16) return ;
 			throttle_wheel = now;
-			zoomAtEvent ({clientX: info.x}, info.dist / touch_zoom.dist);
+			var prev = touch_zoom;
+			var delta = info.dist - prev.dist;
+			var zoom_delta = zeroZoomFlip ( delta, prev.delta || 0 );
+			info.delta = delta;
 			touch_zoom = info;
+			if (zoom_delta)
+				zoomAtEvent ({clientX: info.x}, (prev.dist + zoom_delta) / prev.dist);
 		}
 
 		function touchZoomEnd () {
 			touch_zoom = null;
 			touchZoomDoc ( false );
+			if (!gesture_zoom) finishZoom ();
 		}
 
 		function touchZoomDoc ( on ) {
@@ -3972,12 +4046,21 @@
 			var nodes = [];
 			var dur = region ? region.end : duration ();
 			var analyser = ctx.createAnalyser ();
+			var splitter = ctx.createChannelSplitter (2);
+			var merger = ctx.createChannelMerger (2);
+			var meter_l = ctx.createAnalyser ();
+			var meter_r = ctx.createAnalyser ();
 			var master = ctx.createGain ();
-			var meter = new Float32Array (128);
 			analyser.fftSize = logFrequencies () ? 1024 : 256;
+			meter_l.fftSize = meter_r.fftSize = 256;
 			master.gain.value = master_vol;
 			master.connect ( analyser );
-			analyser.connect ( ctx.destination );
+			analyser.connect ( splitter );
+			splitter.connect ( meter_l, 0 );
+			splitter.connect ( meter_r, 1 );
+			meter_l.connect ( merger, 0, 0 );
+			meter_r.connect ( merger, 0, 1 );
+			merger.connect ( ctx.destination );
 
 			for (var i = 0; i < clips.length; ++i) {
 				var clip = clips[i];
@@ -4021,8 +4104,12 @@
 				nodes: nodes,
 				dur: dur,
 				analyser: analyser,
+				splitter: splitter,
+				merger: merger,
+				meter_l: meter_l,
+				meter_r: meter_r,
 				master: master,
-				meter: meter,
+				meter: [new Float32Array (128), new Float32Array (128)],
 				freq: null
 			};
 			if (!silent) app.fireEvent ('DidPlay');
@@ -4082,12 +4169,10 @@
 				Stop ();
 				return ;
 			}
-			play.analyser.getFloatTimeDomainData ( play.meter );
-			var sum = 0;
-			for (var i = 0; i < play.meter.length; ++i)
-				sum += play.meter[i] * play.meter[i];
-			var rms = Math.sqrt (sum / play.meter.length);
-			var db = rms > 0.00001 ? 20 * Math.log (rms) / Math.LN10 : -100;
+			play.meter_l.getFloatTimeDomainData ( play.meter[0] );
+			play.meter_r.getFloatTimeDomainData ( play.meter[1] );
+			var loudness = [meterDb (play.meter[0]), meterDb (play.meter[1])];
+			var db = Math.max (loudness[0], loudness[1]);
 			var stamp = w.performance.now ();
 			var freq = null;
 			if (logFrequencies ()) {
@@ -4104,8 +4189,8 @@
 				play.freq = null;
 				play.analyser.fftSize = 256;
 			}
-			app.fireEvent ('DidAudioProcess', [cursor, [db, db], stamp], freq);
-			if (mixer_on) updateMixerMeters ( meterAt (cursor), db );
+				app.fireEvent ('DidAudioProcess', [cursor, loudness, stamp], freq);
+				if (mixer_on) updateMixerMeters ( meterAt (cursor), db );
 			followPlayback ();
 			updatePlayhead ();
 			raf = w.requestAnimationFrame ( tick );
@@ -4202,7 +4287,19 @@
 			if (play.analyser) {
 				try { play.analyser.disconnect (); } catch (e7) {}
 			}
-		}
+			if (play.splitter) {
+				try { play.splitter.disconnect (); } catch (e8) {}
+			}
+			if (play.meter_l) {
+				try { play.meter_l.disconnect (); } catch (e9) {}
+			}
+			if (play.meter_r) {
+				try { play.meter_r.disconnect (); } catch (e10) {}
+			}
+			if (play.merger) {
+				try { play.merger.disconnect (); } catch (e11) {}
+			}
+			}
 
 		function refreshMix () {
 			if (!play) return ;
@@ -4324,7 +4421,8 @@
 				center_time = (main.scrollLeft + main.clientWidth * where) / px_per_sec;
 
 			px_per_sec = next_pps;
-			render ();
+			if (gesture_zoom || touch_zoom) renderZoom ();
+			else render ();
 			main.scrollLeft = (center_time * px_per_sec) - main.clientWidth * where;
 			clampScroll ();
 			redrawRuler ();
@@ -4828,11 +4926,15 @@
 		});
 		app.listenFor ('RequestResize', function () {
 			if (!el) return ;
-			var h = w.innerHeight;
-			var bottom = app.ui && app.ui.BarBtm && app.ui.BarBtm.on ?
-				app.ui.BarBtm.height :
-				0;
-			el.style.height = ((h < 280 ? 280 : h) - 168 - bottom) + 'px';
+			if (app.ui && app.ui.MainHeight)
+				el.style.height = app.ui.MainHeight () + 'px';
+			else {
+				var h = w.innerHeight;
+				var bottom = app.ui && app.ui.BarBtm && app.ui.BarBtm.on ?
+					app.ui.BarBtm.height :
+					0;
+				el.style.height = ((h < 280 ? 280 : h) - 168 - bottom) + 'px';
+			}
 			syncScroll ();
 			resizeTrackers ( tracksHeight () );
 			redrawRuler ();

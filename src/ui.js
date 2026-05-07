@@ -137,6 +137,29 @@
 		this.Toolbar    = new _makeUIToolbar ( this ); // main toolbar and controls
 		this.footer     = new _makeUIMainView ( this, app );
 		this.BarBtm     = new _makeUIBarBottom (this, app);
+		this.MainHeight = function () {
+			var h = app.isMobile && w.visualViewport ? w.visualViewport.height : w.innerHeight;
+			var used = 0;
+			var root = this.el;
+			var hdr = root.getElementsByClassName ('pk_hdr')[0];
+			var tbc = root.getElementsByClassName ('pk_tbc')[0];
+			var ftr = root.getElementsByClassName ('pk_ftr')[0];
+			if (hdr) used += hdr.offsetHeight;
+			if (tbc) used += tbc.offsetHeight;
+			if (ftr) used += ftr.offsetHeight;
+			if (this.BarBtm && this.BarBtm.on) used += this.BarBtm.height;
+			return Math.max (112, h - used);
+		};
+		if (app.isMobile && w.visualViewport) {
+			var resize_raf = 0;
+			w.visualViewport.addEventListener ('resize', function () {
+				if (resize_raf) return ;
+				resize_raf = w.requestAnimationFrame (function () {
+					resize_raf = 0;
+					app.fireEvent ('RequestResize');
+				});
+			});
+		}
 
 		this.Dock      = function ( id, arg1, arg2 ) {
 			app.fireEvent (id, arg1, arg2);

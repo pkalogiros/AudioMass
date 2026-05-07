@@ -388,6 +388,7 @@ a{
 	height:calc(100vh - 168px);min-height:280px;
 	background:var(--bg-1);
 	border-bottom:1px solid var(--bd);
+	box-sizing:border-box;
 	overflow:hidden;overscroll-behavior:none;
 }
 .pk_mt_on .pk_av_cont{display:none}
@@ -1290,7 +1291,7 @@ label.pk_dis,
 
 /* ---------- Standalone ---------- */
 body.pk_stndln{padding-bottom:600px;overflow:hidden}
-.pk_stndln .pk_fxd{position:fixed;left:0;top:0;width:100%;height:100%}
+.pk_stndln .pk_fxd{position:fixed;left:0;top:0;width:100%;height:100%;height:100dvh}
 .pk_stndln .pk_modal_back{position:fixed}
 .pk_fnt10 .pk_modal_a_bottom{font-size:10px}
 
@@ -1393,13 +1394,17 @@ body.pk_stndln{padding-bottom:600px;overflow:hidden}
 	.pk_mob .pk_tb .pk_btn{width:32px;height:32px;margin:0 4px;font-size:16px;line-height:24px}
 	.pk_mob .pk_tb .pk_selection .icon-clearsel{
 		width:auto;min-width:54px;height:32px;
-		margin:0 8px;padding:0 10px;
+		margin:0 8px 0 5px;padding:0 10px;
 		font-size:11px;line-height:1;
 	}
 	.pk_h200 .pk_col{width:20%;overflow:hidden}
 	.pk_zoombtn button{height:19px}
 	.pk_wavescroll{height:16px;margin-bottom:8px}
 	.pk_markers{margin-top:3px}
+	.pk_mob .pk_ftr{
+		padding-bottom:var(--s2);
+		padding-bottom:max(var(--s2), calc(var(--s2) + env(safe-area-inset-bottom, 0px) - 4px));
+	}
 	.pk_lcldrf .pk_lcla{margin-left:14px;font-size:12px}
 }
 
