@@ -138,12 +138,13 @@
 			aggr_i = 0;
 
 			var id = ++capture_id;
+			var audio_constraints = {
+				echoCancellation: true,
+				noiseSuppression: true,
+				autoGainControl: !!app.isMobile
+			};
 			navigator.mediaDevices.getUserMedia ({
-				audio: {
-					echoCancellation: false,
-					noiseSuppression: false,
-					autoGainControl: false
-				},
+				audio: audio_constraints,
 				video: false
 			}).then(function ( stream ) {
 				if (id !== capture_id) {

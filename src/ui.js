@@ -3334,6 +3334,19 @@
 
 	function _makeMobileScroll (UI) {
 
+		var isControlTouch = function ( target ) {
+			while (target && target !== d.body) {
+				if (/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/i.test (target.tagName || '')) return true;
+				if (target.classList && (
+					target.classList.contains ('pk_btn') ||
+					target.classList.contains ('pk_mt_topbtn') ||
+					target.classList.contains ('pk_modal_a_bottom')
+				)) return true;
+				target = target.parentNode;
+			}
+			return false;
+		};
+
 		var getFactor = function () {
 			var screen_h = window.screen.height;
 			var screen_w = window.screen.width;
@@ -3377,7 +3390,7 @@
 		});
 
 		d.body.addEventListener ('touchmove', function( e ) {
-			if (e.target.tagName === 'INPUT') return ;
+			if (isControlTouch ( e.target )) return ;
 			if (allow) return ;
 
 			var ny = e.touches[0].pageY;

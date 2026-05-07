@@ -244,24 +244,21 @@
 			};
 
 		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
-			var mt_buffer = null;
-			if (app.multitrack &&
+			var canceled = false;
+			var mt = app.multitrack &&
 				app.multitrack.IsOn &&
 				app.multitrack.IsOn () &&
-				app.multitrack.Mixdown)
-			{
-				mt_buffer = app.multitrack.Mixdown ( selection );
-				if (!mt_buffer) {
-					OneUp ('Nothing to export', 1200);
-					return ;
-				}
-				selection = false;
-			}
-			else if (!q.is_ready) return ;
+				app.multitrack.Mixdown ?
+				app.multitrack :
+				null;
 
-			app.fireEvent ('WillDownloadFile');
+			if (mt || q.is_ready) {
+				app.fireEvent ('WillDownloadFile');
+			}
+			else return ;
 
 			app.listenFor ('RequestCancelModal', function() {
+				canceled = true;
 				AudioUtils.DownloadFileCancel ();
 				if (wavesurfer.arraybuffer) q.is_ready = true;
 
@@ -270,8 +267,34 @@
 				app.stopListeningForName ('RequestCancelModal');
 			});
 
+			if (mt)
+			{
+				app.fireEvent ('DidProgressModal', 0);
+				setTimeout(function () {
+					var done = function ( mt_buffer ) {
+						if (canceled) return ;
+						if (!mt_buffer) {
+							OneUp ('Nothing to export', 1200);
+							app.fireEvent ('DidDownloadFile');
+							app.stopListeningForName ('RequestCancelModal');
+							return ;
+						}
+						startDownload ( mt_buffer );
+					};
+
+					if (mt.MixdownAsync) mt.MixdownAsync ( selection, done );
+					else done ( mt.Mixdown ( selection ) );
+				}, 20);
+				return ;
+			}
+
 			setTimeout(function() {
-				AudioUtils.DownloadFile ( name, format, kbps, selection, stereo, function ( val ) {
+				startDownload ();
+			}, 220);
+
+			function startDownload ( mt_buffer ) {
+				if (canceled) return ;
+				AudioUtils.DownloadFile ( name, format, kbps, mt_buffer ? false : selection, stereo, function ( val ) {
 					if (val === 'done')
 					{
 						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
@@ -280,10 +303,9 @@
 					else
 						app.fireEvent ('DidProgressModal', val);
 				}, mt_buffer);
-			}, 220);
+			}
 		}
 		this.LoadSample = function () {
-
 			app.fireEvent ('WillDownloadFile');
 
 			setTimeout(function () {

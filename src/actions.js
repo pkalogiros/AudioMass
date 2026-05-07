@@ -835,6 +835,7 @@
 
 			var data_left = originalBuffer.getChannelData ( 0 );
 			var data_right = null;
+			var mono_right = null;
 			if (channels === 2)
 				data_right = originalBuffer.getChannelData ( 1 );
 
@@ -855,6 +856,11 @@
 			}
 			else if (!stereo && data_right)
 			{
+				if (source_buffer || !wavesurfer.ActiveChannels ||
+					(wavesurfer.ActiveChannels[0] && wavesurfer.ActiveChannels[1]))
+				{
+					mono_right = data_right;
+				}
 				data_right = null;
 				channels   = 1;
 			}
@@ -869,35 +875,25 @@
 			}
 
 			var dataAsInt16ArrayLeft = new Int16Array(len);
-			var dataAsInt16ArrayRight = null;
+			var dataAsInt16ArrayRight = data_right ? new Int16Array(len) : null;
+			var encode_base = 10;
+			var last_progress = -1;
 
-
-			if (data_right)
-			{
-				dataAsInt16ArrayRight = new Int16Array(len);
-
-				while(i < len) {
-					dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
-				 	dataAsInt16ArrayRight[i] = convert(data_right[offset + i]);
-				 	++i;
-				}
-			}
-			else
-			{
-				while(i < len) {
-					dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
-				 	++i;
-				}
-			}
 			function convert ( n ) {
 				 var v = n < 0 ? n * 32768 : n * 32767;       // convert in range [-32768, 32767]
 				 return Math.max(-32768, Math.min(32768, v)); // clamp
+			}
+			function progress ( val ) {
+				val = Math.max (0, Math.min (99, val >> 0));
+				if (val === last_progress) return ;
+				last_progress = val;
+				callback && callback ( val );
 			}
 
 			worker.onmessage = function( ev ) {
 				if (ev.data.percentage)
 				{
-					callback && callback ( ev.data.percentage );
+					progress ( encode_base + (ev.data.percentage * (100 - encode_base) / 100) );
 					return ;
 				}
 				forceDownload( ev.data );
@@ -906,18 +902,55 @@
 				worker = null;
 			}
 
-			worker.postMessage ({
-				sample_rate: sample_rate,
-				kbps:!kbps ? 128 : kbps,
-				flac_compression: kbps,
-				channels: channels,
-				samples: len
-			});
-			worker.postMessage ( dataAsInt16ArrayLeft.buffer, [dataAsInt16ArrayLeft.buffer] );
-			if (data_right)
-				worker.postMessage ( dataAsInt16ArrayRight.buffer, [dataAsInt16ArrayRight.buffer] );
-			else
-				worker.postMessage (null);
+			function fillChunk () {
+				if (!worker) return ;
+				var end = Math.min (len, i + 262144);
+				if (data_right) {
+					while(i < end) {
+						dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
+						dataAsInt16ArrayRight[i] = convert(data_right[offset + i]);
+						++i;
+					}
+				}
+				else {
+					if (mono_right) {
+						while(i < end) {
+							dataAsInt16ArrayLeft[i] = convert(
+								(data_left[offset + i] + mono_right[offset + i]) * 0.5
+							);
+							++i;
+						}
+					}
+					else {
+						while(i < end) {
+							dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
+							++i;
+						}
+					}
+				}
+
+				progress ((i / len) * encode_base);
+				if (i < len) {
+					setTimeout (fillChunk, 0);
+					return ;
+				}
+
+				worker.postMessage ({
+					sample_rate: sample_rate,
+					kbps:!kbps ? 128 : kbps,
+					flac_compression: kbps,
+					channels: channels,
+					samples: len
+				});
+				worker.postMessage ( dataAsInt16ArrayLeft.buffer, [dataAsInt16ArrayLeft.buffer] );
+				if (data_right)
+					worker.postMessage ( dataAsInt16ArrayRight.buffer, [dataAsInt16ArrayRight.buffer] );
+				else
+					worker.postMessage (null);
+			}
+
+			fillChunk ();
+			return ;
 
 			// function forceDownload ( mp3Data ) {
 			// 	var blob = new Blob (mp3Data, {type:'audio/mp3'});

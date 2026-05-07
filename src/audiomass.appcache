@@ -1,34 +1,31 @@
 CACHE MANIFEST
 # v1 - July 26, 2018
 # v2 - May 25, 2020
+# v3 - built bundle
 
 /index-cache.html
-/main.css
-/dist/wavesurfer.js
-/dist/plugin/wavesurfer.regions.js
-/oneup.js
-/app.js
-/keys.js
-/contextmenu.js
-/ui-fx.js
-/ui.js
-/modal.js
-/state.js
-/engine.js
-/actions.js
-/drag.js
-/recorder.js
-/welcome.js
-/fx-pg-eq.js
+/manifest.json
+/ico.png
+/icon.png
+/all.css
+/all.build.js
+/recorder-worklet.js
 /tempo-estimator.js
 /tempo-worker.js
-/fx-auto.js
-/local.js
-/id3.js
-/lzma.js
+/wav.js
 /lame.js
+/flac.js
+/libflac.js
+/libflac.wasm
+/lz4-block-codec-wasm.js
+/lz4-block-codec.wasm
+/rnn_denoise.js
+/rnn_denoise.wasm
 /fonts/icomoon.ttf
 /fonts/icomoon.woff
+/eq.html
+/sp.html
+/mix.html
 /test.mp3
 
 

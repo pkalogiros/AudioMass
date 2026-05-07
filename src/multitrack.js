@@ -35,6 +35,7 @@
 		var scroll_sync = false;
 		var did_init_zoom = false;
 		var active_drag = null;
+		var touch_zoom = null;
 		var edge_pan_raf = 0;
 		var edge_pan_dir = 0;
 		var edge_pan_ev = null;
@@ -79,6 +80,7 @@
 		var wave_peak_step = 128;
 		var wave_peaks = w.WeakMap ? new w.WeakMap () : null;
 		var sample_loading = false;
+		var sample_cache = {};
 		var multi_sample_files = [
 			{f:'guitar-lead.mp3', p:0.20},
 			{f:'guitar-rhythm.mp3', p:-0.10},
@@ -550,6 +552,11 @@
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
 			main.addEventListener ('gesturestart', gestureStart, {passive:false});
 			main.addEventListener ('gesturechange', gestureChange, {passive:false});
+			main.addEventListener ('gestureend', gestureEnd, {passive:false});
+			main.addEventListener ('touchstart', touchZoomStart, {passive:false});
+			main.addEventListener ('touchmove', touchZoomMove, {passive:false});
+			main.addEventListener ('touchend', touchZoomEnd, false);
+			main.addEventListener ('touchcancel', touchZoomEnd, false);
 			main.addEventListener ('scroll', syncScroll, false);
 			bindDown ( main, mainDown );
 			buildClipContext ();
@@ -1777,6 +1784,7 @@
 		}
 
 		function passRegionEventToClip ( e ) {
+			if (e._touch) return false;
 			if (isRegionHandleEvent ( e )) return false;
 			return passMouseEventTo ( clipNodeAtEvent ( e ), e );
 		}
@@ -1824,7 +1832,7 @@
 
 		function startRegionBodyEdit ( e ) {
 			focusMain ();
-			e.preventDefault ();
+			if (!e._touch) e.preventDefault ();
 			e.stopPropagation ();
 
 			var down_x = e.clientX;
@@ -1833,6 +1841,7 @@
 			var last_time = down_time;
 			var old_start = region.start;
 			var old_end = region.end;
+			var is_touch = e._touch;
 			var active = false;
 
 			var stop_drag = bindDrag ( e, move, up );
@@ -1843,6 +1852,10 @@
 				var dy = ev.clientY - down_y;
 				if (!active) {
 					if (Math.abs ( dx ) + Math.abs ( dy ) < 5) return ;
+					if (is_touch && Math.abs ( dy ) > Math.abs ( dx )) {
+						up ();
+						return ;
+					}
 					if (!app.ui.InteractionHandler.checkAndSet ('multitrack-region')) {
 						up ( ev );
 						return ;
@@ -2077,8 +2090,7 @@
 
 			bindDown ( ce, function ( e ) {
 				if (e._touch && selected_clip !== clip.id) {
-					startClipTouchPan ( e, clip );
-					return ;
+					return startClipTouchSelect ( e, clip );
 				}
 				if ((e.button !== undefined && e.button !== 0) || e.which === 3) return ;
 
@@ -2121,38 +2133,12 @@
 				setActiveDrag ( up );
 			});
 
-			function startClipTouchPan ( e, clip ) {
-				var down_x = e.clientX;
-				var down_y = e.clientY;
-				var old_left = main.scrollLeft;
-				var old_top = main.scrollTop;
-				var moved = false;
-				var stop_pan = bindDrag ( e, move, up );
-
-				setActiveDrag ( up );
-
-				function move ( ev ) {
-					var dx = ev.clientX - down_x;
-					var dy = ev.clientY - down_y;
-					if (!moved && Math.abs ( dx ) + Math.abs ( dy ) < 7) return ;
-					moved = true;
-					ev.preventDefault ();
-					main.scrollLeft = old_left - dx;
-					main.scrollTop = old_top - dy;
-					clampScroll ();
-					syncScroll ();
-					fireZoom ();
-				}
-
-				function up ( ev ) {
-					stop_pan ();
-					clearActiveDrag ( up );
-					if (moved || !ev) return ;
-					ev.preventDefault ();
-					ev.stopPropagation ();
+			function startClipTouchSelect ( e, clip ) {
+				e.stopPropagation ();
+				return startRangeSelect ( e, function ( ev ) {
 					setCursorTime ( snapTime ( timeFromEvent ( ev ), ev ) );
 					selectClip ( clip );
-				}
+				});
 			}
 
 			function startTrimView () {
@@ -2440,6 +2426,8 @@
 		function gestureStart ( e ) {
 			e.preventDefault ();
 			if (!hasClips ()) return ;
+			touch_zoom = null;
+			main._pk_gesture = true;
 			main._pk_scale = e.scale || 1;
 		}
 
@@ -2449,6 +2437,54 @@
 			var scale = e.scale || 1;
 			zoomAtEvent ( e, scale / (main._pk_scale || 1) );
 			main._pk_scale = scale;
+		}
+
+		function gestureEnd ( e ) {
+			if (e) e.preventDefault ();
+			if (main) main._pk_gesture = false;
+			touch_zoom = null;
+		}
+
+		function touchZoomInfo ( e ) {
+			if (!e.touches || e.touches.length < 2) return null;
+			var a = e.touches[0];
+			var b = e.touches[1];
+			var dx = b.clientX - a.clientX;
+			var dy = b.clientY - a.clientY;
+
+			return {
+				x: (a.clientX + b.clientX) / 2,
+				dist: Math.sqrt ( dx * dx + dy * dy )
+			};
+		}
+
+		function touchZoomStart ( e ) {
+			if (main._pk_gesture) return ;
+			var info = touchZoomInfo ( e );
+			if (!info || !hasClips ()) return ;
+
+			e.preventDefault ();
+			e.stopPropagation ();
+			cancelActiveDrag ();
+			touch_zoom = info;
+		}
+
+		function touchZoomMove ( e ) {
+			if (main._pk_gesture) return touchZoomEnd ();
+			var info = touchZoomInfo ( e );
+			if (!touch_zoom || !info || !hasClips ()) return touchZoomEnd ();
+			if (!touch_zoom.dist || !info.dist) return ;
+
+			e.preventDefault ();
+			e.stopPropagation ();
+			if (e.timeStamp - throttle_wheel < 16) return ;
+			throttle_wheel = e.timeStamp;
+			zoomAtEvent ({clientX: info.x}, info.dist / touch_zoom.dist);
+			touch_zoom = info;
+		}
+
+		function touchZoomEnd () {
+			touch_zoom = null;
 		}
 
 		function timeFromEvent ( e ) {
@@ -3389,6 +3425,85 @@
 			return out;
 		}
 
+		function MixdownAsync ( selection, done ) {
+			if (!clips.length) return done ( null );
+
+			var Ctx = w.OfflineAudioContext || w.webkitOfflineAudioContext;
+			if (!Ctx) {
+				w.setTimeout (function () {
+					done ( Mixdown ( selection ) );
+				}, 20);
+				return ;
+			}
+
+			var ctx = audioCtx ();
+			var rate = clips[0].buffer.sampleRate || ctx.sampleRate;
+			var from = 0;
+			var to = contentDuration ();
+			if (selection) {
+				from = Math.max (0, selection[0] || 0);
+				to = Math.max (from, selection[1] || 0);
+			}
+			if (to <= from) return done ( null );
+
+			var render_ctx = new Ctx (2, Math.max (1, ((to - from) * rate) >> 0), rate);
+			var master = render_ctx.createGain ();
+			var solo = hasSolo ();
+			var called = false;
+
+			function finish ( buffer ) {
+				if (called) return ;
+				called = true;
+				done ( buffer );
+			}
+
+			master.gain.value = master_vol;
+			master.connect ( render_ctx.destination );
+
+			for (var i = 0; i < clips.length; ++i) {
+				var clip = clips[i];
+				var tr = findTrack ( clip.track );
+				var gain = trackGain ( tr, solo );
+				var start = Math.max (from, clip.start);
+				var end = Math.min (to, clip.start + clipLen ( clip ));
+				if (!tr || gain <= 0 || end <= start) continue;
+
+				var source = render_ctx.createBufferSource ();
+				var track_gain = render_ctx.createGain ();
+				var env = render_ctx.createGain ();
+				var pan = render_ctx.createStereoPanner ? render_ctx.createStereoPanner () : null;
+				var when = start - from;
+				var offset = clipIn ( clip ) + start - clip.start;
+				var play_len = end - start;
+
+				source.buffer = clip.buffer;
+				track_gain.gain.value = gain;
+				if (pan) {
+					pan.pan.value = tr.pan || 0;
+					source.connect ( pan );
+					pan.connect ( env );
+				}
+				else {
+					source.connect ( env );
+				}
+				env.connect ( track_gain );
+				track_gain.connect ( master );
+				applyClipEnvelope ( env.gain, clip, 1, when, offset, play_len );
+				source.start ( when, offset, play_len );
+			}
+
+			render_ctx.oncomplete = function ( e ) {
+				finish ( e.renderedBuffer );
+			};
+
+			var ret = render_ctx.startRendering ();
+			if (ret && ret.then) {
+				ret.then ( finish ).catch (function () {
+					finish ( Mixdown ( selection ) );
+				});
+			}
+		}
+
 		function GetTempoBuffer ( selection_only ) {
 			if (selection_only)
 				return Mixdown (region ? [ region.start, region.end ] : false);
@@ -3458,12 +3573,25 @@
 
 			function loadMultiSampleFile ( index, info, retry ) {
 				var url = 'mp3/multi/' + info.f;
-				fetchBlob ( url, function ( blob ) {
-					blob.name = fileName ( url );
-					decodeFile ( blob, function ( buffer ) {
+				var cached = sample_cache[info.f];
+
+				if (cached) {
+					items[index] = {
+						buffer: cached,
+						name: fileName ( url ),
+						vol: info.v,
+						pan: info.p
+					};
+					done ();
+					return ;
+				}
+
+				fetchArrayBuffer ( url, function ( arr ) {
+					decodeArrayBuffer ( arr, function ( buffer ) {
+						sample_cache[info.f] = buffer;
 						items[index] = {
 							buffer: buffer,
-							name: blob.name,
+							name: fileName ( url ),
 							vol: info.v,
 							pan: info.p
 						};
@@ -3538,6 +3666,13 @@
 			}).then ( ok ).catch ( bad );
 		}
 
+		function fetchArrayBuffer ( url, ok, bad ) {
+			fetch ( url ).then (function ( res ) {
+				if (!res.ok) throw 1;
+				return res.arrayBuffer ();
+			}).then ( ok ).catch ( bad );
+		}
+
 		function fileName ( url, name ) {
 			return name || ((url.split ('/').pop () || '').split ('?')[0]) || 'Audio';
 		}
@@ -3560,35 +3695,38 @@
 			var reader = new FileReader ();
 			reader.onerror = bad;
 			reader.onload = function () {
-				var arr = reader.result;
-				var ctx = audioCtx ();
-				var called = false;
-				var done = function ( buffer ) {
-					if (called) return ;
-					called = true;
-					ok ( buffer );
-				};
-				var fail = function () {
-					if (called) return ;
-					called = true;
-					bad && bad ();
-				};
-				var tryAiff = function () {
-					if (called) return ;
-					try {
-						var buffer = decodeAiff ( arr, ctx );
-						if (buffer) done ( buffer );
-						else fail ();
-					}
-					catch (e) {
-						fail ();
-					}
-				};
-
-				var ret = ctx.decodeAudioData ( arr.slice (0), done, tryAiff );
-				if (ret && ret.then) ret.then (done).catch (tryAiff);
+				decodeArrayBuffer ( reader.result, ok, bad );
 			};
 			reader.readAsArrayBuffer ( file );
+		}
+
+		function decodeArrayBuffer ( arr, ok, bad ) {
+			var ctx = audioCtx ();
+			var called = false;
+			var done = function ( buffer ) {
+				if (called) return ;
+				called = true;
+				ok ( buffer );
+			};
+			var fail = function () {
+				if (called) return ;
+				called = true;
+				bad && bad ();
+			};
+			var tryAiff = function () {
+				if (called) return ;
+				try {
+					var buffer = decodeAiff ( arr, ctx );
+					if (buffer) done ( buffer );
+					else fail ();
+				}
+				catch (e) {
+					fail ();
+				}
+			};
+
+			var ret = ctx.decodeAudioData ( arr.slice (0), done, tryAiff );
+			if (ret && ret.then) ret.then (done).catch (tryAiff);
 		}
 
 		function strAt ( data, off, len ) {
@@ -3800,6 +3938,7 @@
 
 				var source = ctx.createBufferSource ();
 				var gain = ctx.createGain ();
+				var env = ctx.createGain ();
 				var pan = ctx.createStereoPanner ? ctx.createStereoPanner () : null;
 				var when = start_ctx + Math.max (0, clip.start - cursor);
 				var offset = clipIn ( clip ) + Math.max (0, cursor - clip.start);
@@ -3812,15 +3951,16 @@
 				if (pan) {
 					pan.pan.value = tr.pan;
 					source.connect ( pan );
-					pan.connect ( gain );
+					pan.connect ( env );
 				}
 				else {
-					source.connect ( gain );
+					source.connect ( env );
 				}
+				env.connect ( gain );
 				gain.connect ( master );
-				applyClipEnvelope ( gain.gain, clip, trackGain ( tr, solo ), when, offset, play_len );
+				applyClipEnvelope ( env.gain, clip, 1, when, offset, play_len );
 				source.start ( when, offset, play_len );
-				nodes.push ({src: source, gain: gain, pan: pan, track: tr.id, clip: clip});
+				nodes.push ({src: source, gain: gain, env: env, pan: pan, track: tr.id, clip: clip});
 			}
 
 			play = {
@@ -4000,15 +4140,16 @@
 				try { play.nodes[i].src.stop (0); } catch (e) {}
 				try { play.nodes[i].src.disconnect (); } catch (e2) {}
 				try { play.nodes[i].gain.disconnect (); } catch (e3) {}
+				try { play.nodes[i].env.disconnect (); } catch (e4) {}
 				if (play.nodes[i].pan) {
-					try { play.nodes[i].pan.disconnect (); } catch (e4) {}
+					try { play.nodes[i].pan.disconnect (); } catch (e5) {}
 				}
 			}
 			if (play.master) {
-				try { play.master.disconnect (); } catch (e5) {}
+				try { play.master.disconnect (); } catch (e6) {}
 			}
 			if (play.analyser) {
-				try { play.analyser.disconnect (); } catch (e6) {}
+				try { play.analyser.disconnect (); } catch (e7) {}
 			}
 		}
 
@@ -4420,6 +4561,7 @@
 		q.GetRegion = function () { return region; };
 		q.HasClips = hasClips;
 		q.Mixdown = Mixdown;
+		q.MixdownAsync = MixdownAsync;
 		q.GetTempoBuffer = GetTempoBuffer;
 		q.RecordToggle = RecordToggle;
 		q.RecordStart = RecordStart;

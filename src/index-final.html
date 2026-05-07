@@ -25,7 +25,7 @@
 	<meta name="twitter:description" content="AudioMass is a free full-featured web-based audio &amp; waveform editing tool">
 	<meta name="twitter:image" content="https://audiomass.co/icon.jpg">
 
-	<link rel="stylesheet" type="text/css" href="main.build.css">
+	<link rel="stylesheet" type="text/css" href="all.css">
 </head>
 <body>
 	<div id="app"></div>
@@ -39,7 +39,7 @@
 		var editor = PKAudioEditor.init ('app');
 		if ('serviceWorker' in navigator) {
 			try {
-			//	navigator.serviceWorker.register( 'sw.js' );
+				navigator.serviceWorker.register( 'sw.js' );
 			} catch ( error ) {}
 		}
 	</script>
