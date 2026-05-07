@@ -2460,7 +2460,7 @@
 						'type="text" class="pk_val pk_gain" value="-"></div>'+
 
 						'<div class="pk_row">' +
-						'<a class="pk_modal_a_bottom" style="margin:0;float:left">Estimate</a>'+
+						'<a class="pk_modal_a_bottom pk_modal_a_accpt" style="margin:0;float:left">Estimate</a>'+
 						'<span class="pk_tmp_est_status" style="display:block;margin-left:120px;line-height:32px;color:#aaa">Runs in the background when you click Estimate.</span>'+
 						'</div>';
 
