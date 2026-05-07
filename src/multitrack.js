@@ -3400,7 +3400,8 @@
 				out: clipOut ( clip )
 			});
 
-			return Mixdown ( false );
+			OneUp ('Select a waveform box first', 1200);
+			return null;
 		}
 
 		function addSilence ( offset, seconds ) {
