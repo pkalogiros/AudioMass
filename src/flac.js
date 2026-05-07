@@ -16,7 +16,7 @@ var samples_right = null;
 
 function convert(n) {
     var v = n < 0 ? n * 32768 : n * 32767;
-    return Math.max(-32768, Math.min(32768, v));
+    return Math.max(-32768, Math.min(32767, v));
 }
 
 function initFLAC() {

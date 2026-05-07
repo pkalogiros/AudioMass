@@ -881,7 +881,7 @@
 
 			function convert ( n ) {
 				 var v = n < 0 ? n * 32768 : n * 32767;       // convert in range [-32768, 32767]
-				 return Math.max(-32768, Math.min(32768, v)); // clamp
+				 return Math.max(-32768, Math.min(32767, v)); // clamp
 			}
 			function progress ( val ) {
 				val = Math.max (0, Math.min (99, val >> 0));
