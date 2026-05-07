@@ -88,6 +88,14 @@
 		var wave_peaks = w.WeakMap ? new w.WeakMap () : null;
 		var sample_loading = false;
 		var sample_cache = {};
+		var track_colors = [
+			['#071010', '#88c7c1', '#2f7b75'],
+			['#0b1013', '#7fb5b6', '#336e70'],
+			['#0d100d', '#83b0a4', '#3d6c62'],
+			['#100f0b', '#9aa47e', '#5d6543'],
+			['#100d10', '#a48aa0', '#665164'],
+			['#0d0f13', '#879db1', '#4d6277']
+		];
 		var multi_sample_files = [
 			{f:'guitar-lead.mp3', p:0.20, c:[[0,0,7.09],[14.01,14.01]]},
 			{f:'guitar-rhythm.mp3', p:-0.10, c:[[7.077,7.077]]},
@@ -188,6 +196,12 @@
 				pan: 0,
 				rec: false
 			};
+		}
+
+		function trackColor ( id ) {
+			for (var i = 0; i < tracks.length; ++i)
+				if (tracks[i].id === id) return track_colors[i % track_colors.length];
+			return track_colors[0];
 		}
 
 		function cloneState () {
@@ -1551,6 +1565,7 @@
 			var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
 			var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
 			var ce = d.createElement ('div');
+			var tc = trackColor ( clip.track );
 			ce.className = 'pk_mt_clip' +
 				(clip.id === selected_clip ? ' pk_mt_clip_sel' : '') +
 				(has_xf ? ' pk_mt_clip_xf' : '');
@@ -1558,6 +1573,8 @@
 			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 			ce.style.width = cw + 'px';
 			ce.style.height = ch + 'px';
+			ce.style.setProperty ('--mt-bg', tc[0]);
+			ce.style.setProperty ('--mt-br', tc[2]);
 
 			var label = d.createElement ('span');
 			label.textContent = clip.name || 'Audio';
@@ -1589,7 +1606,7 @@
 			lane.appendChild ( ce );
 			clip_els[clip.id] = ce;
 
-			drawWave ( clip, canvas, cw, ch );
+			drawWave ( clip, canvas, cw, ch, tc );
 			bindClipDrag ( ce, clip );
 			ce.ondblclick = function ( e ) {
 				e.preventDefault ();
@@ -1983,19 +2000,20 @@
 			}
 		}
 
-		function drawWave ( clip, canvas, w, h ) {
+		function drawWave ( clip, canvas, w, h, tone ) {
 			var buffer = clip.buffer;
 			var pw = w !== undefined ? w : canvas.parentNode.offsetWidth;
 			var ph = h !== undefined ? h : canvas.parentNode.offsetHeight;
 			var wdt = Math.min (1000, Math.max (64, pw || 64));
 			var hgt = Math.max (22, ph - 8);
+			tone = tone || trackColor ( clip.track );
 			canvas.width = wdt;
 			canvas.height = hgt;
 
 			var ctx = canvas.getContext ('2d', {alpha:false});
-			ctx.fillStyle = '#071010';
+			ctx.fillStyle = tone[0];
 			ctx.fillRect (0, 0, wdt, hgt);
-			ctx.fillStyle = '#88c7c1';
+			ctx.fillStyle = tone[1];
 
 			var data = buffer.getChannelData (0);
 			var from = Math.max (0, (clipIn ( clip ) * buffer.sampleRate) >> 0);

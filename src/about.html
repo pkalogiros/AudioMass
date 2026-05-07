@@ -187,6 +187,10 @@ It started as a personal small tool for quick visualization of waveforms. Later 
 
 <p>Existed for more than 10-15 years now, while we are struggling with animating some rectangles for 60fps... So for AudioMass I wanted to try and make a fast and performant interface. Drawing inspiration from the examples I mentioned earlier rather than the tradiional web development practices. This is my unconvincing but truthfull excuse as to why the code is ugly; it is focused on being fast and getting the job done, with little regard on structure.</p>
 
+<p>For the record -- AudioMass was started in 2018, multitrack was added but never deployed in 2022, and to this day the thing is still about 90% handcrafted using older web technologies and a slightly old-school coding style. I keep working on it mostly because it is fun, which, in 2026, I have been reliably informed is still a valid reason to write software :)</p>
+
+<p>Going forward I would like to slowly clean up the multitrack logic and redo the rendering fully in canvas (or maybe WebGPU, we'll see), and -- if I can pull it off -- try to elevate AudioMass into something that stands a little closer to a proper professional audio workflow on the web. It is also not particularly well-optimized for mobile right now, but hopefully that is something that can be smoothed out with time.</p>
+
 </div>
 
 <hr />
@@ -291,9 +295,51 @@ It might be a bit too verbose, but it worked very well for structuring AudioMass
 <hr />
 
 <div>
-<h3>Future work and performance considerations</h3>
+<h3>Multitrack <small>(back in 2026!)</small></h3>
 
-<p>The next big feature that is planned, is multitrack support. The ability to mix tracks and different sounds is currently lacking and its usefulness as it stands is limited.</p>
+<p>So remember when I said the next big feature was going to be multitrack support? Well, it is finally here. AudioMass now has a proper multitrack mode where you can layer multiple tracks, mix them together and bounce the whole thing back down to a single file. It is essentially a small DAW bolted on top of the regular waveform editor, sharing the same engine, the same hotkeys and the same effects.</p>
+
+<p>Hit the <i>MultiTrack</i> button up in the top header and you get a fresh session with a couple of empty channels. Drag and drop audio files onto a track, or anywhere on the canvas really, and they will land where you dropped them. Each file becomes a <i>clip</i> that you can grab and slide around freely on its lane.</p>
+
+<p>Clips can be trimmed by dragging their edges, faded in or out by pulling the little corner handles, split at the playhead with <i>[Ctrl/Cmd + X]</i>, copied, duplicated, renamed and deleted. When two clips on the same track overlap, AudioMass automatically draws a crossfade in the overlap region so your transitions stay smooth instead of clicking. The crossfade follows the clips around -- drag either side and the curve readjusts on its own.</p>
+
+<p>Each track header has the usual suspects -- volume, pan, mute, solo and record-arm. The little round knobs are continuous (drag up/down) and double-clicking resets them. There is also a separate <i>Mixer</i> view if you prefer the vertical-strips-with-big-meters look while you are mixing.</p>
+
+<p>Recording works just like in the single-track editor, except it records onto whichever track is armed. You can punch in, monitor with the meters, and the moment you stop, the recorded blob immediately becomes a regular clip you can move and edit like an imported file. Multiple takes stack into the same track without losing previous ones.</p>
+
+<p>Effects can be applied to the whole clip or to a region within it. Processing goes through an <i>OfflineAudioContext</i>, so it is non-destructive until you commit, and you can preview it live before applying. The undo stack covers every clip-level edit too, so you can experiment freely.</p>
+
+<p>The whole session -- tracks, clips, fades, knob values, the lot -- can be saved out as a <i>.amss</i> file. It is just a wrapper around the raw audio plus some JSON describing the layout, compressed with LZMA. Drop it back in later and you pick up exactly where you left off. To export the final mix use <i>Mixdown</i>, and everything gets bounced through an offline render to a single wav or mp3, like any normal export.</p>
+
+<p>Snapping to clip edges, the playhead and the region works while dragging, and the whole thing is reasonably mobile-friendly with touch gestures, pinch-to-zoom on the timeline and long-press context menus. It is not Pro Tools, but for arranging takes, building podcasts or stitching ideas together quickly in a browser tab, it gets the job done :)</p>
+
+<h5>:: Multitrack Keyboard Shortcuts ::</h5>
+
+<ul>
+<li><i>[Space]</i> -- play / stop &nbsp;&nbsp;&nbsp; <i>[Shift + Space]</i> -- pause</li>
+<li><i>[R]</i> -- toggle recording on the armed track</li>
+<li><i>[&larr;]</i> / <i>[&rarr;]</i> -- seek (auto-accelerates the longer you hold)</li>
+<li><i>[Shift + &larr;]</i> / <i>[Shift + &rarr;]</i> -- jump to region edges / start / end</li>
+<li><i>[&uarr;]</i> / <i>[&darr;]</i> -- select previous / next channel</li>
+<li><i>[Tab]</i> -- center the view on the playhead</li>
+<li><i>[Ctrl/Cmd + X]</i> -- split the selected clip at the playhead</li>
+<li><i>[X]</i> -- toggle a crossfade between overlapping clips</li>
+<li><i>[Ctrl/Cmd + C]</i> / <i>[Ctrl/Cmd + V]</i> -- copy / paste a clip</li>
+<li><i>[Backspace]</i> / <i>[Delete]</i> -- delete the selected clip</li>
+<li><i>[Ctrl/Cmd + Z]</i> / <i>[Ctrl/Cmd + Y]</i> -- undo / redo (covers every clip-level edit)</li>
+<li><i>[Ctrl/Cmd + A]</i> -- select the whole arrangement as a region</li>
+<li><i>[Ctrl/Cmd + S]</i> -- open the save / export menu</li>
+<li><i>[Esc]</i> -- close any open context menu</li>
+</ul>
+
+<p>The <i>Shift + key</i> variants of the above (eg. <i>Shift + C</i> for copy) work too -- they were the originals from before the <i>Ctrl/Cmd</i> bindings were added, kept around so old muscle memory doesn't break.</p>
+
+</div>
+
+<hr />
+
+<div>
+<h3>Future work and performance considerations</h3>
 
 <hr />
 

@@ -579,8 +579,8 @@ a{
 
 .pk_mt_clip{
 	position:absolute;top:8px;height:60px;min-width:36px;
-	background:#0a1414;
-	border:1px solid #2f7b75;border-radius:var(--r-md);
+	background:var(--mt-bg,#0a1414);
+	border:1px solid var(--mt-br,#2f7b75);border-radius:var(--r-md);
 	box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
 	overflow:hidden;contain:content;cursor:default;
 }
