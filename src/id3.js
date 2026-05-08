@@ -413,6 +413,7 @@
         var unsynch = isBitSetAt(data, offset+5, 7);
         var xheader = isBitSetAt(data, offset+5, 6);
         var size = readSynchsafeInteger32At(offset+6, data);
+        var end = offset + 10 + size;
         offset += 10;
 
         if( xheader ) {
@@ -423,7 +424,7 @@
 
         var id3 = {};
 
-        var frames = unsynch ? {} : readFrames(offset, size-10, data, { major: major });
+        var frames = unsynch ? {} : readFrames(offset, end, data, { major: major });
         // create shortcuts for most common data
         for( var name in _shortcuts ) if(_shortcuts.hasOwnProperty(name)) {
             var data = getFrameData( frames, _shortcuts[name] );
@@ -431,6 +432,67 @@
         }
 
         return id3;
+    };
+
+    var _s = function (s) {
+        for (var a = [], i = 0; i < s.length; ++i) a[i] = s.charCodeAt(i) & 255;
+        return a;
+    };
+    var _n = function (n) {
+        return [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];
+    };
+    var _ss = function (n) {
+        return [(n >>> 21) & 127, (n >>> 14) & 127, (n >>> 7) & 127, n & 127];
+    };
+    var _u = function (s, bom) {
+        s = (s || '').toString();
+        for (var a = bom ? [255, 254] : [], i = 0, c; i < s.length; ++i) {
+            c = s.charCodeAt(i); a.push(c & 255, c >> 8);
+        }
+        return a;
+    };
+    var _v = function (v, k) {
+        return (v && v[k] !== undefined) ? v[k] : (v || '');
+    };
+    var _f = function (id, b) {
+        return b && b.length ? _s(id).concat(_n(b.length), [0, 0], b) : [];
+    };
+    var _at = function (ab) {
+        var b = new Uint8Array(ab);
+        if (b[0] != 73 || b[1] != 68 || b[2] != 51) return 0;
+        return 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127)) + ((b[5] & 16) ? 10 : 0);
+    };
+    var _apic = function (p) {
+        if (!p || !p.data || !p.data.length) return [];
+        var d = p.data, a = [0].concat(_s(p.format || 'image/jpeg'), [0, p.type || 3, 0]);
+        for (var i = 0; i < d.length; ++i) a.push(d[i]);
+        return a;
+    };
+    var _txt = function (s) {
+        s = (s || '').toString();
+        return s ? [1].concat(_u(s, 1)) : [];
+    };
+
+    ID3v2.WriteTags = function (ab, tag) {
+        var fr = [], p = tag.picture;
+        fr = fr.concat(
+            _f('TIT2', _txt(tag.title)),
+            _f('TPE1', _txt(tag.artist)),
+            _f('TALB', _txt(tag.album)),
+            _f('TYER', _txt(tag.year)),
+            _f('TCON', _txt(tag.genre)),
+            _f('TRCK', _txt(tag.track)),
+            _f('COMM', _v(tag.comment, 'text') ? [1].concat(_s('eng'), _u('', 1), [0, 0], _u(_v(tag.comment, 'text'), 1)) : []),
+            _f('USLT', _v(tag.lyrics, 'lyrics') ? [1].concat(_s('eng'), _u('', 1), [0, 0], _u(_v(tag.lyrics, 'lyrics'), 1)) : []),
+            _f('APIC', _apic(p))
+        );
+        var hd = _s('ID3').concat([3, 0, 0], _ss(fr.length));
+        var au = new Uint8Array(ab, _at(ab));
+        var out = new Uint8Array(hd.length + fr.length + au.length), o = 0;
+        out.set(hd, o); o += hd.length;
+        out.set(fr, o); o += fr.length;
+        out.set(au, o);
+        return out.buffer;
     };
 
     w.ID3v2 = ID3v2;

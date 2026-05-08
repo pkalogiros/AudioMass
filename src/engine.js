@@ -3273,14 +3273,20 @@
 
             if (bytes[0] === 73 && bytes[1] === 68 && bytes[2] === 51) {
 				tags = ID3v2.ReadTags ( arraybuffer );
+				if (tags) {
+					tags._type = 'mp3';
+				}
 
 				//console.log( window.performance.now() - ttt );
 				// console.log( tags );
             }
             else if (bytes[4] === 102 && bytes[5] === 116 && bytes[6] === 121 &&
-            	bytes[7] === 112 && bytes[8] === 77 && bytes[9] === 52) {
+                bytes[7] === 112 && bytes[8] === 77 && bytes[9] === 52) {
 
-            	tags = ID4.ReadTags ( arraybuffer );
+                tags = ID4.ReadTags ( arraybuffer );
+				if (tags) {
+					tags._type = 'm4a';
+				}
 				// console.log( window.performance.now() - ttt );
 				// console.log( tags );
             }

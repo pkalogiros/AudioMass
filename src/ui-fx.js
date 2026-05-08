@@ -1674,69 +1674,281 @@
 				}
 
 				var modal_id = '_id3';
+				var live = true;
+				var st = {
+					tag  : current_tags || {},
+					ab   : null,
+					type : current_tags && current_tags._type,
+					file : null,
+					name : '',
+					pic  : current_tags && current_tags.picture,
+					orig : current_tags && current_tags.picture,
+					ch   : false,
+					base : null
+				};
 
-				var render_tags = function ( el, tags ) {
-					var str = '<div style="margin-top:18px">';
-
-					str += '<div><span class="pk_id3ttl">Artist</span><span>' + (tags.artist || '-') + '</span></div>';
-					str += '<div><span class="pk_id3ttl">Title</span><span>' + (tags.title || '-') + '</span></div>';
-					str += '<div><span class="pk_id3ttl">Album</span><span>' + (tags.album || '-') + '</span></div>';
-					str += '<div><span class="pk_id3ttl">Year</span><span>' + (tags.year || '-') + '</span></div>';
-					str += '<div><span class="pk_id3ttl">Genre</span><span>' + (tags.genre || '-') + '</span></div>';
-					str += '<div style="max-width:700px"><span class="pk_id3ttl">Comment</span><span>' + ((tags.comment||{}).text || '-') + '</span></div>';
-					str += '<div><span class="pk_id3ttl">Track</span><span>' + (tags.track || '-') + '</span></div>';
-					str += '<div style="max-width:700px"><span class="pk_id3ttl">Lyrics</span><span>' + ((tags.lyrics||{}).lyrics || '-') + '</span></div>';
-
-					if ('picture' in tags)
-					{
-						var image = tags.picture;
+				var esc = function ( v ) {
+					return (v || '').toString().replace(/[&<>"']/g, function (m) {
+						return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m];
+					});
+				};
+				var img = function ( image ) {
+					if (!image) return '-';
 						var base64str = '';
 						for (var i = 0; i < image.data.length; ++i) {
 							base64str += String.fromCharCode (image.data[i]);
 						}
+					return '<img style="max-width:340px;max-height:230px" src="data:' +
+						image.format + ';base64,' + window.btoa(base64str) + '"/>';
+				};
+				var snap = function (t) {
+					t = t || {};
+					return {
+						artist:t.artist || '', title:t.title || '', album:t.album || '',
+						year:t.year || '', genre:t.genre || '', track:t.track || '',
+						comment:(t.comment||{}).text || '', lyrics:(t.lyrics||{}).lyrics || ''
+					};
+				};
+				var read_tags = function (ab) {
+					var b = new Uint8Array (ab), t = null;
+					if (b[0] === 73 && b[1] === 68 && b[2] === 51) {
+						t = ID3v2.ReadTags (ab) || {};
+						t._type = 'mp3';
+					}
+					else if (b[4] === 102 && b[5] === 116 && b[6] === 121 && b[7] === 112 && b[8] === 77 && b[9] === 52) {
+						t = ID4.ReadTags (ab) || {};
+						t._type = 'm4a';
+					}
+					return t;
+				};
+				var dirty = function ( q, el ) {
+					var btn = q.els.bottom[0];
+					var on = st.file && st.type === 'mp3' && st.ab && st.ch;
 
-						str += '<div><span style="float:left" class="pk_id3ttl">Cover</span>' +
-								'<span><img style="max-width:340px" src="data:' +
-								image.format + ';base64,' + window.btoa(base64str) + '"/></span></div>';
+					if (!on && st.file && st.type === 'mp3' && st.ab && st.base) {
+						for (var k in st.base) if (st.base.hasOwnProperty(k)) {
+							var x = el.querySelector ('[name="' + k + '"]');
+							if (x && x.value !== st.base[k]) {
+								on = true;
+								break;
+							}
+						}
 					}
 
+					btn.style.display = on ? '' : 'none';
+					btn.classList[on ? 'remove' : 'add'] ('pk_inact');
+				};
+				var render_cover = function ( q, el, off ) {
+					var box = el.getElementsByClassName ('pk_id3cover')[0];
+					if (!box) return ;
+
+					var ttl = 'padding-left:0';
+					var str = '<span class="pk_id3ttl" style="' + ttl + '">Cover</span>' +
+						'<div class="pk_id3img" style="margin-top:4px">' + img(st.pic) + '</div>';
+
+					if (!off) {
+						str += '<div>';
+						str += '<a class="pk_modal_a_bottom pk_id3picbtn" style="display:inline-block;float:none;margin:10px 8px 0 0">Change Cover</a>';
+						if (st.pic) {
+							str += '<a class="pk_modal_a_bottom pk_id3rm" style="display:inline-block;float:none;margin:10px 8px 0 0">Remove Image</a>';
+						}
+						if (st.ch) {
+							str += '<a class="pk_modal_a_bottom pk_id3undo" style="display:inline-block;float:none;margin:10px 8px 0 0">Undo</a>';
+						}
+						str += '</div>';
+					}
+
+					box.innerHTML = str;
+					if (off) return ;
+
+					box.getElementsByClassName ('pk_id3picbtn')[0].onclick = function () {
+						q.el_body.getElementsByClassName ('pk_id3picfile')[0].click ();
+					};
+
+					var rm = box.getElementsByClassName ('pk_id3rm')[0];
+					if (rm) rm.onclick = function () {
+						st.pic = null;
+						st.ch = true;
+						render_cover (q, el, off);
+						dirty (q, el);
+					};
+
+					var undo = box.getElementsByClassName ('pk_id3undo')[0];
+					if (undo) undo.onclick = function () {
+						st.pic = st.orig || null;
+						st.ch = false;
+						render_cover (q, el, off);
+						dirty (q, el);
+					};
+				};
+
+				var render_tags = function ( q, el, tags ) {
+					var off = st.type !== 'mp3';
+					var dis = off ? ' disabled' : '';
+					st.tag = tags || {};
+					st.base = snap (st.tag);
+					if (!st.ch) st.pic = st.tag.picture || null;
+
+					var row = 'display:inline-block;width:49%;box-sizing:border-box;margin:0 1% 3px 0;vertical-align:top';
+					var inp = 'width:100%;box-sizing:border-box;margin-top:2px';
+					var ttl = 'padding-left:0';
+					var field = function (n, l, v) {
+						return '<label style="' + row + '"><span class="pk_id3ttl" style="' + ttl + '">' + l + '</span>' +
+							'<input name="' + n + '" class="pk_txt" style="' + inp + '" value="' + esc(v) + '"' + dis + '/></label>';
+					};
+					var area = function (n, l, v, h) {
+						return '<label style="display:block;width:68%;min-width:260px;max-width:460px;margin:0 1% 3px 0"><span class="pk_id3ttl" style="' + ttl + '">' + l + '</span>' +
+							'<textarea name="' + n + '" class="pk_txt" style="width:100%;height:' + h + 'px;box-sizing:border-box;margin-top:2px"' + dis + '>' + esc(v) + '</textarea></label>';
+					};
+					var str = '<div style="margin-top:12px;max-width:640px">';
+					if (off) {
+						str += '<div style="padding:8px 0">Only MP3 files can be edited here. These tags are view-only.</div>';
+					}
+					str += field('artist', 'Artist', st.tag.artist);
+					str += field('title', 'Title', st.tag.title);
+					str += field('album', 'Album', st.tag.album);
+					str += field('year', 'Year', st.tag.year);
+					str += field('genre', 'Genre', st.tag.genre);
+					str += field('track', 'Track', st.tag.track);
+					str += area('comment', 'Comment', (st.tag.comment||{}).text, 38);
+					str += area('lyrics', 'Lyrics', (st.tag.lyrics||{}).lyrics, 50);
+					str += '<div class="pk_id3cover" style="margin-top:8px;clear:both"></div>';
+
 					el.innerHTML = str + '</div>';
+					var ins = el.querySelectorAll ('input, textarea');
+					for (var i = 0; i < ins.length; ++i) {
+						ins[i].oninput = function () { dirty (q, el); };
+					}
+					render_cover (q, el, off);
+					dirty (q, el);
 				};
 
 				new PKSimpleModal({
-				  title:'ID3 Metatags Explorer',
+				  title:'ID3 Tag Editor',
 
 				  ondestroy: function( q ) {
+					live = false;
+					st.file = st.ab = st.pic = st.orig = st.base = null;
+					st.tag = {};
+					st.name = '';
+					st.ch = false;
 					app.ui.InteractionHandler.forceUnset (modal_id);
 					app.ui.KeyHandler.removeCallback (modal_id + 'esc');
 				  },
 
 				  buttons:[
+					{
+						title:'DOWNLOAD COPY',
+						clss:'pk_modal_a_accpt pk_inact',
+						callback:function ( q ) {
+							var e = function (n) {
+								var x = q.el_body.querySelector ('[name="' + n + '"]');
+								return x ? x.value : '';
+							};
+							if (!st.file || !st.ab || st.type !== 'mp3') {
+								OneUp ('Choose an MP3 file inside this window first', 1200);
+								return ;
+							}
+							var out = ID3v2.WriteTags (st.ab, {
+								artist  : e('artist'),
+								title   : e('title'),
+								album   : e('album'),
+								year    : e('year'),
+								genre   : e('genre'),
+								track   : e('track'),
+								comment : { text:e('comment') },
+								lyrics  : { lyrics:e('lyrics') },
+								picture : st.pic
+							});
+							var url = (window.URL || window.webkitURL).createObjectURL(new Blob([out], {type:'audio/mpeg'}));
+							var a = document.createElement ('a');
+							a.href = url;
+							a.download = ((st.file && st.file.name) || 'audiomass.mp3').replace(/\.[^\.]+$/, '') + '-tagged.mp3';
+							a.style.display = 'none';
+							document.body.appendChild (a);
+							a.click ();
+							setTimeout(function () {
+								document.body.removeChild (a);
+								(window.URL || window.webkitURL).revokeObjectURL(url);
+							}, 100);
+						}
+					}
 				  ],
-				  body:'<input type="file" accept="audio/*" />'+
-					'<div class="pk_row pk_ttx">Choose file to view audio metatags!</div>',
+				  body:'<input class="pk_id3file" type="file" accept="audio/*" style="display:none" />'+
+					'<input class="pk_id3picfile" type="file" accept="image/*" style="display:none" />'+
+					'<a class="pk_modal_a_bottom pk_id3choose" style="display:inline-block;float:none;margin:10px 0 0 0">Choose Audio File</a>'+
+					'<span class="pk_id3fname" style="display:inline-block;margin-left:10px;opacity:.75;vertical-align:middle"></span>'+
+					'<div class="pk_row pk_ttx">Choose an MP3 file to view/edit audio tags.</div>',
 				  setup:function( q ) {
-						var input  = q.el_body.getElementsByTagName ('input')[0];
+						var input  = q.el_body.getElementsByClassName ('pk_id3file')[0];
+						var picinp = q.el_body.getElementsByClassName ('pk_id3picfile')[0];
+						var pick   = q.el_body.getElementsByClassName ('pk_id3choose')[0];
+						var fname  = q.el_body.getElementsByClassName ('pk_id3fname')[0];
 						var txt_el = q.el_body.getElementsByClassName ('pk_ttx')[0];
+
+						q.els.bottom[0].style.display = 'none';
+						pick.onclick = function () { input.click (); };
 
 						input.onchange = function ( e ) {
 							var reader = new FileReader();
+							var file = this.files[0];
+							if (!file) return ;
+
+							st.file = file;
+							st.name = file.name || '';
+							st.type = (/\.mp3$/i.test(file.name) || /mpeg|mp3/i.test(file.type)) ? 'mp3' : '';
+							st.ab = null;
+							st.tag = {};
+							st.orig = null;
+							st.pic = null;
+							st.ch = false;
+							st.base = null;
+							fname.textContent = st.name;
+							txt_el.innerHTML = '<div style="padding:30px 0">Reading metadata...</div>';
+							q.els.bottom[0].style.display = 'none';
+							q.els.bottom[0].classList.add ('pk_inact');
 
 							reader.onload = function() {
-								var tags = PKAudioEditor.engine.ID3 (this.result);
+								if (!live) return ;
+								var tags = read_tags (this.result) || {};
+								st.ab = this.result;
+								st.type = st.type || tags._type;
+								st.orig = tags.picture || null;
+								st.pic = st.orig;
+								st.ch = false;
 
-								if (!tags) {
+								if (!st.type) {
 									txt_el.innerHTML = '<div style="padding:30px 0">No audio metadata found...</div>';
 								} else {
-									render_tags (txt_el, tags);
+									render_tags (q, txt_el, tags);
 								}
 							};
 
-							reader.readAsArrayBuffer(this.files[0]);
+							reader.readAsArrayBuffer(file);
+						};
+
+						picinp.onchange = function () {
+							var file = this.files[0];
+							if (!file) return ;
+
+							var reader = new FileReader();
+							reader.onload = function () {
+								if (!live) return ;
+								st.pic = {
+									format:file.type || 'image/jpeg',
+									type:3,
+									description:'',
+									data:new Uint8Array(this.result)
+								};
+								st.ch = true;
+								render_cover (q, txt_el, false);
+								dirty (q, txt_el);
+							};
+							reader.readAsArrayBuffer(file);
 						};
 
 						if (current_tags) {
-							render_tags (txt_el, current_tags);
+							render_tags (q, txt_el, current_tags);
 						}
 
 						app.ui.InteractionHandler.forceSet (modal_id);
