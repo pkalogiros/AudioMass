@@ -45,7 +45,8 @@
 			for (var key in q.callbacks) {
 				var group = q.callbacks[key];
 				if (!group) continue;
-				
+				if (keyCode !== group.keys[group.keys.length - 1]) continue;
+
 				var l = group.keys.length;
 				var all_ok = true;
 				while (l-- > 0) {

@@ -2011,7 +2011,7 @@
 				var clip = clip_node && findClip ( clip_node.getAttribute ('data-clip') );
 				if (clip) {
 					selectClip ( clip );
-					setClickTime ( snapTime ( timeFromEvent ( ev ), ev ), false );
+					if (!ev.shiftKey) setClickTime ( snapTime ( timeFromEvent ( ev ), ev ), false );
 					return ;
 				}
 				var track = regionTrack ({target: target});
@@ -2390,7 +2390,7 @@
 				}
 
 				if (!e) return ;
-				setClickTime ( snapTime ( timeFromEvent ( e ), e ), false );
+				if (!e.shiftKey) setClickTime ( snapTime ( timeFromEvent ( e ), e ), false );
 				if (!e._touch) clearRegion ();
 				selectClip ( clip );
 			}
