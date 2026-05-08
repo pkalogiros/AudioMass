@@ -147,6 +147,19 @@
 				for (var ch = 0; ch < b.numberOfChannels; ++ch)
 					parts.push (b.getChannelData ( ch ));
 			}
+			var meta = new ArrayBuffer (8);
+			var mu = new Uint8Array ( meta );
+			var md = new DataView ( meta );
+			mu[0] = 66; mu[1] = 80; mu[2] = 77;
+			md.setFloat32 (4, st.beat_bpm > 0 ? st.beat_bpm : 120, true);
+			parts.push ( meta );
+			meta = new ArrayBuffer (8);
+			mu = new Uint8Array ( meta );
+			var sig = (st.beat_sig || '4/4').split ('/');
+			mu[0] = 83; mu[1] = 73; mu[2] = 71;
+			mu[4] = sig[0] / 1 || 4;
+			mu[5] = sig[1] / 1 || 4;
+			parts.push ( meta );
 
 			var blob = new Blob (parts, {type:'application/x-audiomass-session'});
 			var url = (w.URL || w.webkitURL).createObjectURL ( blob );
@@ -196,6 +209,8 @@
 				px_per_sec: f32 (),
 				row_h: f32 (),
 				master_vol: f32 (),
+				beat_bpm: 120,
+				beat_sig: '4/4',
 				xfades: {},
 				tracks: [],
 				clips: []
@@ -257,6 +272,14 @@
 					ai.buffer.getChannelData (ch).set (new Float32Array (buf, o, ai.len));
 					o += ai.len * 4;
 				}
+			}
+			while (buf.byteLength >= o + 8) {
+				var mu = new Uint8Array (buf, o, 4);
+				if (mu[0] === 66 && mu[1] === 80 && mu[2] === 77 && mu[3] === 0)
+					st.beat_bpm = dv.getFloat32 (o + 4, true) || 120;
+				else if (mu[0] === 83 && mu[1] === 73 && mu[2] === 71 && mu[3] === 0)
+					st.beat_sig = (dv.getUint8 (o + 4) || 4) + '/' + (dv.getUint8 (o + 5) || 4);
+				o += 8;
 			}
 			for (i = 0; i < raw_clips.length; ++i) {
 				var rc = raw_clips[i];

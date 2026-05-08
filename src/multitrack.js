@@ -17,11 +17,17 @@
 		var max_track_h = 240;
 		var px_per_sec = 86;
 		var snap_px = 9;
+		var beat_snap_px = 5;
 		var region_snap_px = 5;
 		var row_h = default_row_h;
 		var clip_min_w = app.isMobile ? 24 : 36;
 		var cursor = 0;
 		var marker = 0;
+		var beat_on = false;
+		var beat_snap = false;
+		var beat_bpm = 120;
+		var beat_sig = '4/4';
+		var beat_sigs = ['4/4', '3/4', '6/8'];
 		var region = null;
 		var xfades = {};
 		var master_vol = 1;
@@ -72,8 +78,17 @@
 		var region_el = null;
 		var playhead = null;
 		var marker_el = null;
+		var beat_canvas = null;
+		var beat_raf = 0;
 		var empty_el = null;
 		var btn_toggle = null;
+		var beat_bar = null;
+		var btn_beat = null;
+		var btn_snap = null;
+		var btn_sig = null;
+		var bpm_input = null;
+		var bpm_range = null;
+		var bpm_range_down = null;
 		var btn_clear_mute = null;
 		var btn_clear_solo = null;
 		var mixer_on = false;
@@ -217,6 +232,10 @@
 				selected_clip: selected_clip,
 				cursor: cursor,
 				marker: marker,
+				beat_on: beat_on,
+				beat_snap: beat_snap,
+				beat_bpm: beat_bpm,
+				beat_sig: beat_sig,
 				px_per_sec: px_per_sec,
 				row_h: row_h,
 				master_vol: master_vol,
@@ -265,7 +284,7 @@
 			return ret;
 		}
 
-		function restoreState ( state ) {
+		function restoreState ( state, keep_beat ) {
 			if (!state) return ;
 
 			Stop ();
@@ -301,6 +320,12 @@
 			selected_clip = state.selected_clip || null;
 			cursor = state.cursor || 0;
 			marker = state.marker === undefined ? cursor : state.marker;
+			if (!keep_beat) {
+				beat_on = !!state.beat_on;
+				beat_snap = beat_on && !!state.beat_snap;
+				beat_bpm = cleanBpm ( state.beat_bpm === undefined ? 120 : state.beat_bpm );
+				beat_sig = cleanSig ( state.beat_sig );
+			}
 			px_per_sec = state.px_per_sec || default_px_per_sec;
 			row_h = state.row_h || default_row_h;
 			master_vol = state.master_vol === undefined ? 1 : state.master_vol;
@@ -608,6 +633,7 @@
 			tracks_wrap.addEventListener ('scroll', syncTrackScroll, false);
 
 			attachToolbarButton ();
+			attachBeatToolbar ();
 			render ();
 		}
 
@@ -664,6 +690,122 @@
 
 		}
 
+		function attachBeatToolbar () {
+			var toolbar = app.el.getElementsByClassName ('pk_tb')[0];
+			var sel = toolbar && toolbar.getElementsByClassName ('pk_selection')[0];
+			if (!toolbar) return ;
+
+			beat_bar = d.createElement ('div');
+			beat_bar.className = 'pk_mtbeat';
+			btn_beat = makeButton ('BEAT', 'Toggle Beat Markers', beat_on, 'pk_btn pk_mtbeat_btn');
+			btn_snap = makeButton ('SNAP', 'Snap to Beat Markers', false, 'pk_btn pk_mtbeat_btn pk_mtbeat_snap');
+			btn_sig = makeButton (beat_sig, 'Time Signature', false, 'pk_btn pk_mtbeat_sig');
+			bpm_input = d.createElement ('input');
+			var lbl = d.createElement ('b');
+
+			bpm_input.className = 'pk_mtbeat_bpm pk_bpm';
+			bpm_input.type = 'text';
+			bpm_input.inputMode = 'numeric';
+			bpm_input.pattern = '[0-9]*';
+			bpm_input.title = 'BPM';
+			bpm_input.value = beat_bpm;
+			lbl.textContent = 'BPM';
+
+			btn_beat.onclick = function ( e ) {
+				e.stopPropagation ();
+				setBeatOn ( !beat_on );
+				this.blur ();
+			};
+			btn_snap.onclick = function ( e ) {
+				e.stopPropagation ();
+				if (beat_on) setBeatSnap ( !beat_snap );
+				this.blur ();
+			};
+			btn_sig.onclick = function ( e ) {
+				e.stopPropagation ();
+				cycleBeatSig ();
+				this.blur ();
+			};
+			bpm_input.onmousedown = stopTrackInputEvent;
+			bpm_input.onclick = stopTrackInputEvent;
+			bpm_input.onkeydown = function ( e ) {
+				e.stopPropagation ();
+				if (e.keyCode === 13) bpm_input.blur ();
+				if (e.metaKey || e.ctrlKey || e.altKey || e.key.length > 1) return ;
+				if (!/[0-9]/.test ( e.key )) e.preventDefault ();
+			};
+			bpm_input.oninput = function () {
+				var clean = bpm_input.value.replace (/\D/g, '');
+				if (bpm_input.value !== clean) bpm_input.value = clean;
+				var val = parseFloat ( clean );
+				if (val > 0) setBeatBpm ( val, true );
+				syncBpmRange ();
+			};
+			bpm_input.onchange = function () { setBeatBpm ( bpm_input.value ); };
+			bpm_input.onblur = function () { setBeatBpm ( bpm_input.value ); };
+			bpm_input.onfocus = showBpmRange;
+
+			beat_bar.appendChild ( btn_beat );
+			beat_bar.appendChild ( btn_snap );
+			beat_bar.appendChild ( bpm_input );
+			beat_bar.appendChild ( lbl );
+			beat_bar.appendChild ( btn_sig );
+			if (sel && sel.nextSibling) toolbar.insertBefore ( beat_bar, sel.nextSibling );
+			else toolbar.appendChild ( beat_bar );
+			updateBeatUI ();
+		}
+
+		function showBpmRange () {
+			if (!bpm_input || bpm_range) return ;
+			bpm_range = d.createElement ('div');
+			bpm_range.className = 'pk_pgeq_freq pk_bpm pk_mtbeat_rng';
+			bpm_range.innerHTML = '<div class="pk_arr"></div><input type="range" min="20" max="300" class="pk_horiz pk_bpm" step="1" value="' + beat_bpm + '">';
+
+			var rng = bpm_range.getElementsByClassName ('pk_horiz')[0];
+			rng.oninput = function () {
+				if (bpm_input.value != this.value) bpm_input.value = this.value;
+				setBeatBpm ( this.value, true );
+			};
+			rng.onchange = function () { setBeatBpm ( this.value ); };
+
+			d.body.appendChild ( bpm_range );
+			bpm_input.setAttribute ('data-open', '1');
+			placeBpmRange ();
+
+			bpm_range_down = function ( e ) {
+				if (!e.target.classList || !e.target.classList.contains ('pk_bpm'))
+					closeBpmRange ();
+			};
+			d.addEventListener ('mousedown', bpm_range_down, false);
+			w.addEventListener ('resize', closeBpmRange, false);
+		}
+
+		function syncBpmRange () {
+			var rng = bpm_range && bpm_range.getElementsByClassName ('pk_horiz')[0];
+			if (rng && rng.value != beat_bpm) rng.value = beat_bpm;
+		}
+
+		function placeBpmRange () {
+			if (!bpm_range || !bpm_input) return ;
+			var r = bpm_input.getBoundingClientRect ();
+			var wdt = 262;
+			bpm_range.style.position = 'fixed';
+			bpm_range.style.left = Math.max (8, Math.min (w.innerWidth - wdt - 8, r.left + r.width / 2 - wdt / 2)) + 'px';
+			bpm_range.style.top = (r.bottom + 8) + 'px';
+		}
+
+		function closeBpmRange () {
+			if (!bpm_range) return ;
+			if (bpm_range.parentNode) bpm_range.parentNode.removeChild ( bpm_range );
+			bpm_range = null;
+			if (bpm_input) bpm_input.removeAttribute ('data-open');
+			if (bpm_range_down) {
+				d.removeEventListener ('mousedown', bpm_range_down);
+				bpm_range_down = null;
+			}
+			w.removeEventListener ('resize', closeBpmRange);
+		}
+
 		function IsOn () {
 			return on || app.el.classList.contains ('pk_mt_on');
 		}
@@ -675,6 +817,11 @@
 
 			if (!on) {
 				cancelRender ();
+				if (beat_raf) {
+					w.cancelAnimationFrame ( beat_raf );
+					beat_raf = 0;
+				}
+				closeBpmRange ();
 				cancelActiveDrag ();
 				stopFxPreview ( true );
 				Stop ();
@@ -708,6 +855,7 @@
 				redrawRuler ();
 				fireZoom ();
 			}
+			requestBeatGrid ();
 		}
 
 		function syncTrackScroll () {
@@ -715,6 +863,7 @@
 			scroll_sync = true;
 			main.scrollTop = tracks_wrap.scrollTop;
 			scroll_sync = false;
+			requestBeatGrid ();
 		}
 
 		function panView ( x, y ) {
@@ -763,6 +912,7 @@
 			rec_canvas = null;
 			tracks_el.innerHTML = '';
 			lanes.innerHTML = '';
+			beat_canvas = null;
 
 			var dur = publishDuration ();
 			var width = Math.max (800, (dur * px_per_sec) >> 0);
@@ -796,6 +946,8 @@
 			syncScroll ();
 			renderRegion ();
 			updatePlayhead ();
+			updateBeatUI ();
+			requestBeatGrid ();
 			fireZoom ();
 		}
 
@@ -813,6 +965,7 @@
 
 			renderRegion ();
 			updatePlayhead ();
+			requestBeatGrid ();
 			fireZoom ();
 			zoom_dirty = true;
 		}
@@ -870,6 +1023,80 @@
 
 		function redrawRuler () {
 			if (ruler) drawRuler ( duration (), totalPixels () );
+		}
+
+		function requestBeatGrid () {
+			if (!beat_on && !beat_canvas) return ;
+			if (beat_raf) return ;
+			beat_raf = w.requestAnimationFrame (function () {
+				beat_raf = 0;
+				drawBeatGrid ();
+			});
+		}
+
+		function drawBeatGrid () {
+			if (!lanes || !main) return ;
+			if (!beat_on) {
+				if (beat_canvas && beat_canvas.parentNode)
+					beat_canvas.parentNode.removeChild ( beat_canvas );
+				beat_canvas = null;
+				return ;
+			}
+			if (!beat_canvas || beat_canvas.parentNode !== lanes) {
+				beat_canvas = d.createElement ('canvas');
+				beat_canvas.className = 'pk_mt_beatgrid';
+				lanes.appendChild ( beat_canvas );
+			}
+
+			var left = main.scrollLeft >> 0;
+			var top = main.scrollTop >> 0;
+			var width = Math.max (1, main.clientWidth);
+			var height = Math.max (1, main.clientHeight - 24);
+			var ratio = Math.min (2, w.devicePixelRatio || 1);
+			var beat_px = beatStep () * px_per_sec;
+			var bar = beatBar ();
+			var step = 1;
+
+			while (beat_px * step < 8) step *= 2;
+
+			beat_canvas.style.display = 'block';
+			beat_canvas.style.left = left + 'px';
+			beat_canvas.style.top = top + 'px';
+			beat_canvas.style.width = width + 'px';
+			beat_canvas.style.height = height + 'px';
+
+			var cw = (width * ratio) >> 0;
+			var ch = (height * ratio) >> 0;
+			if (beat_canvas.width !== cw) beat_canvas.width = cw;
+			if (beat_canvas.height !== ch) beat_canvas.height = ch;
+
+			var ctx = beat_canvas.getContext ('2d');
+			ctx.setTransform (ratio, 0, 0, ratio, 0, 0);
+			ctx.clearRect (0, 0, width, height);
+
+			var first = Math.max (0, Math.floor (left / beat_px) - 1);
+			var last = Math.ceil ((left + width) / beat_px) + 1;
+			var n = first - (first % step);
+
+			ctx.beginPath ();
+			for (; n <= last; n += step) {
+				if (n % bar === 0) continue;
+				var x = Math.round (n * beat_px - left) + 0.5;
+				ctx.moveTo (x, 0);
+				ctx.lineTo (x, height);
+			}
+			ctx.strokeStyle = 'rgba(90,242,255,.15)';
+			ctx.stroke ();
+
+			n = first - (first % bar);
+			ctx.beginPath ();
+			for (; n <= last; n += bar) {
+				x = Math.round (n * beat_px - left) + 0.5;
+				ctx.moveTo (x, 0);
+				ctx.lineTo (x, height);
+			}
+			ctx.strokeStyle = 'rgba(240,216,120,.34)';
+			ctx.stroke ();
 		}
 
 		function renderTrack ( track, top, h ) {
@@ -1027,6 +1254,7 @@
 		function updateHeaderButtons () {
 			updateHeaderButton ( btn_clear_mute, hasTrackFlag ( 'mute' ) );
 			updateHeaderButton ( btn_clear_solo, hasTrackFlag ( 'solo' ) );
+			updateBeatUI ();
 		}
 
 		function updateHeaderButton ( btn, active ) {
@@ -1034,6 +1262,76 @@
 			btn.classList[active ? 'add' : 'remove'] ('pk_act');
 			btn.classList[active ? 'remove' : 'add'] ('pk_inact');
 			btn.setAttribute ('aria-disabled', active ? 'false' : 'true');
+		}
+
+		function cleanBpm ( val ) {
+			val = parseFloat ( val );
+			if (val !== val) return beat_bpm || 120;
+			if (val < 20) return 20;
+			return Math.min (300, val);
+		}
+
+		function cleanSig ( val ) {
+			for (var i = 0; i < beat_sigs.length; ++i)
+				if (beat_sigs[i] === val) return val;
+			return '4/4';
+		}
+
+		function setBeatOn ( val ) {
+			beat_on = !!val;
+			if (!beat_on) beat_snap = false;
+			updateBeatUI ();
+			requestBeatGrid ();
+		}
+
+		function setBeatSnap ( val ) {
+			beat_snap = beat_on && !!val;
+			updateBeatUI ();
+			requestBeatGrid ();
+		}
+
+		function setBeatBpm ( val, soft ) {
+			var next = cleanBpm ( val );
+			if (next !== beat_bpm) {
+				beat_bpm = next;
+				requestBeatGrid ();
+			}
+			syncBpmRange ();
+			if (!soft) updateBeatUI ();
+		}
+
+		function beatStep () {
+			return 60 / beat_bpm;
+		}
+
+		function beatBar () {
+			return parseInt ( beat_sig, 10 ) || 4;
+		}
+
+		function cycleBeatSig () {
+			for (var i = 0; i < beat_sigs.length; ++i) {
+				if (beat_sigs[i] === beat_sig) {
+					beat_sig = beat_sigs[(i + 1) % beat_sigs.length];
+					updateBeatUI ();
+					requestBeatGrid ();
+					return ;
+				}
+			}
+			beat_sig = '4/4';
+			updateBeatUI ();
+			requestBeatGrid ();
+		}
+
+		function updateBeatUI () {
+			if (btn_beat) btn_beat.classList[beat_on ? 'add' : 'remove'] ('pk_act');
+			if (btn_snap) {
+				btn_snap.classList[beat_snap ? 'add' : 'remove'] ('pk_act');
+				btn_snap.classList[beat_on ? 'remove' : 'add'] ('pk_inact');
+				btn_snap.setAttribute ('aria-disabled', beat_on ? 'false' : 'true');
+			}
+			if (btn_sig && btn_sig.firstChild) btn_sig.firstChild.nodeValue = beat_sig;
+			if (bpm_input && d.activeElement !== bpm_input) bpm_input.value = beat_bpm;
+			if (lanes) lanes.classList[beat_on ? 'add' : 'remove'] ('pk_mt_beats');
 		}
 
 		function setRecordArm ( track, value ) {
@@ -2707,6 +3005,12 @@
 				var dlt = Math.abs (v - t);
 				if (dlt < lim) { lim = dlt; best = v; }
 			});
+			if (beat_on && beat_snap) {
+				var beat = beatStep ();
+				var val = Math.round (t / beat) * beat;
+				var dlt = Math.abs (val - t);
+				if (dlt < Math.min (lim, beat_snap_px / px_per_sec)) best = val;
+			}
 			return Math.max (0, best);
 		}
 
@@ -2723,6 +3027,13 @@
 					!(from <= v && t >= v)) return ;
 				lim = dlt; best = v;
 			});
+			if (beat_on && beat_snap) {
+				var beat = beatStep ();
+				var val = Math.round (t / beat) * beat;
+				var dlt = Math.abs (val - t);
+				if (dlt < Math.min (lim, beat_snap_px / px_per_sec) && (dir < 0 ? from >= val && t <= val :
+					from <= val && t >= val)) best = val;
+			}
 			return best;
 		}
 
@@ -3875,6 +4186,7 @@
 			selected_clip = null;
 			clearRegion ();
 			setCursorTime ( 0 );
+			setBeatBpm ( 136 );
 			applyZoom ( zoom );
 			pushState ( prev, 'Load Multitrack Sample' );
 			queuePlayRefresh ( true );
@@ -5023,7 +5335,7 @@
 		});
 		app.listenFor ('StateDidPop', function ( state, undo ) {
 			if (state.type !== 'multitrack') return ;
-			restoreState ( state.mt );
+			restoreState ( state.mt, true );
 			if (undo) OneUp ('Undo ' + state.desc);
 			else OneUp ('Redo ' + state.desc);
 		});
@@ -5043,6 +5355,7 @@
 			syncScroll ();
 			resizeTrackers ( tracksHeight () );
 			redrawRuler ();
+			requestBeatGrid ();
 		});
 		app.listenFor ('DidUpdateLen', syncEditingClip);
 		app.listenFor ('DidUnloadFile', function () {

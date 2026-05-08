@@ -2272,7 +2272,67 @@
 		});
 	}
 
-	
+
+	function _bindToolbarTips ( UI, container ) {
+		if (!container || !UI || !UI.el || UI.el.classList.contains ('pk_mob')) return ;
+
+		var tip = d.createElement ('div');
+		var active = null;
+		var raf = 0;
+		tip.className = 'pk_ttip';
+		UI.el.appendChild ( tip );
+
+		function tipButton ( node ) {
+			while (node && node !== container) {
+				if (node.classList && node.classList.contains ('pk_btn')) return node;
+				node = node.parentNode;
+			}
+			return null;
+		}
+
+		function hide () {
+			active = null;
+			tip.classList.remove ('pk_act');
+			if (raf) {
+				w.cancelAnimationFrame ( raf );
+				raf = 0;
+			}
+		}
+
+		function place () {
+			raf = 0;
+			if (!active) return ;
+			var span = active.getElementsByTagName ('span')[0];
+			var txt = span && span.textContent;
+			if (!txt || active.classList.contains ('pk_inact')) return hide ();
+
+			var r = active.getBoundingClientRect ();
+			tip.textContent = txt;
+			tip.classList.add ('pk_act');
+			var tw = tip.offsetWidth;
+			var x = Math.max (4, Math.min (w.innerWidth - tw - 4, r.left + (r.width - tw) / 2));
+			tip.style.left = (x >> 0) + 'px';
+			tip.style.top = ((r.bottom + 6) >> 0) + 'px';
+		}
+
+		function show ( e ) {
+			var btn = tipButton ( e.target );
+			if (!btn || btn === active) return ;
+			active = btn;
+			if (!raf) raf = w.requestAnimationFrame ( place );
+		}
+
+		container.addEventListener ('mouseover', show, false);
+		container.addEventListener ('focusin', show, false);
+		container.addEventListener ('mouseout', function ( e ) {
+			if (!active || tipButton ( e.relatedTarget ) === active) return ;
+			hide ();
+		}, false);
+		container.addEventListener ('focusout', hide, false);
+		container.addEventListener ('scroll', hide, false);
+		w.addEventListener ('resize', hide, false);
+	}
+
 	function _makeUIToolbar (UI) {
 		var container = d.createElement ( 'div' );
 		container.className = 'pk_tbc';
@@ -3335,6 +3395,7 @@
 		container.appendChild ( toolbar );
 
 		UI.el.appendChild ( container );
+		_bindToolbarTips ( UI, container );
 
 		var _appEl = d.getElementById('app');
 
