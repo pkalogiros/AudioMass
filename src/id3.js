@@ -94,6 +94,7 @@
     };
 
     var getBytesAt = function(data, iOffset, iLength) {
+        if (iOffset < 0 || iLength < 0 || iOffset + iLength > data.byteLength) return [];
         var bytes = new Array(iLength);
         for( var i = 0; i < iLength; i++ ) {
             bytes[i] = data.getUint8(iOffset+i);
@@ -104,7 +105,7 @@
         var bytes = getBytesAt(data, iOffset, iLength);
         var sString;
 
-        switch( iCharset.toLowerCase() ) {
+        switch( (iCharset || '').toString().toLowerCase() ) {
             case 'utf-16':
             case 'utf-16le':
             case 'utf-16be':
@@ -128,6 +129,7 @@
     };
 
     var getStringAt = function(data, iOffset, iLength) {
+        if (iOffset < 0 || iLength < 0 || iOffset + iLength > data.byteLength) return '';
         var aStr = [];
         for (var i=iOffset,j=0;i<iOffset+iLength;i++,j++) {
             aStr[j] = String.fromCharCode(data.getUint8(i));
@@ -222,6 +224,7 @@
 
             tags = getTagsFromShortcuts(tags || _defaultShortcuts);
 
+            end = Math.min(end, data.byteLength);
             while( offset < end ) {
                 var readFrameFunc = null;
                 var frameData = data;
@@ -230,18 +233,21 @@
 
                 switch( major ) {
                     case 2:
+                    if (frameDataOffset + 6 > end) return frames;
                     var frameID = getStringAt(frameData, frameDataOffset, 3);
                     var frameSize = getInteger24At(frameData, frameDataOffset+3, true);
                     var frameHeaderSize = 6;
                     break;
 
                     case 3:
+                    if (frameDataOffset + 10 > end) return frames;
                     var frameID = getStringAt(frameData, frameDataOffset, 4);
                     var frameSize = getLongAt(frameData, frameDataOffset+4, true);
                     var frameHeaderSize = 10;
                     break;
 
                     case 4:
+                    if (frameDataOffset + 10 > end) return frames;
                     var frameID = getStringAt(frameData, frameDataOffset, 4);
                     var frameSize = readSynchsafeInteger32At(frameDataOffset+4, frameData);
                     var frameHeaderSize = 10;
@@ -249,6 +255,7 @@
                 }
                 // if last frame GTFO
                 if( frameID == "" ) { break; }
+                if( !frameSize || frameDataOffset + frameHeaderSize + frameSize > end ) { break; }
 
                 // advance data offset to the next frame data
                 offset += frameHeaderSize + frameSize;
@@ -404,22 +411,27 @@
 
 
     ID3v2.ReadTags = function ( arraybuffer ) {
+        if (!arraybuffer || arraybuffer.byteLength < 10) return null;
         var data = new DataView ( arraybuffer );
         var offset = 0;
 
 
+        if (getStringAt(data, 0, 3) !== 'ID3') return null;
         var major = data.getUint8(offset+3);
-        if( major > 4 ) { return null; }
+        if( major < 2 || major > 4 ) { return null; }
         var unsynch = isBitSetAt(data, offset+5, 7);
         var xheader = isBitSetAt(data, offset+5, 6);
         var size = readSynchsafeInteger32At(offset+6, data);
         var end = offset + 10 + size;
+        if (end > data.byteLength) return null;
         offset += 10;
 
         if( xheader ) {
+            if (offset + 4 > end) return null;
             var xheadersize = data.getInt32( offset, true ); //data.getLongAt(offset, true);
             // The 'Extended header size', currently 6 or 10 bytes, excludes itself.
             offset += xheadersize + 4;
+            if (offset > end) return null;
         }
 
         var id3 = {};
@@ -459,8 +471,9 @@
     };
     var _at = function (ab) {
         var b = new Uint8Array(ab);
-        if (b[0] != 73 || b[1] != 68 || b[2] != 51) return 0;
-        return 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127)) + ((b[5] & 16) ? 10 : 0);
+        if (b.length < 10 || b[0] != 73 || b[1] != 68 || b[2] != 51) return 0;
+        var n = 10 + ((b[6] & 127) << 21 | (b[7] & 127) << 14 | (b[8] & 127) << 7 | (b[9] & 127)) + ((b[5] & 16) ? 10 : 0);
+        return n > b.length ? 0 : n;
     };
     var _apic = function (p) {
         if (!p || !p.data || !p.data.length) return [];
@@ -524,6 +537,7 @@
     };
 
     ID4.ReadTags = function(arraybuffer) {
+        if (!arraybuffer || arraybuffer.byteLength < 8) return null;
         var data = new DataView ( arraybuffer );
         var tag = {};
         readAtom(tag, data, 0, data.byteLength);
@@ -536,10 +550,12 @@
 
         indent = indent === undefined ? "" : indent + "  ";
         var seek = offset;
-        while (seek < offset + length)
+        var end = Math.min(offset + length, data.byteLength);
+        while (seek + 8 <= end)
         {
             var atomSize = data.getInt32(seek); // getLongAt(data, seek, true);
             if (atomSize == 0) return;
+            if (atomSize < 8 || seek + atomSize > end) return;
             var atomName = getStringAt(data, seek + 4, 4);
             // Container atoms
             if (atomName === 'meta')
@@ -566,11 +582,13 @@
             // Value atoms
             if (ID4.atom[atomName])
             {
+                if (seek + 24 > end) return;
                 var klass = getInteger24At(data, seek + 16 + 1, true);
                 var atom = ID4.atom[atomName];
                 var type = ID4.types[klass];
                 if (atomName === 'trkn')
                 {
+                    if (seek + 29 > end) return;
                     tag[atom[0]] = data.getUint8(seek + 16 + 11);
                     tag['count'] = data.getUint8(seek + 16 + 13);
                 }
@@ -581,6 +599,7 @@
                     // 4: NULL (usually locale indicator)
                     var dataStart = seek + 16 + 4 + 4;
                     var dataEnd = atomSize - 16 - 4 - 4;
+                    if (dataEnd < 0 || dataStart + dataEnd > end) return;
                     var atomData;
                     switch( type ) {
                         case 'text':

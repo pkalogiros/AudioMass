@@ -1711,14 +1711,16 @@
 				};
 				var read_tags = function (ab) {
 					var b = new Uint8Array (ab), t = null;
-					if (b[0] === 73 && b[1] === 68 && b[2] === 51) {
-						t = ID3v2.ReadTags (ab) || {};
-						t._type = 'mp3';
-					}
-					else if (b[4] === 102 && b[5] === 116 && b[6] === 121 && b[7] === 112 && b[8] === 77 && b[9] === 52) {
-						t = ID4.ReadTags (ab) || {};
-						t._type = 'm4a';
-					}
+					try {
+						if (b[0] === 73 && b[1] === 68 && b[2] === 51) {
+							t = ID3v2.ReadTags (ab);
+							if (t) t._type = 'mp3';
+						}
+						else if (b.length > 9 && b[4] === 102 && b[5] === 116 && b[6] === 121 && b[7] === 112 && b[8] === 77 && b[9] === 52) {
+							t = ID4.ReadTags (ab);
+							if (t) t._type = 'm4a';
+						}
+					} catch (e) {}
 					return t;
 				};
 				var dirty = function ( q, el ) {
@@ -1896,7 +1898,8 @@
 
 							st.file = file;
 							st.name = file.name || '';
-							st.type = (/\.mp3$/i.test(file.name) || /mpeg|mp3/i.test(file.type)) ? 'mp3' : '';
+							st.type = (/\.mp3$/i.test(file.name) || /mpeg|mp3/i.test(file.type)) ? 'mp3' :
+								(/\.(m4a|mp4)$/i.test(file.name) || /mp4|m4a/i.test(file.type)) ? 'm4a' : '';
 							st.ab = null;
 							st.tag = {};
 							st.orig = null;
@@ -1907,10 +1910,20 @@
 							txt_el.innerHTML = '<div style="padding:30px 0">Reading metadata...</div>';
 							q.els.bottom[0].style.display = 'none';
 							q.els.bottom[0].classList.add ('pk_inact');
+							if (!st.type) {
+								txt_el.innerHTML = '<div style="padding:30px 0">Unsupported audio file.</div>';
+								return ;
+							}
 
 							reader.onload = function() {
 								if (!live) return ;
-								var tags = read_tags (this.result) || {};
+								var raw = new Uint8Array (this.result);
+								var tags = read_tags (this.result);
+								if (!tags && (st.type === 'm4a' || (raw[0] === 73 && raw[1] === 68 && raw[2] === 51))) {
+									txt_el.innerHTML = '<div style="padding:30px 0">Unsupported audio file.</div>';
+									return ;
+								}
+								tags = tags || {};
 								st.ab = this.result;
 								st.type = st.type || tags._type;
 								st.orig = tags.picture || null;
@@ -1918,7 +1931,7 @@
 								st.ch = false;
 
 								if (!st.type) {
-									txt_el.innerHTML = '<div style="padding:30px 0">No audio metadata found...</div>';
+									txt_el.innerHTML = '<div style="padding:30px 0">Unsupported audio file.</div>';
 								} else {
 									render_tags (q, txt_el, tags);
 								}
