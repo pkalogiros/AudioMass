@@ -1166,45 +1166,6 @@ var MultiCanvas = function (_Drawer) {
     }, {
         key: 'drawBars',
         value: function drawBars(peaks, channelIndex, start, end) {
-            var _this4 = this;
-
-            return this.prepareDraw(peaks, channelIndex, start, end, function (_ref) {
-                var absmax = _ref.absmax,
-                    hasMinVals = _ref.hasMinVals,
-                    height = _ref.height,
-                    offsetY = _ref.offsetY,
-                    halfH = _ref.halfH,
-                    peaks = _ref.peaks;
-
-                if (_this4.params.timeline)
-                {
-                    offsetY += 20;
-                    halfH -= 10;
-                }
-
-                // if drawBars was called within ws.empty we don't pass a start and
-                // don't want anything to happen
-                if (start === undefined) {
-                    return;
-                }
-                // Skip every other value if there are negatives.
-                var peakIndexScale = hasMinVals ? 2 : 1;
-                var length = peaks.length / peakIndexScale;
-                var bar = _this4.params.barWidth * _this4.params.pixelRatio;
-                var gap = _this4.params.barGap === null ? Math.max(_this4.params.pixelRatio, ~~(bar / 2)) : Math.max(_this4.params.pixelRatio, _this4.params.barGap * _this4.params.pixelRatio);
-                var step = bar + gap;
-
-                var scale = length / _this4.width;
-                var first = start;
-                var last = end;
-                var i = void 0;
-
-                for (i = first; i < last; i += step) {
-                    var peak = peaks[Math.floor(i * scale * peakIndexScale)] || 0;
-                    var h = Math.round(peak / absmax * halfH);
-                    _this4.fillRect(i + _this4.halfPixel, halfH - h + offsetY, bar + _this4.halfPixel, h * 2);
-                }
-            });
         }
 
         /**
@@ -1724,23 +1685,6 @@ var MultiCanvas = function (_Drawer) {
         }
 
         /**
-         * Return image data of the waveform
-         *
-         * @param {string} type='image/png' An optional value of a format type.
-         * @param {number} quality=0.92 An optional value between 0 and 1.
-         * @return {string|string[]} images A data URL or an array of data URLs
-         */
-
-    }, {
-        key: 'getImage',
-        value: function getImage(type, quality) {
-            var images = this.canvases.map(function (entry) {
-                return entry.wave.toDataURL(type, quality);
-            });
-            return images.length > 1 ? images : images[0];
-        }
-
-        /**
          * Render the new progress
          *
          * @param {number} position X-Offset of progress position in pixels
@@ -1760,651 +1704,6 @@ var MultiCanvas = function (_Drawer) {
 
 exports.default = MultiCanvas;
 module.exports = exports['default'];
-
-/***/ }),
-
-/***/ "./src/mediaelement.js":
-/*!*****************************!*\
-  !*** ./src/mediaelement.js ***!
-  \*****************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-var _get = function get(object, property, receiver) { if (object === null) object = Function.prototype; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-var _webaudio = __webpack_require__(/*! ./webaudio */ "./src/webaudio.js");
-
-var _webaudio2 = _interopRequireDefault(_webaudio);
-
-var _util = __webpack_require__(/*! ./util */ "./src/util/index.js");
-
-var util = _interopRequireWildcard(_util);
-
-function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-/**
- * MediaElement backend
- */
-var MediaElement = function (_WebAudio) {
-    _inherits(MediaElement, _WebAudio);
-
-    /**
-     * Construct the backend
-     *
-     * @param {WavesurferParams} params
-     */
-    function MediaElement(params) {
-        _classCallCheck(this, MediaElement);
-
-        /** @private */
-        var _this = _possibleConstructorReturn(this, (MediaElement.__proto__ || Object.getPrototypeOf(MediaElement)).call(this, params));
-
-        _this.params = params;
-
-        // Dummy media to catch errors
-        /** @private */
-        _this.media = {
-            currentTime: 0,
-            duration: 0,
-            paused: true,
-            playbackRate: 1,
-            play: function play() {},
-            pause: function pause() {},
-
-            volume: 0
-        };
-
-        /** @private */
-        _this.mediaType = params.mediaType.toLowerCase();
-        /** @private */
-        _this.elementPosition = params.elementPosition;
-        /** @private */
-        _this.peaks = null;
-        /** @private */
-        _this.playbackRate = 1;
-        /** @private */
-        _this.volume = 1;
-        /** @private */
-        _this.buffer = null;
-        /** @private */
-        _this.onPlayEnd = null;
-        return _this;
-    }
-
-    /**
-     * Initialise the backend, called in `wavesurfer.createBackend()`
-     */
-
-
-    _createClass(MediaElement, [{
-        key: 'init',
-        value: function init() {
-            this.setPlaybackRate(this.params.audioRate);
-            this.createTimer();
-        }
-
-        /**
-         * Create a timer to provide a more precise `audioprocess` event.
-         *
-         * @private
-         */
-
-    }, {
-        key: 'createTimer',
-        value: function createTimer() {
-            var _this2 = this;
-
-            var onAudioProcess = function onAudioProcess() {
-                // console.log(" audio process 1111 ####");
-
-                if (_this2.isPaused()) {
-                    return;
-                }
-
-                // debugger;
-
-
-                _this2.fireEvent('audioprocess', _this2.getCurrentTime());
-
-                // Call again in the next frame
-                var requestAnimationFrame = window.requestAnimationFrame || window.webkitRequestAnimationFrame;
-                requestAnimationFrame(onAudioProcess);
-            };
-
-            this.on('play', onAudioProcess);
-
-            // Update the progress one more time to prevent it from being stuck in case of lower framerates
-            this.on('pause', function () {
-
-                // debugger;
-                _this2.fireEvent('audioprocess', _this2.getCurrentTime());
-            });
-        }
-
-        /**
-         * Create media element with url as its source,
-         * and append to container element.
-         *
-         * @param {string} url Path to media file
-         * @param {HTMLElement} container HTML element
-         * @param {number[]|number[][]} peaks Array of peak data
-         * @param {string} preload HTML 5 preload attribute value
-         */
-
-    }, {
-        key: 'load',
-        value: function load(url, container, peaks, preload) {
-            var media = document.createElement(this.mediaType);
-            media.controls = this.params.mediaControls;
-            media.autoplay = this.params.autoplay || false;
-            media.preload = preload == null ? 'auto' : preload;
-            media.src = url;
-            media.style.width = '100%';
-
-            var prevMedia = container.querySelector(this.mediaType);
-            if (prevMedia) {
-                container.removeChild(prevMedia);
-            }
-            container.appendChild(media);
-
-            this._load(media, peaks);
-        }
-
-        /**
-         * Load existing media element.
-         *
-         * @param {HTMLMediaElement} elt HTML5 Audio or Video element
-         * @param {number[]|number[][]} peaks Array of peak data
-         */
-
-    }, {
-        key: 'loadElt',
-        value: function loadElt(elt, peaks) {
-            elt.controls = this.params.mediaControls;
-            elt.autoplay = this.params.autoplay || false;
-
-            this._load(elt, peaks);
-        }
-
-        /**
-         * Private method called by both load (from url)
-         * and loadElt (existing media element).
-         *
-         * @param {HTMLMediaElement} media HTML5 Audio or Video element
-         * @param {number[]|number[][]} peaks Array of peak data
-         * @private
-         */
-
-    }, {
-        key: '_load',
-        value: function _load(media, peaks) {
-            var _this3 = this;
-
-            // load must be called manually on iOS, otherwise peaks won't draw
-            // until a user interaction triggers load --> 'ready' event
-            if (typeof media.load == 'function') {
-                // Resets the media element and restarts the media resource. Any
-                // pending events are discarded. How much media data is fetched is
-                // still affected by the preload attribute.
-                media.load();
-            }
-
-            media.addEventListener('error', function () {
-                _this3.fireEvent('error', 'Error loading media element');
-            });
-
-            media.addEventListener('canplay', function () {
-                _this3.fireEvent('canplay');
-            });
-
-            media.addEventListener('ended', function () {
-                _this3.fireEvent('finish');
-            });
-
-            // Listen to and relay play and pause events to enable
-            // playback control from the external media element
-            media.addEventListener('play', function () {
-                _this3.fireEvent('play');
-            });
-
-            media.addEventListener('pause', function () {
-                _this3.fireEvent('pause');
-            });
-
-            this.media = media;
-            this.peaks = peaks;
-            this.onPlayEnd = null;
-            this.buffer = null;
-            this.setPlaybackRate(this.playbackRate);
-            this.setVolume(this.volume);
-        }
-
-        /**
-         * Used by `wavesurfer.isPlaying()` and `wavesurfer.playPause()`
-         *
-         * @return {boolean}
-         */
-
-    }, {
-        key: 'isPaused',
-        value: function isPaused() {
-            return !this.media || this.media.paused;
-        }
-
-        /**
-         * Used by `wavesurfer.getDuration()`
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getDuration',
-        value: function getDuration() {
-            if (this.explicitDuration) {
-                return this.explicitDuration;
-            }
-            var duration = (this.buffer || this.media).duration;
-            if (duration >= Infinity) {
-                // streaming audio
-                duration = this.media.seekable.end(0);
-            }
-            return duration;
-        }
-
-        /**
-         * Returns the current time in seconds relative to the audioclip's
-         * duration.
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getCurrentTime',
-        value: function getCurrentTime() {
-            return this.media && this.media.currentTime;
-        }
-
-        /**
-         * Get the position from 0 to 1
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getPlayedPercents',
-        value: function getPlayedPercents() {
-            return this.getCurrentTime() / this.getDuration() || 0;
-        }
-
-        /**
-         * Get the audio source playback rate.
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getPlaybackRate',
-        value: function getPlaybackRate() {
-            return this.playbackRate || this.media.playbackRate;
-        }
-
-        /**
-         * Set the audio source playback rate.
-         *
-         * @param {number} value
-         */
-
-    }, {
-        key: 'setPlaybackRate',
-        value: function setPlaybackRate(value) {
-            this.playbackRate = value || 1;
-            this.media.playbackRate = this.playbackRate;
-        }
-
-        /**
-         * Used by `wavesurfer.seekTo()`
-         *
-         * @param {number} start Position to start at in seconds
-         */
-
-    }, {
-        key: 'seekTo',
-        value: function seekTo(start) {
-            if (start != null) {
-                this.media.currentTime = start;
-            }
-            this.clearPlayEnd();
-        }
-
-        /**
-         * Plays the loaded audio region.
-         *
-         * @param {number} start Start offset in seconds, relative to the beginning
-         * of a clip.
-         * @param {number} end When to stop, relative to the beginning of a clip.
-         * @emits MediaElement#play
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'play',
-        value: function play(start, end) {
-            this.seekTo(start);
-            var promise = this.media.play();
-            end && this.setPlayEnd(end);
-
-            return promise;
-        }
-
-        /**
-         * Pauses the loaded audio.
-         *
-         * @emits MediaElement#pause
-         * @return {Promise}
-         */
-
-    }, {
-        key: 'pause',
-        value: function pause() {
-            var promise = void 0;
-
-            if (this.media) {
-                promise = this.media.pause();
-            }
-            this.clearPlayEnd();
-
-            return promise;
-        }
-
-        /** @private */
-
-    }, {
-        key: 'setPlayEnd',
-        value: function setPlayEnd(end) {
-            var _this4 = this;
-
-            this._onPlayEnd = function (time) {
-                if (time >= end) {
-                    _this4.pause();
-                    _this4.seekTo(end);
-                }
-            };
-            this.on('audioprocess', this._onPlayEnd);
-        }
-
-        /** @private */
-
-    }, {
-        key: 'clearPlayEnd',
-        value: function clearPlayEnd() {
-            if (this._onPlayEnd) {
-                this.un('audioprocess', this._onPlayEnd);
-                this._onPlayEnd = null;
-            }
-        }
-
-        /**
-         * Compute the max and min value of the waveform when broken into
-         * <length> subranges.
-         *
-         * @param {number} length How many subranges to break the waveform into.
-         * @param {number} first First sample in the required range.
-         * @param {number} last Last sample in the required range.
-         * @return {number[]|number[][]} Array of 2*<length> peaks or array of
-         * arrays of peaks consisting of (max, min) values for each subrange.
-         */
-
-    }, {
-        key: 'getPeaks',
-        value: function getPeaks(length, first, last) {
-            if (this.buffer) {
-                return _get(MediaElement.prototype.__proto__ || Object.getPrototypeOf(MediaElement.prototype), 'getPeaks', this).call(this, length, first, last);
-            }
-            return this.peaks || [];
-        }
-
-        /**
-         * Set the sink id for the media player
-         *
-         * @param {string} deviceId String value representing audio device id.
-         */
-
-    }, {
-        key: 'setSinkId',
-        value: function setSinkId(deviceId) {
-            if (deviceId) {
-                if (!this.media.setSinkId) {
-                    return Promise.reject(new Error('setSinkId is not supported in your browser'));
-                }
-                return this.media.setSinkId(deviceId);
-            }
-
-            return Promise.reject(new Error('Invalid deviceId: ' + deviceId));
-        }
-
-        /**
-         * Get the current volume
-         *
-         * @return {number} value A floating point value between 0 and 1.
-         */
-
-    }, {
-        key: 'getVolume',
-        value: function getVolume() {
-            return this.volume || this.media.volume;
-        }
-
-        /**
-         * Set the audio volume
-         *
-         * @param {number} value A floating point value between 0 and 1.
-         */
-
-    }, {
-        key: 'setVolume',
-        value: function setVolume(value) {
-            this.volume = value;
-            this.media.volume = this.volume;
-        }
-
-        /**
-         * This is called when wavesurfer is destroyed
-         *
-         */
-
-    }, {
-        key: 'destroy',
-        value: function destroy() {
-            this.pause();
-            this.unAll();
-
-            if (this.params.removeMediaElementOnDestroy && this.media && this.media.parentNode) {
-                this.media.parentNode.removeChild(this.media);
-            }
-
-            this.media = null;
-        }
-    }]);
-
-    return MediaElement;
-}(_webaudio2.default);
-
-exports.default = MediaElement;
-module.exports = exports['default'];
-
-/***/ }),
-
-/***/ "./src/peakcache.js":
-/*!**************************!*\
-  !*** ./src/peakcache.js ***!
-  \**************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-/**
- * Caches the decoded peaks data to improve rendering speed for lage audio
- *
- * Is used if the option parameter `partialRender` is set to `true`
- */
-var PeakCache = function () {
-    /**
-     * Instantiate cache
-     */
-    function PeakCache() {
-        _classCallCheck(this, PeakCache);
-
-        this.clearPeakCache();
-    }
-
-    /**
-     * Empty the cache
-     */
-
-
-    _createClass(PeakCache, [{
-        key: "clearPeakCache",
-        value: function clearPeakCache() {
-            /**
-             * Flat array with entries that are always in pairs to mark the
-             * beginning and end of each subrange.  This is a convenience so we can
-             * iterate over the pairs for easy set difference operations.
-             * @private
-             */
-            this.peakCacheRanges = [];
-            /**
-             * Length of the entire cachable region, used for resetting the cache
-             * when this changes (zoom events, for instance).
-             * @private
-             */
-            this.peakCacheLength = -1;
-        }
-
-        /**
-         * Add a range of peaks to the cache
-         *
-         * @param {number} length The length of the range
-         * @param {number} start The x offset of the start of the range
-         * @param {number} end The x offset of the end of the range
-         * @return {number[][]}
-         */
-
-    }, {
-        key: "addRangeToPeakCache",
-        value: function addRangeToPeakCache(length, start, end) {
-            if (length != this.peakCacheLength) {
-                this.clearPeakCache();
-                this.peakCacheLength = length;
-            }
-
-            // Return ranges that weren't in the cache before the call.
-            var uncachedRanges = [];
-            var i = 0;
-            // Skip ranges before the current start.
-            while (i < this.peakCacheRanges.length && this.peakCacheRanges[i] < start) {
-                i++;
-            }
-            // If |i| is even, |start| falls after an existing range.  Otherwise,
-            // |start| falls between an existing range, and the uncached region
-            // starts when we encounter the next node in |peakCacheRanges| or
-            // |end|, whichever comes first.
-            if (i % 2 == 0) {
-                uncachedRanges.push(start);
-            }
-            while (i < this.peakCacheRanges.length && this.peakCacheRanges[i] <= end) {
-                uncachedRanges.push(this.peakCacheRanges[i]);
-                i++;
-            }
-            // If |i| is even, |end| is after all existing ranges.
-            if (i % 2 == 0) {
-                uncachedRanges.push(end);
-            }
-
-            // Filter out the 0-length ranges.
-            uncachedRanges = uncachedRanges.filter(function (item, pos, arr) {
-                if (pos == 0) {
-                    return item != arr[pos + 1];
-                } else if (pos == arr.length - 1) {
-                    return item != arr[pos - 1];
-                }
-                return item != arr[pos - 1] && item != arr[pos + 1];
-            });
-
-            // Merge the two ranges together, uncachedRanges will either contain
-            // wholly new points, or duplicates of points in peakCacheRanges.  If
-            // duplicates are detected, remove both and extend the range.
-            this.peakCacheRanges = this.peakCacheRanges.concat(uncachedRanges);
-            this.peakCacheRanges = this.peakCacheRanges.sort(function (a, b) {
-                return a - b;
-            }).filter(function (item, pos, arr) {
-                if (pos == 0) {
-                    return item != arr[pos + 1];
-                } else if (pos == arr.length - 1) {
-                    return item != arr[pos - 1];
-                }
-                return item != arr[pos - 1] && item != arr[pos + 1];
-            });
-
-            // Push the uncached ranges into an array of arrays for ease of
-            // iteration in the functions that call this.
-            var uncachedRangePairs = [];
-            for (i = 0; i < uncachedRanges.length; i += 2) {
-                uncachedRangePairs.push([uncachedRanges[i], uncachedRanges[i + 1]]);
-            }
-
-            return uncachedRangePairs;
-        }
-
-        /**
-         * For testing
-         *
-         * @return {number[][]}
-         */
-
-    }, {
-        key: "getCacheRanges",
-        value: function getCacheRanges() {
-            var peakCacheRangePairs = [];
-            var i = void 0;
-            for (i = 0; i < this.peakCacheRanges.length; i += 2) {
-                peakCacheRangePairs.push([this.peakCacheRanges[i], this.peakCacheRanges[i + 1]]);
-            }
-            return peakCacheRangePairs;
-        }
-    }]);
-
-    return PeakCache;
-}();
-
-exports.default = PeakCache;
-module.exports = exports["default"];
 
 /***/ }),
 
@@ -3037,14 +2336,6 @@ var _webaudio = __webpack_require__(/*! ./webaudio */ "./src/webaudio.js");
 
 var _webaudio2 = _interopRequireDefault(_webaudio);
 
-var _mediaelement = __webpack_require__(/*! ./mediaelement */ "./src/mediaelement.js");
-
-var _mediaelement2 = _interopRequireDefault(_mediaelement);
-
-var _peakcache = __webpack_require__(/*! ./peakcache */ "./src/peakcache.js");
-
-var _peakcache2 = _interopRequireDefault(_peakcache);
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
@@ -3320,22 +2611,16 @@ var WaveSurfer = function (_util$Observer) {
             cursorWidth: 1,
             dragSelection: true,
             fillParent: true,
-            forceDecode: false,
             height: 128,
             hideScrollbar: false,
             interact: true,
             loopSelection: true,
             maxCanvasWidth: 4000,
-            mediaContainer: null,
-            mediaControls: false,
-            mediaType: 'audio',
             minPxPerSec: 20,
             normalize: false,
-            partialRender: false,
             pixelRatio: window.devicePixelRatio || screen.deviceXDPI / screen.logicalXDPI,
             plugins: [],
             progressColor: 'rgba(201,199,229,0.24)',
-            removeMediaElementOnDestroy: true,
             renderer: _drawer2.default,
             responsive: false,
             scrollParent: false,
@@ -3349,7 +2634,6 @@ var WaveSurfer = function (_util$Observer) {
             verticalZoom:1
         };
         _this.backends = {
-            MediaElement: _mediaelement2.default,
             WebAudio: _webaudio2.default
         };
         _this.util = util;
@@ -3360,21 +2644,6 @@ var WaveSurfer = function (_util$Observer) {
 
         if (!_this.container) {
             throw new Error('Container element not found');
-        }
-
-        if (_this.params.mediaContainer == null) {
-            /** @private */
-            _this.mediaContainer = _this.container;
-        } else if (typeof _this.params.mediaContainer == 'string') {
-            /** @private */
-            _this.mediaContainer = document.querySelector(_this.params.mediaContainer);
-        } else {
-            /** @private */
-            _this.mediaContainer = _this.params.mediaContainer;
-        }
-
-        if (!_this.mediaContainer) {
-            throw new Error('Media Container element not found');
         }
 
         if (_this.params.maxCanvasWidth <= 1) {
@@ -3415,9 +2684,6 @@ var WaveSurfer = function (_util$Observer) {
         _this.drawer = null;
         /** @private */
         _this.backend = null;
-        /** @private */
-        _this.peakCache = null;
-
         // cache constructor objects
         if (typeof _this.params.renderer !== 'function') {
             throw new Error('Renderer parameter is invalid');
@@ -3488,7 +2754,6 @@ var WaveSurfer = function (_util$Observer) {
             this.registerPlugins(this.params.plugins);
             this.createDrawer();
             this.createBackend();
-            this.createPeakCache();
             return this;
         }
 
@@ -3886,9 +3151,6 @@ var WaveSurfer = function (_util$Observer) {
             });
             // Relay the scroll event from the drawer
             this.drawer.on('scroll', function (e) {
-                if (_this5.params.partialRender) {
-                    _this5.drawBuffer();
-                }
                 _this5.fireEvent('scroll', e);
             });
         }
@@ -3980,15 +3242,6 @@ var WaveSurfer = function (_util$Observer) {
 
             if (this.backend) {
                 this.backend.destroy();
-            }
-
-            // Back compat
-            if (this.params.backend == 'AudioElement') {
-                this.params.backend = 'MediaElement';
-            }
-
-            if (this.params.backend == 'WebAudio' && !this.Backend.prototype.supportsWebAudio.call(null)) {
-                this.params.backend = 'MediaElement';
             }
 
             this.backend = new this.Backend(this.params);
@@ -4088,20 +3341,6 @@ var WaveSurfer = function (_util$Observer) {
 
                 q.fireEvent ('audioprocess', time, stamp);
             });
-        }
-
-        /**
-         * Create the peak cache
-         *
-         * @private
-         */
-
-    }, {
-        key: 'createPeakCache',
-        value: function createPeakCache() {
-            if (this.params.partialRender) {
-                this.peakCache = new _peakcache2.default();
-            }
         }
 
         /**
@@ -4375,271 +3614,10 @@ var WaveSurfer = function (_util$Observer) {
             this.drawer.progress(this.ActiveMarker, this.LeftProgress / this.getDuration(), this.ZoomFactor);
         }
 
-        /**
-         * Set the playback volume.
-         *
-         * @param {string} deviceId String value representing underlying output device
-         */
-
-    }, {
-        key: 'setSinkId',
-        value: function setSinkId(deviceId) {
-            return this.backend.setSinkId(deviceId);
-        }
-
-        /**
-         * Set the playback volume.
-         *
-         * @param {number} newVolume A value between 0 and 1, 0 being no
-         * volume and 1 being full volume.
-         * @emits WaveSurfer#volume
-         */
-
-    }, {
-        key: 'setVolume',
-        value: function setVolume(newVolume) {
-            this.backend.setVolume(newVolume);
-            this.fireEvent('volume', newVolume);
-        }
-
-        /**
-         * Get the playback volume.
-         *
-         * @return {number} A value between 0 and 1, 0 being no
-         * volume and 1 being full volume.
-         */
-
-    }, {
-        key: 'getVolume',
-        value: function getVolume() {
-            return this.backend.getVolume();
-        }
     }, {
         key: 'getLoudness',
         value: function getLoudness() {
             return this.backend.getLoudness();
-        }
-
-        /**
-         * Set the playback rate.
-         *
-         * @param {number} rate A positive number. E.g. 0.5 means half the normal
-         * speed, 2 means double speed and so on.
-         * @example wavesurfer.setPlaybackRate(2);
-         */
-
-    }, {
-        key: 'setPlaybackRate',
-        value: function setPlaybackRate(rate) {
-            this.backend.setPlaybackRate(rate);
-        }
-
-        /**
-         * Get the playback rate.
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getPlaybackRate',
-        value: function getPlaybackRate() {
-            return this.backend.getPlaybackRate();
-        }
-
-        /**
-         * Toggle the volume on and off. It not currenly muted it will save the
-         * current volume value and turn the volume off. If currently muted then it
-         * will restore the volume to the saved value, and then rest the saved
-         * value.
-         *
-         * @example wavesurfer.toggleMute();
-         */
-
-    }, {
-        key: 'toggleMute',
-        value: function toggleMute() {
-            this.setMute(!this.isMuted);
-        }
-
-        /**
-         * Enable or disable muted audio
-         *
-         * @param {boolean} mute
-         * @emits WaveSurfer#volume
-         * @emits WaveSurfer#mute
-         * @example
-         * // unmute
-         * wavesurfer.setMute(false);
-         */
-
-    }, {
-        key: 'setMute',
-        value: function setMute(mute) {
-            // ignore all muting requests if the audio is already in that state
-            if (mute === this.isMuted) {
-                this.fireEvent('mute', this.isMuted);
-                return;
-            }
-
-            if (mute) {
-                // If currently not muted then save current volume,
-                // turn off the volume and update the mute properties
-                this.savedVolume = this.backend.getVolume();
-                this.backend.setVolume(0);
-                this.isMuted = true;
-                this.fireEvent('volume', 0);
-            } else {
-                // If currently muted then restore to the saved volume
-                // and update the mute properties
-                this.backend.setVolume(this.savedVolume);
-                this.isMuted = false;
-                this.fireEvent('volume', this.savedVolume);
-            }
-            this.fireEvent('mute', this.isMuted);
-        }
-
-        /**
-         * Get the current mute status.
-         *
-         * @example const isMuted = wavesurfer.getMute();
-         * @return {boolean}
-         */
-
-    }, {
-        key: 'getMute',
-        value: function getMute() {
-            return this.isMuted;
-        }
-
-        /**
-         * Get the current ready status.
-         *
-         * @example const isReady = wavesurfer.isReady();
-         * @return {boolean}
-         */
-
-    }, {
-        key: 'isReady',
-        value: function isReady() {
-            return this.isReady;
-        }
-
-        /**
-         * Get the list of current set filters as an array.
-         *
-         * Filters must be set with setFilters method first
-         *
-         * @return {array}
-         */
-
-    }, {
-        key: 'getFilters',
-        value: function getFilters() {
-            return this.backend.filters || [];
-        }
-
-        /**
-         * Toggles `scrollParent` and redraws
-         *
-         * @example wavesurfer.toggleScroll();
-         */
-
-    }, {
-        key: 'toggleScroll',
-        value: function toggleScroll() {
-            this.params.scrollParent = !this.params.scrollParent;
-            this.drawBuffer();
-        }
-
-        /**
-         * Toggle mouse interaction
-         *
-         * @example wavesurfer.toggleInteraction();
-         */
-
-    }, {
-        key: 'toggleInteraction',
-        value: function toggleInteraction() {
-            this.params.interact = !this.params.interact;
-        }
-
-        /**
-         * Get the fill color of the waveform after the cursor.
-         *
-         * @return {string} A CSS color string.
-         */
-
-    }, {
-        key: 'getWaveColor',
-        value: function getWaveColor() {
-            return this.params.waveColor;
-        }
-
-        /**
-         * Set the fill color of the waveform after the cursor.
-         *
-         * @param {string} color A CSS color string.
-         * @example wavesurfer.setWaveColor('#ddd');
-         */
-
-    }, {
-        key: 'setWaveColor',
-        value: function setWaveColor(color) {
-            this.params.waveColor = color;
-            this.drawBuffer();
-        }
-
-        /**
-         * Get the fill color of the waveform behind the cursor.
-         *
-         * @return {string} A CSS color string.
-         */
-
-    }, {
-        key: 'getProgressColor',
-        value: function getProgressColor() {
-            return this.params.progressColor;
-        }
-
-        /**
-         * Set the fill color of the waveform behind the cursor.
-         *
-         * @param {string} color A CSS color string.
-         * @example wavesurfer.setProgressColor('#400');
-         */
-
-    }, {
-        key: 'setProgressColor',
-        value: function setProgressColor(color) {
-            this.params.progressColor = color;
-            this.drawBuffer();
-        }
-
-        /**
-         * Get the fill color of the cursor indicating the playhead
-         * position.
-         *
-         * @return {string} A CSS color string.
-         */
-
-    },
-    {
-        key: 'setCursorColor',
-        value: function setCursorColor(color) {
-            this.params.cursorColor = color;
-            //this.drawer.updateCursor();
-        }
-
-        /**
-         * Get the height of the waveform.
-         *
-         * @return {number} Height measured in pixels.
-         */
-
-    }, {
-        key: 'getHeight',
-        value: function getHeight() {
-            return this.params.height;
         }
 
         /**
@@ -4766,7 +3744,6 @@ var WaveSurfer = function (_util$Observer) {
             this.backend.splitPeaks = [];
             this.backend.mergedPeaks = [];
 
-            this.createPeakCache();
             this.backend.load(buffer);
             this.drawBuffer(1);
             this.fireEvent('ready');
@@ -4829,32 +3806,7 @@ var WaveSurfer = function (_util$Observer) {
         key: 'load',
         value: function load(url, peaks, preload, duration) {
             this.empty();
-
-            if (preload) {
-                // check whether the preload attribute will be usable and if not log
-                // a warning listing the reasons why not and nullify the variable
-                var preloadIgnoreReasons = {
-                    "Preload is not 'auto', 'none' or 'metadata'": ['auto', 'metadata', 'none'].indexOf(preload) === -1,
-                    'Peaks are not provided': !peaks,
-                    'Backend is not of type MediaElement': this.params.backend !== 'MediaElement',
-                    'Url is not of type string': typeof url !== 'string'
-                };
-                var activeReasons = Object.keys(preloadIgnoreReasons).filter(function (reason) {
-                    return preloadIgnoreReasons[reason];
-                });
-                if (activeReasons.length) {
-                    console.warn('Preload parameter of wavesurfer.load will be ignored because:\n\t- ' + activeReasons.join('\n\t- '));
-                    // stop invalid values from being used
-                    preload = null;
-                }
-            }
-
-            switch (this.params.backend) {
-                case 'WebAudio':
-                    return this.loadBuffer(url, peaks, duration);
-                case 'MediaElement':
-                    return this.loadMediaElement(url, peaks, preload, duration);
-            }
+            return this.loadBuffer(url, peaks, duration);
         }
 
         /**
@@ -4886,69 +3838,6 @@ var WaveSurfer = function (_util$Observer) {
                 this.tmpEvents.push(this.once('interaction', load));
             } else {
                 return load();
-            }
-        }
-
-        /**
-         * Either create a media element, or load an existing media element.
-         *
-         * @private
-         * @param {string|HTMLMediaElement} urlOrElt Either a path to a media file, or an
-         * existing HTML5 Audio/Video Element
-         * @param {number[]|number[][]} peaks Array of peaks. Required to bypass web audio
-         * dependency
-         * @param {?boolean} preload Set to true if the preload attribute of the
-         * audio element should be enabled
-         * @param {?number} duration
-         */
-
-    }, {
-        key: 'loadMediaElement',
-        value: function loadMediaElement(urlOrElt, peaks, preload, duration) {
-            var _this12 = this;
-
-            // debugger;
-
-            var url = urlOrElt;
-
-            if (typeof urlOrElt === 'string') {
-                this.backend.load(url, this.mediaContainer, peaks, preload);
-            } else {
-                var elt = urlOrElt;
-                this.backend.loadElt(elt, peaks);
-
-                // If peaks are not provided,
-                // url = element.src so we can get peaks with web audio
-                url = elt.src;
-            }
-
-            this.tmpEvents.push(this.backend.once('canplay', function () {
-                _this12.drawBuffer(1);
-                _this12.fireEvent('ready');
-                _this12.isReady = true;
-            }), this.backend.once('error', function (err) {
-                return _this12.fireEvent('error', err);
-            }));
-
-            // If no pre-decoded peaks provided or pre-decoded peaks are
-            // provided with forceDecode flag, attempt to download the
-            // audio file and decode it with Web Audio.
-            if (peaks) {
-                this.backend.setPeaks(peaks, duration);
-            }
-
-            if ((!peaks || this.params.forceDecode) && this.backend.supportsWebAudio()) {
-                this.getArrayBuffer(url, function (arraybuffer) {
-                    _this12.decodeArrayBuffer(arraybuffer, function (buffer) {
-                        _this12.backend.buffer = buffer;
-                        _this12.backend.setPeaks(null);
-                        if (_this12.backend.schedulePeakPyramid) {
-                            _this12.backend.schedulePeakPyramid();
-                        }
-                        _this12.drawBuffer(1);
-                        _this12.fireEvent('waveform-ready');
-                    });
-                });
             }
         }
 
@@ -5064,60 +3953,6 @@ var WaveSurfer = function (_util$Observer) {
                 percentComplete = e.loaded / (e.loaded + 1000000);
             }
             this.fireEvent('loading', Math.round(percentComplete * 100), e.target);
-        }
-
-        /**
-         * Exports PCM data into a JSON array and opens in a new window.
-         *
-         * @param {number} length=1024 The scale in which to export the peaks. (Integer)
-         * @param {number} accuracy=10000 (Integer)
-         * @param {?boolean} noWindow Set to true to disable opening a new
-         * window with the JSON
-         * @param {number} start
-         * @todo Update exportPCM to work with new getPeaks signature
-         * @return {string} JSON of peaks
-         */
-
-    }, {
-        key: 'exportPCM',
-        value: function exportPCM(length, accuracy, noWindow, start) {
-            length = length || 1024;
-            start = start || 0;
-            accuracy = accuracy || 10000;
-            noWindow = noWindow || false;
-            var peaks = this.backend.getPeaks(length, start);
-            var arr = [].map.call(peaks, function (val) {
-                return Math.round(val * accuracy) / accuracy;
-            });
-            var json = JSON.stringify(arr);
-            if (!noWindow) {
-                window.open('data:application/json;charset=utf-8,' + encodeURIComponent(json));
-            }
-            return json;
-        }
-
-        /**
-         * Save waveform image as data URI.
-         *
-         * The default format is `image/png`. Other supported types are
-         * `image/jpeg` and `image/webp`.
-         *
-         * @param {string} format='image/png'
-         * @param {number} quality=1
-         * @return {string} data URI of image
-         */
-
-    }, {
-        key: 'exportImage',
-        value: function exportImage(format, quality) {
-            if (!format) {
-                format = 'image/png';
-            }
-            if (!quality) {
-                quality = 1;
-            }
-
-            return this.drawer.getImage(format, quality);
         }
 
         /**
@@ -5441,9 +4276,6 @@ var WebAudio = function (_util$Observer) {
         _this.analyser = null;
         /** @private */
         _this.buffer = null;
-        /** @private */
-        _this.filters = [];
-        /** @private */
         _this.gainNode1 = null;
         _this.gainNode2 = null;
         _this.splitterNode = null;
@@ -5508,72 +4340,11 @@ var WebAudio = function (_util$Observer) {
         /** @private */
 
     }, {
-        key: 'disconnectFilters',
-        value: function disconnectFilters() {
-            if (this.filters) {
-                this.filters.forEach(function (filter) {
-                    filter && filter.disconnect();
-                });
-                this.filters = null;
-                // Reconnect direct path
-                this.analyser.connect(this.mergerNode);
-            }
-        }
-
-        /** @private */
-
-    }, {
         key: 'setState',
         value: function setState(state) {
             if (this.state !== this.states[state]) {
                 this.state = this.states[state];
                 this.state.init.call(this);
-            }
-        }
-
-        /**
-         * Unpacked `setFilters()`
-         *
-         * @param {...AudioNode} filters
-         */
-
-    }, {
-        key: 'setFilter',
-        value: function setFilter() {
-            for (var _len = arguments.length, filters = Array(_len), _key = 0; _key < _len; _key++) {
-                filters[_key] = arguments[_key];
-            }
-
-            this.setFilters(filters);
-        }
-
-        /**
-         * Insert custom Web Audio nodes into the graph
-         *
-         * @param {AudioNode[]} filters Packed filters array
-         * @example
-         * const lowpass = wavesurfer.backend.ac.createBiquadFilter();
-         * wavesurfer.backend.setFilter(lowpass);
-         */
-
-    }, {
-        key: 'setFilters',
-        value: function setFilters(filters) {
-            // Remove existing filters
-            this.disconnectFilters();
-
-            // Insert filters if filter array not empty
-            if (filters && filters.length) {
-                this.filters = filters;
-
-                // Disconnect direct path before inserting filters
-                this.analyser.disconnect();
-
-                // Connect each filter in turn
-                filters.reduce(function (prev, curr) {
-                    prev.connect(curr);
-                    return curr;
-                }, this.analyser).connect(this.gainNode1);
             }
         }
 
@@ -5750,70 +4521,6 @@ var WebAudio = function (_util$Observer) {
             this.mergerNode.connect (this.ac.destination);
         }
 
-        /**
-         * Set the sink id for the media player
-         *
-         * @param {string} deviceId String value representing audio device id.
-         */
-
-    }, {
-        key: 'setSinkId',
-        value: function setSinkId(deviceId) {
-            if (deviceId) {
-                /**
-                 * The webaudio api doesn't currently support setting the device
-                 * output. Here we create an HTMLAudioElement, connect the
-                 * webaudio stream to that element and setSinkId there.
-                 */
-                var audio = new window.Audio();
-                if (!audio.setSinkId) {
-                    return Promise.reject(new Error('setSinkId is not supported in your browser'));
-                }
-                audio.autoplay = true;
-                var dest = this.ac.createMediaStreamDestination();
-
-                // debugger; // ####
-                this.gainNode1.disconnect();
-                this.gainNode1.connect(dest);
-                this.gainNode2.disconnect();
-                this.gainNode2.connect(dest);
-                this.mergerNode.disconnect();
-                this.mergerNode.connect(dest);
-                this.splitterNode.disconnect();
-                this.splitterNode.connect(dest);
-
-                audio.src = URL.createObjectURL(dest.stream);
-
-                return audio.setSinkId(deviceId);
-            } else {
-                return Promise.reject(new Error('Invalid deviceId: ' + deviceId));
-            }
-        }
-
-        /**
-         * Set the audio volume
-         *
-         * @param {number} value A floating point value between 0 and 1.
-         */
-
-    }, {
-        key: 'setVolume',
-        value: function setVolume(value) {
-            this.gainNode1.gain.setValueAtTime (value, this.ac.currentTime);
-            this.gainNode2.gain.setValueAtTime (value, this.ac.currentTime);
-        }
-
-        /**
-         * Get the current volume
-         *
-         * @return {number} value A floating point value between 0 and 1.
-         */
-
-    }, {
-        key: 'getVolume',
-        value: function getVolume() {
-            return this.gainNode1.gain.value;
-        }
     }, {
         key: 'getLoudness',
         value: function getLoudness() {
@@ -6522,7 +5229,6 @@ var WebAudio = function (_util$Observer) {
             this.unAll();
             this.resetPeakPyramid();
             this.buffer = null;
-            this.disconnectFilters();
             this.disconnectSource();
             this.gainNode1.disconnect();
             this.gainNode2.disconnect();

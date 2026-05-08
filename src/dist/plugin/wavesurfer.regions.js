@@ -839,30 +839,6 @@ var RegionsPlugin = function () {
                 name: 'regions',
                 deferInit: params && params.deferInit ? params.deferInit : false,
                 params: params,
-                staticProps: {
-                    initRegions: function initRegions() {
-                        console.warn('Deprecated initRegions! Use wavesurfer.initPlugins("regions") instead!');
-                        this.initPlugin('regions');
-                    },
-                    addRegion: function addRegion(options) {
-                        if (!this.initialisedPluginList.regions) {
-                            this.initPlugin('regions');
-                        }
-                        return this.regions.add(options);
-                    },
-                    clearRegions: function clearRegions() {
-                        this.regions && this.regions.clear();
-                    },
-                    enableDragSelection: function enableDragSelection(options) {
-                        if (!this.initialisedPluginList.regions) {
-                            this.initPlugin('regions');
-                        }
-                        this.regions.enableDragSelection(options);
-                    },
-                    disableDragSelection: function disableDragSelection() {
-                        this.regions.disableDragSelection();
-                    }
-                },
                 instance: RegionsPlugin
             };
         }
