@@ -141,7 +141,7 @@
 			var audio_constraints = {
 				echoCancellation: true,
 				noiseSuppression: true,
-				autoGainControl: !!app.isMobile
+				autoGainControl: true
 			};
 			navigator.mediaDevices.getUserMedia ({
 				audio: audio_constraints,
