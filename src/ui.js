@@ -1819,15 +1819,22 @@
 		q.on = false;
 		q.height = 130;
 
+		q.SetHeight = function ( height ) {
+			q.height = height;
+			if (q.on) bar_bottom_el.style.height = height + 'px';
+		};
+
 		q.Show = function () {
 			q.on = true;
 			bar_bottom_el.style.display = 'block';
+			bar_bottom_el.style.height = q.height + 'px';
 
 			app.fireEvent ('RequestResize');
 		};
 		q.Hide = function () {
 			q.on = false;
 			bar_bottom_el.style.display = 'none';
+			bar_bottom_el.style.height = '0';
 
 			app.fireEvent ('RequestResize');
 		};

@@ -19,10 +19,9 @@
 	    background: #eaeaea;
 	    left:auto;
 	    border-radius:4px;
-		font-family: sans-serif;
-	    font-size: 9px;
-	    width: 82px;
-	    line-height: 20px;
+		color:#111;
+		font:9px/20px Arial,sans-serif;
+	    width: auto;
 	    padding: 0 6px;
 	    text-align: center;
 	    opacity:0.9;
@@ -33,12 +32,16 @@
 		top:12px;
 	}
 
+	#d{
+		min-width:40px;
+	}
+
 	.b #e, .b #f{
 		display:block;
 	}
 
 	#e{
-		right: 106px;
+		right: 68px;
 	    width: 10px;
 	    line-height: 20px;
 	    padding: 0px 6px;
@@ -73,7 +76,7 @@
 	<canvas id="fr" width="600" height="188" style="width:100%;height:100%;display:block"></canvas>
 	<div>FREQUENCY ANALYSER</div>
 
-	<a id="d" onclick="dock()">DOCK INTERFACE</a>
+	<a id="d" onclick="dock()">DOCK</a>
 	<a id="e" onclick="remove()">X</a>
 	<a id="f" onmousedown="return drag(event)"></a>
 
@@ -87,6 +90,7 @@
 		w.remove = function (){};
 		if (iframe) {
 			d.body.className = 'b';
+			d.getElementById ('d').textContent = 'UNDOCK';
 			w.remove = function () {
 				w.parent.PKAudioEditor.ui.Dock ('RequestShowFreqAn', 'eq', [1, 1]);
 			};

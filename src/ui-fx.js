@@ -2198,7 +2198,7 @@
 
 		var resizeDock = function () {
 			if (!app.ui || !app.ui.BarBtm) return ;
-			app.ui.BarBtm.height = eq_win.mix && eq_win.mix.type === 1 ? mix_dock_h + 30 : 130;
+			app.ui.BarBtm.SetHeight (eq_win.mix && eq_win.mix.type === 1 ? mix_dock_h + 30 : 130);
 			app.fireEvent ('RequestResize');
 		};
 
