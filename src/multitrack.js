@@ -17,7 +17,7 @@
 		var max_track_h = 240;
 		var px_per_sec = 86;
 		var snap_px = 9;
-		var beat_snap_px = 5;
+		var beat_snap_px = 4;
 		var region_snap_px = 5;
 		var row_h = default_row_h;
 		var clip_min_w = app.isMobile ? 24 : 36;
@@ -1048,10 +1048,11 @@
 				lanes.appendChild ( beat_canvas );
 			}
 
+			var track_h = trackerHeight ( lanes.offsetHeight || tracksHeight () );
 			var left = main.scrollLeft >> 0;
-			var top = main.scrollTop >> 0;
 			var width = Math.max (1, main.clientWidth);
-			var height = Math.max (1, main.clientHeight - 24);
+			var height = Math.min (Math.max (1, main.clientHeight - 24), Math.max (1, track_h));
+			var top = Math.max (0, Math.min (main.scrollTop >> 0, Math.max (0, track_h - height)));
 			var ratio = Math.min (2, w.devicePixelRatio || 1);
 			var beat_px = beatStep () * px_per_sec;
 			var bar = beatBar ();
@@ -1081,21 +1082,21 @@
 			ctx.beginPath ();
 			for (; n <= last; n += step) {
 				if (n % bar === 0) continue;
-				var x = Math.round (n * beat_px - left) + 0.5;
+				var x = ((n * beat_px - left) >> 0) + 0.5;
 				ctx.moveTo (x, 0);
 				ctx.lineTo (x, height);
 			}
-			ctx.strokeStyle = 'rgba(90,242,255,.15)';
+			ctx.strokeStyle = 'rgba(90,242,255,.09)';
 			ctx.stroke ();
 
 			n = first - (first % bar);
 			ctx.beginPath ();
 			for (; n <= last; n += bar) {
-				x = Math.round (n * beat_px - left) + 0.5;
+				x = ((n * beat_px - left) >> 0) + 0.5;
 				ctx.moveTo (x, 0);
 				ctx.lineTo (x, height);
 			}
-			ctx.strokeStyle = 'rgba(240,216,120,.34)';
+			ctx.strokeStyle = 'rgba(240,216,120,.22)';
 			ctx.stroke ();
 		}
 
@@ -1875,13 +1876,15 @@
 			if (!lane) return ;
 
 			var has_xf = clipHasXfade ( clip );
+			var track = findTrack ( clip.track );
 			var cw = Math.max (clip_min_w, (clipLen ( clip ) * px_per_sec) >> 0);
-			var ch = Math.max (30, trackHeight ( findTrack ( clip.track ) ) - 16);
+			var ch = Math.max (30, trackHeight ( track ) - 16);
 			var ce = d.createElement ('div');
 			var tc = trackColor ( clip.track );
 			ce.className = 'pk_mt_clip' +
 				(clip.id === selected_clip ? ' pk_mt_clip_sel' : '') +
-				(has_xf ? ' pk_mt_clip_xf' : '');
+				(has_xf ? ' pk_mt_clip_xf' : '') +
+				(track && track.mute ? ' pk_mt_clip_muted' : '');
 			ce.setAttribute ('data-clip', clip.id);
 			ce.style.left = ((clip.start * px_per_sec) >> 0) + 'px';
 			ce.style.width = cw + 'px';
@@ -2639,7 +2642,7 @@
 				var len = clipLen ( clip );
 				if (stick_edge) {
 					var raw = stick_edge < 0 ? ns_raw : ns_raw + len;
-					if (Math.abs (raw - stick_t) < snap_px / px_per_sec) raw = stick_t;
+					if (Math.abs (raw - stick_t) < snapHoldLimit ( stick_t )) raw = stick_t;
 					else { stick_edge = 0; stick_t = null; }
 					if (stick_edge) ns = stick_edge < 0 ? raw : raw - len;
 				}
@@ -3012,6 +3015,15 @@
 				if (dlt < Math.min (lim, beat_snap_px / px_per_sec)) best = val;
 			}
 			return Math.max (0, best);
+		}
+
+		function snapHoldLimit ( t ) {
+			if (beat_on && beat_snap) {
+				var beat = beatStep ();
+				if (Math.abs (Math.round (t / beat) * beat - t) < 0.000001)
+					return beat_snap_px / px_per_sec;
+			}
+			return snap_px / px_per_sec;
 		}
 
 		function snapPassTime ( t, from, e, skip, flags ) {
@@ -4752,10 +4764,14 @@
 		}
 
 		function resizeTrackers ( height ) {
-			height = Math.max (height || 0, main ? main.clientHeight - 24 : 0);
+			height = trackerHeight ( height );
 			if (playhead) playhead.style.height = height + 'px';
 			if (marker_el) marker_el.style.height = height + 'px';
 			if (region_el) region_el.style.height = height + 'px';
+		}
+
+		function trackerHeight ( height ) {
+			return Math.max (height || 0, main ? main.clientHeight - 24 : 0);
 		}
 
 		function totalPixels () {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiomass-production-v22';
+const CACHE_NAME = 'audiomass-production-v26';
 const assets = [
 	'./',
 	'./manifest.json',
@@ -30,7 +30,7 @@ self.addEventListener( 'install', function ( event ) {
 	event.waitUntil(( async function () {
 		const cache = await caches.open( CACHE_NAME );
 		await Promise.all( assets.map( function ( asset ) {
-			return cache.add( asset ).catch( function () {
+			return cache.add( new Request ( asset, { cache: 'reload' } ) ).catch( function () {
 				console.warn( '[SW] Could not cache:', asset );
 			});
 		}));
