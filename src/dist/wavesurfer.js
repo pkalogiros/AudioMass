@@ -202,83 +202,6 @@ return /******/ (function(modules) { // webpackBootstrap
 /************************************************************************/
 /******/ ({
 
-/***/ "./node_modules/debounce/index.js":
-/*!****************************************!*\
-  !*** ./node_modules/debounce/index.js ***!
-  \****************************************/
-/*! no static exports found */
-/***/ (function(module, exports) {
-
-/**
- * Returns a function, that, as long as it continues to be invoked, will not
- * be triggered. The function will be called after it stops being called for
- * N milliseconds. If `immediate` is passed, trigger the function on the
- * leading edge, instead of the trailing. The function also has a property 'clear' 
- * that is a function which will clear the timer to prevent previously scheduled executions. 
- *
- * @source underscore.js
- * @see http://unscriptable.com/2009/03/20/debouncing-javascript-methods/
- * @param {Function} function to wrap
- * @param {Number} timeout in ms (`100`)
- * @param {Boolean} whether to execute at the beginning (`false`)
- * @api public
- */
-
-module.exports = function debounce(func, wait, immediate){
-  var timeout, args, context, timestamp, result;
-  if (null == wait) wait = 100;
-
-  function later() {
-    var last = Date.now() - timestamp;
-
-    if (last < wait && last >= 0) {
-      timeout = setTimeout(later, wait - last);
-    } else {
-      timeout = null;
-      if (!immediate) {
-        result = func.apply(context, args);
-        context = args = null;
-      }
-    }
-  };
-
-  var debounced = function(){
-    context = this;
-    args = arguments;
-    timestamp = Date.now();
-    var callNow = immediate && !timeout;
-    if (!timeout) timeout = setTimeout(later, wait);
-    if (callNow) {
-      result = func.apply(context, args);
-      context = args = null;
-    }
-
-    return result;
-  };
-
-  debounced.clear = function() {
-    if (timeout) {
-      clearTimeout(timeout);
-      timeout = null;
-    }
-  };
-  
-  debounced.flush = function() {
-    if (timeout) {
-      result = func.apply(context, args);
-      context = args = null;
-      
-      clearTimeout(timeout);
-      timeout = null;
-    }
-  };
-
-  return debounced;
-};
-
-
-/***/ }),
-
 /***/ "./src/drawer.js":
 /*!***********************!*\
   !*** ./src/drawer.js ***!
@@ -1613,17 +1536,7 @@ var MultiCanvas = function (_Drawer) {
                     }
                     peaks = channels[0];
                 }
-                // calculate maximum modulation value, either from the barHeight
-                // parameter or if normalize=true from the largest value in the peak
-                // set
-                var absmax = 1 / _this7.params.barHeight;
-                absmax *= _this7.params.verticalZoom;
-
-                if (_this7.params.normalize) {
-                    var max = util.max(peaks);
-                    var min = util.min(peaks);
-                    absmax = -min > max ? -min : max;
-                }
+                var absmax = _this7.params.verticalZoom;
 
                 // Bar wave draws the bottom only as a reflection of the top,
                 // so we don't need negative values
@@ -1707,82 +1620,6 @@ module.exports = exports['default'];
 
 /***/ }),
 
-/***/ "./src/util/ajax.js":
-/*!**************************!*\
-  !*** ./src/util/ajax.js ***!
-  \**************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = ajax;
-
-var _observer = __webpack_require__(/*! ./observer */ "./src/util/observer.js");
-
-var _observer2 = _interopRequireDefault(_observer);
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/**
- * Perform an ajax request
- *
- * @param {Options} options Description
- *
- * @returns {Object} Observer instance
- */
-function ajax(options) {
-    var instance = new _observer2.default();
-    var xhr = new XMLHttpRequest();
-    var fired100 = false;
-    xhr.open(options.method || 'GET', options.url, true);
-    xhr.responseType = options.responseType || 'json';
-
-    if (options.xhr) {
-        if (options.xhr.requestHeaders) {
-            // add custom request headers
-            options.xhr.requestHeaders.forEach(function (header) {
-                xhr.setRequestHeader(header.key, header.value);
-            });
-        }
-        if (options.xhr.withCredentials) {
-            // use credentials
-            xhr.withCredentials = true;
-        }
-    }
-
-    xhr.addEventListener('progress', function (e) {
-        instance.fireEvent('progress', e);
-        if (e.lengthComputable && e.loaded == e.total) {
-            fired100 = true;
-        }
-    });
-    xhr.addEventListener('load', function (e) {
-        if (!fired100) {
-            instance.fireEvent('progress', e);
-        }
-        instance.fireEvent('load', e);
-        if (200 == xhr.status || 206 == xhr.status) {
-            instance.fireEvent('success', xhr.response, e);
-        } else {
-            instance.fireEvent('error', e);
-        }
-    });
-    xhr.addEventListener('error', function (e) {
-        return instance.fireEvent('error', e);
-    });
-    xhr.send();
-    instance.xhr = xhr;
-    return instance;
-}
-module.exports = exports['default'];
-
-/***/ }),
-
 /***/ "./src/util/extend.js":
 /*!****************************!*\
   !*** ./src/util/extend.js ***!
@@ -1818,18 +1655,6 @@ function extend(dest) {
     return dest;
 }
 module.exports = exports["default"];
-
-/***/ }),
-
-/***/ "./src/util/frame.js":
-/*!***************************!*\
-  !*** ./src/util/frame.js ***!
-  \***************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
 
 /***/ }),
 
@@ -1873,39 +1698,12 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 
-var _ajax = __webpack_require__(/*! ./ajax */ "./src/util/ajax.js");
-
-Object.defineProperty(exports, 'ajax', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_ajax).default;
-  }
-});
-
 var _getId = __webpack_require__(/*! ./get-id */ "./src/util/get-id.js");
 
 Object.defineProperty(exports, 'getId', {
   enumerable: true,
   get: function get() {
     return _interopRequireDefault(_getId).default;
-  }
-});
-
-var _max = __webpack_require__(/*! ./max */ "./src/util/max.js");
-
-Object.defineProperty(exports, 'max', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_max).default;
-  }
-});
-
-var _min = __webpack_require__(/*! ./min */ "./src/util/min.js");
-
-Object.defineProperty(exports, 'min', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_min).default;
   }
 });
 
@@ -1936,33 +1734,6 @@ Object.defineProperty(exports, 'style', {
   }
 });
 
-var _requestAnimationFrame = __webpack_require__(/*! ./request-animation-frame */ "./src/util/request-animation-frame.js");
-
-Object.defineProperty(exports, 'requestAnimationFrame', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_requestAnimationFrame).default;
-  }
-});
-
-var _frame = __webpack_require__(/*! ./frame */ "./src/util/frame.js");
-
-Object.defineProperty(exports, 'frame', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_frame).default;
-  }
-});
-
-var _debounce = __webpack_require__(/*! debounce */ "./node_modules/debounce/index.js");
-
-Object.defineProperty(exports, 'debounce', {
-  enumerable: true,
-  get: function get() {
-    return _interopRequireDefault(_debounce).default;
-  }
-});
-
 var _preventClick = __webpack_require__(/*! ./prevent-click */ "./src/util/prevent-click.js");
 
 Object.defineProperty(exports, 'preventClick', {
@@ -1973,72 +1744,6 @@ Object.defineProperty(exports, 'preventClick', {
 });
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-/***/ }),
-
-/***/ "./src/util/max.js":
-/*!*************************!*\
-  !*** ./src/util/max.js ***!
-  \*************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = max;
-/**
- * Get the largest value
- *
- * @param   {Array} values Array of numbers
- * @returns {Number} Largest number found
- */
-function max(values) {
-    var largest = -Infinity;
-    Object.keys(values).forEach(function (i) {
-        if (values[i] > largest) {
-            largest = values[i];
-        }
-    });
-    return largest;
-}
-module.exports = exports["default"];
-
-/***/ }),
-
-/***/ "./src/util/min.js":
-/*!*************************!*\
-  !*** ./src/util/min.js ***!
-  \*************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-exports.default = min;
-/**
- * Get the smallest value
- *
- * @param   {Array} values Array of numbers
- * @returns {Number}       Smallest number found
- */
-function min(values) {
-    var smallest = Number(Infinity);
-    Object.keys(values).forEach(function (i) {
-        if (values[i] < smallest) {
-            smallest = values[i];
-        }
-    });
-    return smallest;
-}
-module.exports = exports["default"];
 
 /***/ }),
 
@@ -2246,34 +1951,6 @@ module.exports = exports['default'];
 
 /***/ }),
 
-/***/ "./src/util/request-animation-frame.js":
-/*!*********************************************!*\
-  !*** ./src/util/request-animation-frame.js ***!
-  \*********************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-
-Object.defineProperty(exports, "__esModule", {
-    value: true
-});
-
-/**
- * Returns the requestAnimationFrame function for the browser, or a shim with
- * setTimeout if none is found
- *
- * @return {function}
- */
-exports.default = (window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || window.oRequestAnimationFrame || window.msRequestAnimationFrame || function (callback, element) {
-    return setTimeout(callback, 1000 / 60);
-}).bind(window);
-
-module.exports = exports["default"];
-
-/***/ }),
-
 /***/ "./src/util/style.js":
 /*!***************************!*\
   !*** ./src/util/style.js ***!
@@ -2451,67 +2128,6 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
  */
 
 /**
- * @interface PluginClass
- *
- * @desc This is the interface which is implemented by all plugin classes. Note
- * that this only turns into an observer after being passed through
- * `wavesurfer.addPlugin`.
- *
- * @extends {Observer}
- */
-var PluginClass = function () {
-    _createClass(PluginClass, [{
-        key: 'create',
-
-        /**
-         * Plugin definition factory
-         *
-         * This function must be used to create a plugin definition which can be
-         * used by wavesurfer to correctly instantiate the plugin.
-         *
-         * @param  {Object} params={} The plugin params (specific to the plugin)
-         * @return {PluginDefinition} an object representing the plugin
-         */
-        value: function create(params) {}
-        /**
-         * Construct the plugin
-         *
-         * @param {Object} ws The wavesurfer instance
-         * @param {Object} params={} The plugin params (specific to the plugin)
-         */
-
-    }]);
-
-    function PluginClass(ws, params) {
-        _classCallCheck(this, PluginClass);
-    }
-    /**
-     * Initialise the plugin
-     *
-     * Start doing something. This is called by
-     * `wavesurfer.initPlugin(pluginName)`
-     */
-
-
-    _createClass(PluginClass, [{
-        key: 'init',
-        value: function init() {}
-        /**
-         * Destroy the plugin instance
-         *
-         * Stop doing something. This is called by
-         * `wavesurfer.destroyPlugin(pluginName)`
-         */
-
-    }, {
-        key: 'destroy',
-        value: function destroy() {}
-    }]);
-
-    return PluginClass;
-}();
-
-/**
  * WaveSurfer core library class
  *
  * @extends {Observer}
@@ -2604,8 +2220,6 @@ var WaveSurfer = function (_util$Observer) {
             audioRate: 1,
             autoCenter: true,
             backend: 'WebAudio',
-            barHeight: 1,
-            barGap: null,
             container: null,
             cursorColor: '#ff8c35',
             cursorWidth: 1,
@@ -2614,21 +2228,15 @@ var WaveSurfer = function (_util$Observer) {
             height: 128,
             hideScrollbar: false,
             interact: true,
-            loopSelection: true,
             maxCanvasWidth: 4000,
-            minPxPerSec: 20,
-            normalize: false,
             pixelRatio: window.devicePixelRatio || screen.deviceXDPI / screen.logicalXDPI,
             plugins: [],
             progressColor: 'rgba(201,199,229,0.24)',
             renderer: _drawer2.default,
-            responsive: false,
             scrollParent: false,
-            skipLength: 2,
             splitChannels: false,
             waveColor: '#99c2c6',
             waveDisabledColor: '#505253',
-            xhr: {},
             limits:1,
             timeline:1,
             verticalZoom:1
@@ -2666,15 +2274,8 @@ var WaveSurfer = function (_util$Observer) {
         _this.isMuted = false;
 
         /**
-         * @private Will hold a list of event descriptors that need to be
-         * cancelled on subsequent loads of audio
-         * @type {Object[]}
-         */
-        _this.tmpEvents = [];
-
-        /**
          * @private Holds any running audio downloads
-         * @type {Observer}
+         * @type {XMLHttpRequest}
          */
         _this.currentAjax = null;
         _this.bid = {};
@@ -2705,17 +2306,6 @@ var WaveSurfer = function (_util$Observer) {
         _this.isDestroyed = false;
         /** @private */
         _this.isReady = false;
-
-        // responsive debounced event listener. If this.params.responsive is not
-        // set, this is never called. Use 100ms or this.params.responsive as
-        // timeout for the debounce function.
-        var prevWidth = 0;
-        _this._onResize = util.debounce(function () {
-            if (prevWidth != _this.drawer.wrapper.clientWidth && !_this.params.scrollParent) {
-                prevWidth = _this.drawer.wrapper.clientWidth;
-                _this.drawer.fireEvent('redraw');
-            }
-        }, typeof _this.params.responsive === 'number' ? _this.params.responsive : 100);
 
         // non-active cursor (in seconds)
         _this.ActiveMarker = 0;
@@ -2934,11 +2524,6 @@ var WaveSurfer = function (_util$Observer) {
             this.on ('resize', function (){
                 _this5.drawer.fireEvent('resize');
             });
-
-            if (this.params.responsive !== false) {
-                window.addEventListener('resize', this._onResize, true);
-                window.addEventListener('orientationchange', this._onResize, true);
-            }
 
             this.drawer.on('redraw', function () {
                 _this5.drawBuffer();
@@ -3462,7 +3047,7 @@ var WaveSurfer = function (_util$Observer) {
     }, {
         key: 'skipBackward',
         value: function skipBackward(seconds) {
-            this.skip(-seconds || -this.params.skipLength);
+            this.skip(-seconds || -2);
         }
 
         /**
@@ -3476,7 +3061,7 @@ var WaveSurfer = function (_util$Observer) {
     }, {
         key: 'skipForward',
         value: function skipForward(seconds) {
-            this.skip(seconds || this.params.skipLength);
+            this.skip(seconds || 2);
         }
 
         /**
@@ -3691,23 +3276,7 @@ var WaveSurfer = function (_util$Observer) {
 
     }, {
         key: 'zoom',
-        value: function zoom(pxPerSec) {
-            return;
-
-            if (!pxPerSec) {
-                this.params.minPxPerSec = this.defaultParams.minPxPerSec;
-                this.params.scrollParent = false;
-            } else {
-                this.params.minPxPerSec = pxPerSec;
-                this.params.scrollParent = true;
-            }
-
-            this.drawBuffer();
-            this.drawer.progress(this.backend.getPlayedPercents());
-
-            this.drawer.recenter(this.getCurrentTime() / this.getDuration());
-            this.fireEvent('zoom', pxPerSec);
-        }
+        value: function zoom() {}
 
         /**
          * Decode buffer and load
@@ -3804,9 +3373,9 @@ var WaveSurfer = function (_util$Observer) {
 
     }, {
         key: 'load',
-        value: function load(url, peaks, preload, duration) {
+        value: function load(url) {
             this.empty();
-            return this.loadBuffer(url, peaks, duration);
+            return this.loadBuffer(url);
         }
 
         /**
@@ -3820,25 +3389,12 @@ var WaveSurfer = function (_util$Observer) {
 
     }, {
         key: 'loadBuffer',
-        value: function loadBuffer(url, peaks, duration) {
+        value: function loadBuffer(url) {
             var _this11 = this;
 
-            var load = function load(action) {
-                if (action) {
-                    _this11.tmpEvents.push(_this11.once('ready', action));
-                }
-                return _this11.getArrayBuffer(url, function (data) {
-                    return _this11.loadArrayBuffer(data);
-                });
-            };
-
-            if (peaks) {
-                this.backend.setPeaks(peaks, duration);
-                this.drawBuffer(1);
-                this.tmpEvents.push(this.once('interaction', load));
-            } else {
-                return load();
-            }
+            return _this11.getArrayBuffer(url, function (data) {
+                return _this11.loadArrayBuffer(data);
+            });
         }
 
         /**
@@ -3907,30 +3463,40 @@ var WaveSurfer = function (_util$Observer) {
         key: 'getArrayBuffer',
         value: function getArrayBuffer(url, callback) {
             var _this14 = this;
+            var xhr = new XMLHttpRequest();
+            var fired100 = false;
 
-            var ajax = util.ajax({
-                url: url,
-                responseType: 'arraybuffer',
-                xhr: this.params.xhr
-            });
-
-            this.currentAjax = ajax;
-
-            this.tmpEvents.push(ajax.on('progress', function (e) {
+            xhr.open('GET', url, true);
+            xhr.responseType = 'arraybuffer';
+            xhr.onprogress = function (e) {
                 _this14.onProgress(e);
-            }), ajax.on('success', function (data, e) {
-                callback(data);
+                if (e.lengthComputable && e.loaded == e.total) {
+                    fired100 = true;
+                }
+            };
+            xhr.onload = function (e) {
+                if (!fired100) {
+                    _this14.onProgress(e);
+                }
+                if (200 == xhr.status || 206 == xhr.status) {
+                    callback(xhr.response);
+                } else {
+                    _this14.fireEvent('error', 'Could not load remote URL. Make sure the url exists, is a valid audio file,<br /> ' +
+                        ' or that is supports Cross Origin requests (Access-Control-Allow-Origin header) <br />' + xhr.statusText);
+                    PKAudioEditor.fireEvent('RequestResize');
+                }
                 _this14.currentAjax = null;
-            }), ajax.on('error', function (e) {
-                _this14.fireEvent('error', 'Could not load remote URL. Make sure the url exists, is a valid audio file,<br /> ' + 
-                    ' or that is supports Cross Origin requests (Access-Control-Allow-Origin header) <br />' + e.target.statusText);
+            };
+            xhr.onerror = function () {
+                _this14.fireEvent('error', 'Could not load remote URL. Make sure the url exists, is a valid audio file,<br /> ' +
+                    ' or that is supports Cross Origin requests (Access-Control-Allow-Origin header) <br />' + xhr.statusText);
                 _this14.currentAjax = null;
+                PKAudioEditor.fireEvent('RequestResize');
+            };
 
-                // trigger resize
-                PKAudioEditor.fireEvent ('RequestResize');
-            }));
-
-            return ajax;
+            this.currentAjax = xhr;
+            xhr.send();
+            return xhr;
         }
 
         /**
@@ -3977,23 +3543,12 @@ var WaveSurfer = function (_util$Observer) {
         key: 'cancelAjax',
         value: function cancelAjax() {
             if (this.currentAjax) {
-                this.currentAjax.xhr.abort();
+                this.currentAjax.abort();
                 this.currentAjax = null;
 
                 return (true);
             }
             return (false);
-        }
-
-        /**
-         * @private
-         */
-    }, {
-        key: 'clearTmpEvents',
-        value: function clearTmpEvents() {
-            this.tmpEvents.forEach(function (e) {
-                return e.un();
-            });
         }
 
         /**
@@ -4008,7 +3563,6 @@ var WaveSurfer = function (_util$Observer) {
                 this.backend.disconnectSource();
             }
             this.cancelAjax();
-            this.clearTmpEvents();
             this.drawer.progress(0);
             this.drawer.setWidth(0);
 
@@ -4027,12 +3581,7 @@ var WaveSurfer = function (_util$Observer) {
             this.destroyAllPlugins();
             this.fireEvent('destroy');
             this.cancelAjax();
-            this.clearTmpEvents();
             this.unAll();
-            if (this.params.responsive !== false) {
-                window.removeEventListener('resize', this._onResize, true);
-                window.removeEventListener('orientationchange', this._onResize, true);
-            }
             this.backend.destroy();
             this.drawer.destroy();
             this.isDestroyed = true;
@@ -4047,63 +3596,6 @@ WaveSurfer.util = util;
 exports.default = WaveSurfer;
 
 
-if (!Array.prototype.copyWithin) {
-    Array.prototype.copyWithin = function (target, start /*, end*/) {
-        // Steps 1-2.
-        if (this == null) {
-            throw new TypeError('this is null or not defined');
-        }
-
-        var O = Object(this);
-
-        // Steps 3-5.
-        var len = O.length >>> 0;
-
-        // Steps 6-8.
-        var relativeTarget = target >> 0;
-
-        var to = relativeTarget < 0 ? Math.max(len + relativeTarget, 0) : Math.min(relativeTarget, len);
-
-        // Steps 9-11.
-        var relativeStart = start >> 0;
-
-        var from = relativeStart < 0 ? Math.max(len + relativeStart, 0) : Math.min(relativeStart, len);
-
-        // Steps 12-14.
-        var end = arguments[2];
-        var relativeEnd = end === undefined ? len : end >> 0;
-
-        var final = relativeEnd < 0 ? Math.max(len + relativeEnd, 0) : Math.min(relativeEnd, len);
-
-        // Step 15.
-        var count = Math.min(final - from, len - to);
-
-        // Steps 16-17.
-        var direction = 1;
-
-        if (from < to && to < from + count) {
-            direction = -1;
-            from += count - 1;
-            to += count - 1;
-        }
-
-        // Step 18.
-        while (count > 0) {
-            if (from in O) {
-                O[to] = O[from];
-            } else {
-                delete O[to];
-            }
-
-            from += direction;
-            to += direction;
-            count--;
-        }
-
-        // Step 19.
-        return O;
-    };
-}
 module.exports = exports['default'];
 
 
@@ -4130,8 +3622,6 @@ var _util = __webpack_require__(/*! ./util */ "./src/util/index.js");
 var util = _interopRequireWildcard(_util);
 
 function _interopRequireWildcard(obj) { if (obj && obj.__esModule) { return obj; } else { var newObj = {}; if (obj != null) { for (var key in obj) { if (Object.prototype.hasOwnProperty.call(obj, key)) newObj[key] = obj[key]; } } newObj.default = obj; return newObj; } }
-
-function _defineProperty(obj, key, value) { if (key in obj) { Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); } else { obj[key] = value; } return obj; }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -4218,8 +3708,6 @@ var WebAudio = function (_util$Observer) {
     }]);
 
     function WebAudio(params) {
-        var _this$stateBehaviors, _this$states;
-
         _classCallCheck(this, WebAudio);
 
         /** @private */
@@ -4227,40 +3715,6 @@ var WebAudio = function (_util$Observer) {
 
         _this.audioContext = null;
         _this.offlineAudioContext = null;
-        _this.stateBehaviors = (_this$stateBehaviors = {}, _defineProperty(_this$stateBehaviors, PLAYING, {
-            init: function init() {
-                this.addOnAudioProcess();
-            },
-            getPlayedPercents: function getPlayedPercents() {
-                var duration = this.getDuration();
-                return this.getCurrentTime() / duration || 0;
-            },
-            getCurrentTime: function getCurrentTime() {
-                return this.startPosition + this.getPlayedTime();
-            }
-        }), _defineProperty(_this$stateBehaviors, PAUSED, {
-            init: function init() {
-                this.removeOnAudioProcess();
-            },
-            getPlayedPercents: function getPlayedPercents() {
-                var duration = this.getDuration();
-                return this.getCurrentTime() / duration || 0;
-            },
-            getCurrentTime: function getCurrentTime() {
-                return this.startPosition;
-            }
-        }), _defineProperty(_this$stateBehaviors, FINISHED, {
-            init: function init() {
-                this.removeOnAudioProcess();
-                this.fireEvent('finish');
-            },
-            getPlayedPercents: function getPlayedPercents() {
-                return 1;
-            },
-            getCurrentTime: function getCurrentTime() {
-                return this.getDuration();
-            }
-        }), _this$stateBehaviors);
         _this.params = params;
         /** @private */
         _this.ac = params.audioContext || _this.getAudioContext();
@@ -4270,8 +3724,6 @@ var WebAudio = function (_util$Observer) {
         _this.startPosition = 0;
         /** @private  */
         _this.scheduledPause = null;
-        /** @private */
-        _this.states = (_this$states = {}, _defineProperty(_this$states, PLAYING, Object.create(_this.stateBehaviors[PLAYING])), _defineProperty(_this$states, PAUSED, Object.create(_this.stateBehaviors[PAUSED])), _defineProperty(_this$states, FINISHED, Object.create(_this.stateBehaviors[FINISHED])), _this$states);
         /** @private */
         _this.analyser = null;
         /** @private */
@@ -4333,7 +3785,7 @@ var WebAudio = function (_util$Observer) {
             this.createAnalyserNode();
 
             this.setState(PAUSED);
-            this.setPlaybackRate(this.params.audioRate);
+            this.playbackRate = this.params.audioRate || 1;
             this.setLength(0);
         }
 
@@ -4342,9 +3794,17 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'setState',
         value: function setState(state) {
-            if (this.state !== this.states[state]) {
-                this.state = this.states[state];
-                this.state.init.call(this);
+            if (this.state === state) {
+                return;
+            }
+            this.state = state;
+            if (state === PLAYING) {
+                this.addOnAudioProcess();
+            } else {
+                this.removeOnAudioProcess();
+                if (state === FINISHED) {
+                    this.fireEvent('finish');
+                }
             }
         }
 
@@ -4371,7 +3831,7 @@ var WebAudio = function (_util$Observer) {
 
             this.scriptNode.onaudioprocess = function ( ee ) {
                 // if not active remove...
-                if (!_this2.states[PLAYING])
+                if (_this2.state !== PLAYING)
                     return ;
 
                 /*
@@ -4434,12 +3894,11 @@ var WebAudio = function (_util$Observer) {
                 // this.peak_frequency = Math.max.apply( null, this.FreqArr );
                 if (time >= _this2.getDuration()) {
                     _this2.setState(FINISHED);
-                    _this2.states[PLAYING] = null;
 
                     _this2.fireEvent('pause', 'end');
                 } else if (time >= _this2.scheduledPause) {
                     _this2.pause();
-                } else if (_this2.state === _this2.states[PLAYING]) {
+                } else if (_this2.state === PLAYING) {
                     _this2.fireEvent('audioprocess', time, ee.timeStamp);
                 }
 
@@ -5203,7 +4662,8 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'getPlayedPercents',
         value: function getPlayedPercents() {
-            return this.state.getPlayedPercents.call(this);
+            var duration = this.getDuration();
+            return this.state === FINISHED ? 1 : this.getCurrentTime() / duration || 0;
         }
 
         /** @private */
@@ -5381,7 +4841,7 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'isPaused',
         value: function isPaused() {
-            return this.state !== this.states[PLAYING];
+            return this.state !== PLAYING;
         }
 
         /**
@@ -5432,7 +4892,7 @@ var WebAudio = function (_util$Observer) {
             this.startPosition = start;
             this.lastPlay = this.ac.currentTime;
 
-            if (this.state === this.states[FINISHED]) {
+            if (this.state === FINISHED) {
                 this.setState(PAUSED);
             }
 
@@ -5485,10 +4945,6 @@ var WebAudio = function (_util$Observer) {
                 this.ac.resume && this.ac.resume();
             }
 
-            if (!this.states[PLAYING])
-            {
-                _defineProperty(this.states, PLAYING, Object.create(this.stateBehaviors[PLAYING]));
-            }
             this.setState(PLAYING);
 
             this.fireEvent('play');
@@ -5501,7 +4957,7 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'pause',
         value: function pause() {
-            if (this.state === this.states[PAUSED]) return ;
+            if (this.state === PAUSED) return ;
 
             this.scheduledPause = null;
 
@@ -5527,39 +4983,12 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'getCurrentTime',
         value: function getCurrentTime() {
-            return this.state.getCurrentTime.call(this);
-        }
-
-        /**
-         * Returns the current playback rate. (0=no playback, 1=normal playback)
-         *
-         * @return {number}
-         */
-
-    }, {
-        key: 'getPlaybackRate',
-        value: function getPlaybackRate() {
-            return this.playbackRate;
-        }
-
-        /**
-         * Set the audio source playback rate.
-         *
-         * @param {number} value
-         */
-
-    }, {
-        key: 'setPlaybackRate',
-        value: function setPlaybackRate(value) {
-            value = value || 1;
-            if (this.isPaused()) {
-                this.playbackRate = value;
-            } else {
-                this.pause();
-                this.playbackRate = value;
-                this.play();
+            if (this.state === PLAYING) {
+                return this.startPosition + this.getPlayedTime();
             }
+            return this.state === FINISHED ? this.getDuration() : this.startPosition;
         }
+
     }]);
 
     return WebAudio;

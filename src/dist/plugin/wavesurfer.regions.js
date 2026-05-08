@@ -164,7 +164,6 @@ var Region = function () {
         this.render();
         this.wavesurfer.on('zoom', this._onRedraw);
         this.wavesurfer.on('redraw', this._onRedraw);
-        this.wavesurfer.fireEvent('region-created', this);
     }
 
     /* Update region params. */
@@ -224,29 +223,6 @@ var Region = function () {
             }
         }
 
-        /* Play the audio region. */
-
-    }, {
-        key: 'play',
-        value: function play() {
-            this.wavesurfer.play(this.start, this.end);
-            this.fireEvent('play');
-            this.wavesurfer.fireEvent('region-play', this);
-        }
-
-        /* Play the region in loop. */
-
-    }, {
-        key: 'playLoop',
-        value: function playLoop() {
-            var _this2 = this;
-
-            this.play();
-            this.once('out', function () {
-                return _this2.playLoop();
-            });
-        }
-
         /* Render a region as a DOM element. */
 
     }, {
@@ -254,7 +230,6 @@ var Region = function () {
         value: function render() {
             var regionEl = document.createElement('region');
             regionEl.className = 'wavesurfer-region';
-            regionEl.title = this.formatTime(this.start, this.end);
             regionEl.setAttribute('data-id', this.id);
 
             for (var attrname in this.attributes) {
@@ -294,15 +269,6 @@ var Region = function () {
             this.element = this.wrapper.appendChild(regionEl);
             this.updateRender();
             this.bindEvents(regionEl);
-        }
-    }, {
-        key: 'formatTime',
-        value: function formatTime(start, end) {
-            return (start == end ? [start] : [start, end]).map(function (time) {
-                return [Math.floor(time % 3600 / 60), // minutes
-                ('00' + Math.floor(time % 60)).slice(-2) // seconds
-                ].join(':');
-            }).join('-');
         }
     }, {
         key: 'getWidth',
@@ -351,8 +317,6 @@ var Region = function () {
                 for (var attrname in this.attributes) {
                     this.element.setAttribute('data-region-' + attrname, this.attributes[attrname]);
                 }
-
-                this.element.title = this.formatTime(this.start, this.end);
             }
         }
 
@@ -376,13 +340,11 @@ var Region = function () {
                     _this3.firedOut = true;
                     _this3.firedIn = false;
                     _this3.fireEvent('out');
-                    _this3.wavesurfer.fireEvent('region-out', _this3);
                 }
                 if (!_this3.firedIn && _this3.start <= time && _this3.end > time) {
                     _this3.firedIn = true;
                     _this3.firedOut = false;
                     _this3.fireEvent('in');
-                    _this3.wavesurfer.fireEvent('region-in', _this3);
                 }
             };
 
@@ -414,25 +376,21 @@ var Region = function () {
 
             this.element.addEventListener('mouseenter', function (e) {
                 _this4.fireEvent('mouseenter', e);
-                _this4.wavesurfer.fireEvent('region-mouseenter', _this4, e);
             });
 
             this.element.addEventListener('mouseleave', function (e) {
                 _this4.fireEvent('mouseleave', e);
-                _this4.wavesurfer.fireEvent('region-mouseleave', _this4, e);
             });
 
             this.element.addEventListener('click', function (e) {
                 e.preventDefault();
                 _this4.fireEvent('click', e);
-                _this4.wavesurfer.fireEvent('region-click', _this4, e);
             });
 
             this.element.addEventListener('dblclick', function (e) {
                 e.stopPropagation();
                 e.preventDefault();
                 _this4.fireEvent('dblclick', e);
-                _this4.wavesurfer.fireEvent('region-dblclick', _this4, e);
             });
 
             /* Drag or resize on mousemove. */
@@ -1244,29 +1202,6 @@ var RegionsPlugin = function () {
             this.fireEvent('disable-drag-selection');
         }
 
-        /* Get current region
-         *  The smallest region that contains the current time.
-         *  If several such regions exist, we take the first.
-         *  Return null if none exist. */
-
-    }, {
-        key: 'getCurrentRegion',
-        value: function getCurrentRegion() {
-            var _this9 = this;
-
-            var time = this.wavesurfer.getCurrentTime();
-            var min = null;
-            Object.keys(this.list).forEach(function (id) {
-                var cur = _this9.list[id];
-                if (cur.start <= time && cur.end >= time) {
-                    if (!min || cur.end - cur.start < min.end - min.start) {
-                        min = cur;
-                    }
-                }
-            });
-
-            return min;
-        }
     }]);
 
     return RegionsPlugin;
