@@ -336,9 +336,9 @@ var Drawer = function (_util$Observer) {
 
             var bbox = this.wrapper.getBoundingClientRect();
             this._bbox = bbox;
-            var nominalWidth = Math.max(1, bbox.width * this.params.pixelRatio || this.width || this.getWidth());
+            var nominalWidth = Math.max(1, bbox.width);
 
-            var progress = ((clientX - bbox.left) * this.params.pixelRatio) / Math.max(1, nominalWidth);
+            var progress = (clientX - bbox.left) / nominalWidth;
             return Math.max(0, Math.min(1, progress || 0));
         }
 
@@ -2551,12 +2551,12 @@ var WaveSurfer = function (_util$Observer) {
                             setTimeout(function () {
                                 var bbox = _this5.drawer.wrapper.getBoundingClientRect();
                                 _this5.drawer._bbox = bbox;
-                                var nominalWidth = Math.max(1, bbox.width * _this5.drawer.params.pixelRatio || _this5.drawer.width || _this5.drawer.getWidth());
+                                var nominalWidth = Math.max(1, bbox.width);
 
                                 var progress = 0;
                                 var xx = touch_pos.x - (window.pageXOffset || document.documentElement.scrollLeft);
 
-                                progress = ((xx - bbox.left) * _this5.drawer.params.pixelRatio) / Math.max(1, nominalWidth);
+                                progress = (xx - bbox.left) / nominalWidth;
                                 progress = Math.max(0, Math.min(1, progress || 0));
 
                                 var new_progress = (progress * _this5.VisibleDuration + _this5.LeftProgress) / _this5.getDuration();

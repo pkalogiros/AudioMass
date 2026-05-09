@@ -911,6 +911,8 @@
 			rec_el = null;
 			rec_canvas = null;
 			tracks_el.innerHTML = '';
+			if (beat_canvas && beat_canvas.parentNode)
+				beat_canvas.parentNode.removeChild ( beat_canvas );
 			lanes.innerHTML = '';
 			beat_canvas = null;
 
@@ -1042,10 +1044,10 @@
 				beat_canvas = null;
 				return ;
 			}
-			if (!beat_canvas || beat_canvas.parentNode !== lanes) {
+			if (!beat_canvas || beat_canvas.parentNode !== main) {
 				beat_canvas = d.createElement ('canvas');
 				beat_canvas.className = 'pk_mt_beatgrid';
-				lanes.appendChild ( beat_canvas );
+				main.appendChild ( beat_canvas );
 			}
 
 			var track_h = trackerHeight ( lanes.offsetHeight || tracksHeight () );
@@ -1062,7 +1064,7 @@
 
 			beat_canvas.style.display = 'block';
 			beat_canvas.style.left = left + 'px';
-			beat_canvas.style.top = top + 'px';
+			beat_canvas.style.top = (top + 24) + 'px';
 			beat_canvas.style.width = width + 'px';
 			beat_canvas.style.height = height + 'px';
 
