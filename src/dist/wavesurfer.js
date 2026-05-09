@@ -334,26 +334,12 @@ var Drawer = function (_util$Observer) {
 
             var clientX = (e.targetTouches && e.targetTouches[0]) ? e.targetTouches[0].clientX : e.clientX;
 
+            var bbox = this.wrapper.getBoundingClientRect();
+            this._bbox = bbox;
+            var nominalWidth = Math.max(1, bbox.width * this.params.pixelRatio || this.width || this.getWidth());
 
-            var bbox = this._bbox; // this.wrapper.getBoundingClientRect();
-
-            var nominalWidth = this.width;
-            var parentWidth = this.getWidth();
-
-            var progress = 0;
-
-            if (!this.params.fillParent && nominalWidth < parentWidth) {
-                progress = (clientX - bbox.left) * this.params.pixelRatio;
-                progress = progress || 0;
-
-                if (progress > 1) {
-                    progress = 1;
-                }
-            } else {
-                progress = (clientX - bbox.left) / this.width || 0;
-            }
-
-            return progress;
+            var progress = ((clientX - bbox.left) * this.params.pixelRatio) / Math.max(1, nominalWidth);
+            return Math.max(0, Math.min(1, progress || 0));
         }
 
         /**
@@ -2563,24 +2549,15 @@ var WaveSurfer = function (_util$Observer) {
                              || (Math.abs (last_touch_pos.x - touch_pos.x) < 20 &&  Math.abs (last_touch_pos.y - touch_pos.y) < 20) )
                         {
                             setTimeout(function () {
-                                var bbox = _this5.drawer._bbox; // _this5.drawer.wrapper.getBoundingClientRect();
-
-                                var nominalWidth = _this5.drawer.width;
-                                var parentWidth = _this5.drawer.getWidth();
+                                var bbox = _this5.drawer.wrapper.getBoundingClientRect();
+                                _this5.drawer._bbox = bbox;
+                                var nominalWidth = Math.max(1, bbox.width * _this5.drawer.params.pixelRatio || _this5.drawer.width || _this5.drawer.getWidth());
 
                                 var progress = 0;
                                 var xx = touch_pos.x - (window.pageXOffset || document.documentElement.scrollLeft);
 
-                                if (!_this5.drawer.params.fillParent && nominalWidth < parentWidth) {
-                                    progress = (xx - bbox.left) * _this5.drawer.params.pixelRatio;
-                                    progress = progress || 0;
-
-                                    if (progress > 1) {
-                                        progress = 1;
-                                    }
-                                } else {
-                                    progress = (xx - bbox.left) / nominalWidth || 0;
-                                }
+                                progress = ((xx - bbox.left) * _this5.drawer.params.pixelRatio) / Math.max(1, nominalWidth);
+                                progress = Math.max(0, Math.min(1, progress || 0));
 
                                 var new_progress = (progress * _this5.VisibleDuration + _this5.LeftProgress) / _this5.getDuration();
 
