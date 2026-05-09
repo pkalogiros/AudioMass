@@ -577,7 +577,7 @@
 				'<div class="pk_mt_main">' +
 					'<div class="pk_mt_ruler"></div>' +
 					'<div class="pk_mt_lanes"></div>' +
-					'<div class="pk_tmpMsg pk_mt_empty">Drag n drop an Audio File in this window, or click ' +
+					'<div class="pk_tmpMsg pk_mt_empty">Drag and Drop Audio Files in this window, or click ' +
 					'<a>here to use a sample</a></div>' +
 					'<div class="pk_mt_region wavesurfer-region"></div>' +
 					'<div class="pk_mt_playhead"></div>' +
