@@ -367,6 +367,7 @@ a{
 .pk_ftr .pk_btn.pk_inact:hover span,
 .pk_tb .pk_btn.pk_inact:hover span,
 .pk_mt_head button.pk_inact:hover span{visibility:hidden;opacity:0}
+.pk_mt_head .pk_mt_add span{left:0;transform:none}
 
 .pk_tb .pk_btn span{display:none}
 .pk_ttip{

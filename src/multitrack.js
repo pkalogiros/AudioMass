@@ -66,6 +66,7 @@
 		var skip_context = false;
 		var pan_dragged = false;
 		var published_duration = -1;
+		var touch_down_time = 0;
 
 		var el = null;
 		var side = null;
@@ -2016,6 +2017,15 @@
 			return true;
 		}
 
+		function clearRegionForClipClick ( clip, e ) {
+			if (!region) return false;
+			if (clip && clip.id !== selected_clip) {
+				var at = timeFromEvent ( e );
+				if (at >= region.start && at < region.end) return false;
+			}
+			return clearRegion ();
+		}
+
 		function renderRegion () {
 			if (!region_el) return ;
 			if (!region) {
@@ -2313,6 +2323,7 @@
 				var clip_node = clipNodeFrom ( target );
 				var clip = clip_node && findClip ( clip_node.getAttribute ('data-clip') );
 				if (clip) {
+					clearRegionForClipClick ( clip, ev );
 					selectClip ( clip );
 					if (!ev.shiftKey) setClickTime ( snapTime ( timeFromEvent ( ev ), ev ), false );
 					return ;
@@ -2538,7 +2549,7 @@
 					}
 					return startRangeSelect ( e, function ( ev ) {
 						setClickTime ( snapTime ( timeFromEvent ( ev || e ), ev || e ), false );
-						clearRegion ();
+						clearRegionForClipClick ( clip, ev || e );
 						selectClip ( clip );
 					});
 				}
@@ -2571,6 +2582,7 @@
 				e.stopPropagation ();
 				return startRangeSelect ( e, function ( ev ) {
 					setCursorTime ( snapTime ( timeFromEvent ( ev ), ev ) );
+					clearRegionForClipClick ( clip, ev );
 					selectClip ( clip );
 				});
 			}
@@ -2694,7 +2706,7 @@
 
 				if (!e) return ;
 				if (!e.shiftKey) setClickTime ( snapTime ( timeFromEvent ( e ), e ), false );
-				if (!e._touch) clearRegion ();
+				clearRegionForClipClick ( clip, e );
 				selectClip ( clip );
 			}
 
@@ -2788,9 +2800,13 @@
 		}
 
 		function bindDown ( el, fn ) {
-			el.onmousedown = fn;
+			el.onmousedown = function ( e ) {
+				if (touch_down_time && w.performance.now () - touch_down_time < 700) return ;
+				return fn ( e );
+			};
 			el.addEventListener ('touchstart', function ( e ) {
 				if (e.touches.length !== 1) return ;
+				touch_down_time = w.performance.now ();
 				var ev = touchDragEvent ( e );
 				if (ev) fn ( ev );
 			}, {passive:false});
@@ -2816,6 +2832,7 @@
 			}
 
 			function touchEnd ( ev ) {
+				touch_down_time = w.performance.now ();
 				var t = touchDragEvent ( ev, true );
 				up ( t );
 			}
