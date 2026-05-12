@@ -103,13 +103,16 @@ window.addEventListener('load', async () => {
   const search = window.location.search;
   let fileUrl = null;
 
-  if (search.includes('file=')) {
-fileUrl = search.split('file=')[1];
+  try {
+    fileUrl = new URLSearchParams(search).get('file');
+  } catch (err) {
+    if (search.includes('file=')) {
+      fileUrl = search.split('file=')[1];
+    }
+  }
 
-// לא לעשות decodeURIComponent מלא כי זה הורס %2F של Firebase
-// נטפל רק במקרים של + כרווח (מגיע לפעמים ממערכות אחרות)
-fileUrl = fileUrl.replace(/\+/g, '%20');
-
+  if (fileUrl) {
+    fileUrl = fileUrl.replace(/\+/g, '%20');
   }
 
   if (!fileUrl) return;
