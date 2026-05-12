@@ -114,15 +114,45 @@ fileUrl = fileUrl.replace(/\+/g, '%20');
 
   if (!fileUrl) return;
 
-  try {
-    console.log('Loading audio file from URL:', fileUrl);
+  function getProxiedAudioUrl ( url ) {
+    try {
+      var parsed = new URL(url, window.location.href);
 
-    const response = await fetch(fileUrl);
+      if (parsed.origin === window.location.origin) {
+        return url;
+      }
+
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        return url;
+      }
+
+      return '/api/recording-proxy?url=' + encodeURIComponent(parsed.href);
+    } catch (err) {
+      return url;
+    }
+  }
+
+  async function fetchAudioBlob ( url ) {
+    var response = await fetch(url);
+
     if (!response.ok) {
       throw new Error('HTTP ' + response.status);
     }
 
-    const blob = await response.blob();
+    return response.blob();
+  }
+
+  try {
+    console.log('Loading audio file from URL:', fileUrl);
+
+    let blob;
+
+    try {
+      blob = await fetchAudioBlob(fileUrl);
+    } catch (directErr) {
+      console.warn('Direct audio fetch failed, trying proxy:', directErr);
+      blob = await fetchAudioBlob(getProxiedAudioUrl(fileUrl));
+    }
 
     const fileName = fileUrl.split('/').pop().split('?')[0] || 'audio.mp3';
     const file = new File([blob], fileName, { type: blob.type || 'audio/mpeg' });
