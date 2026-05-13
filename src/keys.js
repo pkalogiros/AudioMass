@@ -23,8 +23,15 @@
 		q.removeCallback = function ( callback_name ) {
 			q.callbacks[ callback_name ] = null;
 		};
-		
+
+		function isEditableTarget ( target ) {
+			var tagName = (target && target.tagName || '').toLowerCase ();
+			return tagName === 'input' || tagName === 'textarea' || tagName === 'select' ||
+				(target && target.isContentEditable);
+		}
+
 		d.addEventListener ('keydown', function ( e ) {
+			if (isEditableTarget (e.target)) return ;
 			var keyCode = e.keyCode;
 
 			q.keyDown (keyCode, e);
@@ -71,6 +78,7 @@
 		});
 
 		d.addEventListener ('keypress', function ( e ) {
+			if (isEditableTarget (e.target)) return ;
 			var keyCode = e.keyCode;
 
 			q.keyPress (keyCode, e);

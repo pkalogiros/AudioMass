@@ -267,8 +267,91 @@
 			loadDecoded ( uberSegment, originalBuffer );
 
 			return [
-				(_offset / originalBuffer.sampleRate), 
+				(_offset / originalBuffer.sampleRate),
 				(_offset / originalBuffer.sampleRate) + (new_len / originalBuffer.sampleRate)
+			];
+		};
+
+		function MuteRange ( _offset, _duration ) {
+			var originalBuffer = wavesurfer.backend.buffer;
+			var start = Math.max (0, ((_offset / 1) * originalBuffer.sampleRate) >> 0);
+			var len = Math.max (0, ((_duration / 1) * originalBuffer.sampleRate) >> 0);
+			var end = Math.min (originalBuffer.length, start + len);
+
+			var mutedBuffer = wavesurfer.backend.ac.createBuffer (
+				originalBuffer.numberOfChannels,
+				originalBuffer.length,
+				originalBuffer.sampleRate
+			);
+
+			for (var i = 0; i < originalBuffer.numberOfChannels; ++i) {
+				var originalData = originalBuffer.getChannelData (i);
+				var mutedData = mutedBuffer.getChannelData (i);
+				mutedData.set (originalData);
+
+				for (var j = start; j < end; ++j) {
+					mutedData[j] = 0;
+				}
+			}
+
+			loadDecoded (mutedBuffer, originalBuffer);
+
+			return [
+				start / originalBuffer.sampleRate,
+				end / originalBuffer.sampleRate
+			];
+		};
+
+		function CopyRangeData ( _offset, _duration ) {
+			var originalBuffer = wavesurfer.backend.buffer;
+			var start = Math.max (0, ((_offset / 1) * originalBuffer.sampleRate) >> 0);
+			var len = Math.max (0, ((_duration / 1) * originalBuffer.sampleRate) >> 0);
+			var end = Math.min (originalBuffer.length, start + len);
+			var channels = [];
+
+			for (var i = 0; i < originalBuffer.numberOfChannels; ++i) {
+				channels.push (originalBuffer.getChannelData (i).slice (start, end));
+			}
+
+			return {
+				startSample: start,
+				endSample: end,
+				sampleRate: originalBuffer.sampleRate,
+				numberOfChannels: originalBuffer.numberOfChannels,
+				channels: channels
+			};
+		};
+
+		function RestoreRange ( _offset, _duration, rangeData ) {
+			if (!rangeData || !rangeData.channels || !rangeData.channels.length) return null;
+
+			var originalBuffer = wavesurfer.backend.buffer;
+			var start = Math.max (0, ((_offset / 1) * originalBuffer.sampleRate) >> 0);
+			var restoredBuffer = wavesurfer.backend.ac.createBuffer (
+				originalBuffer.numberOfChannels,
+				originalBuffer.length,
+				originalBuffer.sampleRate
+			);
+
+			for (var i = 0; i < originalBuffer.numberOfChannels; ++i) {
+				var originalData = originalBuffer.getChannelData (i);
+				var restoredData = restoredBuffer.getChannelData (i);
+				var restoreChannel = rangeData.channels[i];
+				restoredData.set (originalData);
+
+				if (restoreChannel) {
+					restoredData.set (
+						restoreChannel.slice (0, Math.min (restoreChannel.length, originalBuffer.length - start)),
+						start
+					);
+				}
+			}
+
+			loadDecoded (restoredBuffer, originalBuffer);
+
+			return [
+				start / originalBuffer.sampleRate,
+				(start + rangeData.channels[0].length) / originalBuffer.sampleRate
 			];
 		};
 
@@ -1776,6 +1859,9 @@
 		this.ReplaceFloatArrays = ReplaceFloatArrays;
 		this.Replace = OverwriteBufferWithSegment;
 		this.FullReplace = OverwriteBuffer;
+		this.CopyRangeData = CopyRangeData;
+		this.RestoreRange = RestoreRange;
+		this.MuteRange = MuteRange;
 		this.MakeSilence = MakeSilenceBuffer;
 		this.DownloadFile = DownloadFile;
 		this.DownloadFileCancel = DownloadFileCancel;

@@ -174,6 +174,7 @@
 
 									app.fireEvent ('WillDownloadFile');
 									q.is_ready = false;
+									app.fireEvent ('DidLoadReviewFile', e.files[0]);
 									wavesurfer.loadBlob( e.files[0] );
 									app.fireEvent ('DidUnloadFile');
 									wavesurfer.regions && wavesurfer.regions.clear();
@@ -803,10 +804,10 @@
 		app.listenFor ('RequestRegionSet', function ( start, end ) {
 			if (!q.is_ready) return ;
 
-			if (!start) {
+			if (start === undefined || start === null) {
 				start =  wavesurfer.LeftProgress / 1;
 			}
-			if (!end) {
+			if (end === undefined || end === null) {
 				end = (wavesurfer.LeftProgress + wavesurfer.VisibleDuration) / 1;
 			}
 
@@ -1063,8 +1064,80 @@
 			});
 
 			app.fireEvent ('RequestSeekTo', (dims[0]/wavesurfer.getDuration()));
-			
+
 			OneUp ('Inserted Silence');
+		});
+
+		app.listenFor ('RequestActionMuteSelection', function () {
+			if (!q.is_ready) return ;
+
+			app.fireEvent ('RequestPause');
+
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				OneUp ('Select a range first', 1800);
+				return ;
+			}
+
+			var start = q.TrimTo (region.start, 3);
+			var duration = q.TrimTo ((region.end - region.start), 3);
+			if (duration <= 0) return ;
+			var restoreData = AudioUtils.CopyRangeData (start, duration);
+
+			app.fireEvent ('StateRequestPush', {
+				desc : 'Mute Selection',
+				meta : [ start, duration ],
+				data : wavesurfer.backend.buffer
+			});
+
+			var dims = AudioUtils.MuteRange (start, duration);
+
+			wavesurfer.regions.clear ();
+			wavesurfer.regions.add ({
+				start:dims[0],
+				end:dims[1],
+				id:'t'
+			});
+
+			app.fireEvent ('RequestSeekTo', (dims[0] / wavesurfer.getDuration ()));
+			app.fireEvent ('DidMuteSelection', {
+				start: dims[0],
+				end: dims[1],
+				restoreData: restoreData
+			});
+			OneUp ('Muted selected range');
+		});
+
+		app.listenFor ('RequestActionRestoreMutedSelection', function (payload) {
+			var start = payload && payload.start;
+			var end = payload && payload.end;
+			var restoreData = payload && payload.restoreData;
+			if (!q.is_ready || !restoreData) return ;
+
+			app.fireEvent ('RequestPause');
+
+			start = q.TrimTo (start, 3);
+			var duration = q.TrimTo ((end - start), 3);
+			if (duration <= 0) return ;
+
+			app.fireEvent ('StateRequestPush', {
+				desc : 'Restore Muted Selection',
+				meta : [ start, duration ],
+				data : wavesurfer.backend.buffer
+			});
+
+			var dims = AudioUtils.RestoreRange (start, duration, restoreData);
+			if (!dims) return ;
+
+			wavesurfer.regions.clear ();
+			wavesurfer.regions.add ({
+				start:dims[0],
+				end:dims[1],
+				id:'t'
+			});
+
+			app.fireEvent ('RequestSeekTo', (dims[0] / wavesurfer.getDuration ()));
+			OneUp ('Muted range restored');
 		});
 
 		app.listenFor ('RequestActionPaste', function () {
@@ -2778,8 +2851,14 @@
 				return (false);
 			} else {
 				app.fireEvent ('MouseDown');
-				app.fireEvent ('RequestChanToggle', 0, 1);
-				app.fireEvent ('RequestChanToggle', 1, 1);
+				var keep_sales_channels =
+					app.el.classList &&
+					app.el.classList.contains ('pk_sales_mode');
+
+				if (!keep_sales_channels) {
+					app.fireEvent ('RequestChanToggle', 0, 1);
+					app.fireEvent ('RequestChanToggle', 1, 1);
+				}
 			}
 		}, false);
 		wave.addEventListener ('mouseleave', function( e ) {

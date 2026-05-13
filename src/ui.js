@@ -9,7 +9,7 @@
 		this.el = app.el;
 
 		// if mobile add proper class
-		this.el.className += ' pk_app' + (app.isMobile ? ' pk_mob' : '');
+		this.el.className += ' pk_app pk_sales_mode' + (app.isMobile ? ' pk_mob' : '');
 		
 		// hold refferences to the event functions
 		this.fireEvent = app.fireEvent;
@@ -1723,8 +1723,27 @@
 		btn_panner_left.className = 'pk_pan_btn';
 		btn_panner_right.className = 'pk_pan_btn';
 
-		btn_panner_left.innerHTML = '<strong>L</strong> ON';
-		btn_panner_right.innerHTML = '<strong>R</strong> ON';
+		function getSalesChannelRoles () {
+			var roles = w.PKSalesChannelRoles;
+			if (!roles) {
+				try { roles = JSON.parse (w.localStorage.getItem ('am_channel_roles')); } catch (err) {}
+			}
+			if (!roles || !roles.left || !roles.right) roles = { left: 'נציג', right: 'לקוח' };
+			return roles;
+		}
+
+		function renderPanButton ( btn, label, active ) {
+			btn.innerHTML = '<strong>' + label + '</strong> ' + (active ? 'ON' : 'OFF');
+		}
+
+		function renderPannerRoles () {
+			var roles = getSalesChannelRoles ();
+			renderPanButton (btn_panner_left, roles.left, !btn_panner_left.classList.contains ('pk_inact'));
+			renderPanButton (btn_panner_right, roles.right, !btn_panner_right.classList.contains ('pk_inact'));
+		}
+
+		renderPannerRoles ();
+		w.addEventListener && w.addEventListener ('PKSalesChannelRolesChanged', renderPannerRoles);
 
 		panner_col_left.appendChild ( btn_panner_left );
 		panner_col_right.appendChild ( btn_panner_right );
@@ -1746,23 +1765,23 @@
 				if (val)
 				{
 					btn_panner_left.classList.remove ('pk_inact');
-					btn_panner_left.innerHTML = '<strong>L</strong> ON';
+					renderPanButton (btn_panner_left, getSalesChannelRoles ().left, true);
 				}
 				else
 				{
 					btn_panner_left.classList.add ('pk_inact');
-					btn_panner_left.innerHTML = '<strong>L</strong> OFF';
+					renderPanButton (btn_panner_left, getSalesChannelRoles ().left, false);
 				}
 			} else {
 				if (val)
 				{
 					btn_panner_right.classList.remove ('pk_inact');
-					btn_panner_right.innerHTML = '<strong>R</strong> ON';
+					renderPanButton (btn_panner_right, getSalesChannelRoles ().right, true);
 				}
 				else
 				{
 					btn_panner_right.classList.add ('pk_inact');
-					btn_panner_right.innerHTML = '<strong>R</strong> OFF';
+					renderPanButton (btn_panner_right, getSalesChannelRoles ().right, false);
 				}
 			}
 		});
@@ -2102,7 +2121,816 @@
 		});
 	}
 
-	
+
+	function _makeSalesReviewPanel ( UI ) {
+		var panel = d.createElement ('div');
+		panel.className = 'pk_sales_panel';
+
+		var speedValues = [1, 1.25, 1.5, 1.75, 2];
+		var markerTypes = ['רגע טוב', 'לשיפור', 'שאלת עומק', 'דיבור יתר', 'פספוס', 'הזדמנות'];
+		var currentSpeed = 1;
+		var currentRegion = null;
+		var markers = [];
+		var reviewAudioUrl = null;
+		var reviewAudioReady = false;
+		var syncingFromReviewAudio = false;
+		var reviewSyncFrame = 0;
+		var reviewAudioContext = null;
+		var reviewAudioSource = null;
+		var reviewAudioSplitter = null;
+		var reviewAudioMerger = null;
+		var reviewAudioGains = null;
+		var reviewChannelState = [1, 1];
+		var reviewMuteActive = false;
+		var markerButtons = [];
+		var customMarkerInput = null;
+		var customMarkerBtn = null;
+		var muteRestoreData = {};
+		var markerOverlay = null;
+		var markerColors = {
+			'רגע טוב': '#2fd17c',
+			'לשיפור': '#ffb347',
+			'שאלת עומק': '#6aa7ff',
+			'דיבור יתר': '#b589ff',
+			'פספוס': '#ff6b6b',
+			'הזדמנות': '#ffd43b',
+			'מושתק': '#f03e3e'
+		};
+
+		function storageGet ( key ) {
+			try { return w.localStorage && w.localStorage.getItem (key); }
+			catch (err) { return null; }
+		}
+
+		function storageSet ( key, value ) {
+			try { w.localStorage && w.localStorage.setItem (key, value); }
+			catch (err) {}
+		}
+
+		function getRecordingKey () {
+			var val = null;
+			try { val = new URLSearchParams (w.location.search).get ('file'); }
+			catch (err) {}
+			return 'am_sales_markers:' + (val || w.location.href);
+		}
+
+		function getRoleState () {
+			var raw = storageGet ('am_channel_roles');
+			var parsed = null;
+			try { parsed = raw && JSON.parse (raw); } catch (err) {}
+			if (!parsed || !parsed.left || !parsed.right) {
+				parsed = { left: 'נציג', right: 'לקוח' };
+			}
+			return parsed;
+		}
+
+		function setRoleState ( roles ) {
+			storageSet ('am_channel_roles', JSON.stringify (roles));
+			w.PKSalesChannelRoles = roles;
+			w.dispatchEvent && w.dispatchEvent (new CustomEvent ('PKSalesChannelRolesChanged', { detail: roles }));
+		}
+
+		function formatReviewTime ( time ) {
+			time = Math.max (0, time || 0);
+			var whole = time >> 0;
+			var ms = ((time - whole) * 1000) >> 0;
+			var m = (whole / 60) >> 0;
+			var s = whole % 60;
+			return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s + ':' +
+				(ms < 100 ? (ms < 10 ? '00' : '0') : '') + ms;
+		}
+
+		function getWavesurfer () {
+			return w.PKAudioEditor && w.PKAudioEditor.engine && w.PKAudioEditor.engine.wavesurfer;
+		}
+
+		function getActiveRegion () {
+			var ws = getWavesurfer ();
+			if (currentRegion) return currentRegion;
+			if (ws && ws.regions && ws.regions.list && ws.regions.list[0]) {
+				return ws.regions.list[0];
+			}
+			return null;
+		}
+
+		function getMarkerColor ( type ) {
+			return markerColors[type] || '#6aa7ff';
+		}
+
+		function notifySales ( msg ) {
+			if (w.OneUp) w.OneUp (msg, 1800);
+			else w.alert && w.alert (msg);
+		}
+
+		function markerStartTime ( marker ) {
+			if (isFinite (marker.start)) return marker.start;
+			if (isFinite (marker.time)) return marker.time;
+			return 0;
+		}
+
+		function isMutedReviewTime ( time ) {
+			for (var i = 0; i < markers.length; ++i) {
+				var marker = markers[i];
+				if (marker.type === '\u05de\u05d5\u05e9\u05ea\u05e7' && isFinite (marker.start) && isFinite (marker.end) &&
+					time >= marker.start && time <= marker.end) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		function updateReviewAudioGains () {
+			if (!reviewAudioGains) return ;
+			for (var i = 0; i < reviewAudioGains.length; ++i) {
+				var gain = reviewMuteActive ? 0 : (reviewChannelState[i] === 0 ? 0 : 1);
+				if (reviewAudioContext && reviewAudioGains[i].gain.setValueAtTime) {
+					reviewAudioGains[i].gain.setValueAtTime (gain, reviewAudioContext.currentTime);
+				} else {
+					reviewAudioGains[i].gain.value = gain;
+				}
+			}
+		}
+
+		function requestDownloadPassword ( onSuccess ) {
+			var existing = d.getElementsByClassName ('pk_sales_password_gate')[0];
+			if (existing) existing.parentNode.removeChild (existing);
+
+			var gate = d.createElement ('div');
+			gate.className = 'pk_sales_password_gate';
+			gate.innerHTML =
+				'<div class="pk_sales_password_box" dir="rtl">' +
+					'<label>סיסמה להורדה</label>' +
+					'<input type="password" autocomplete="off" />' +
+					'<div class="pk_sales_password_actions">' +
+						'<button type="button" class="pk_sales_password_ok">הורד</button>' +
+						'<button type="button" class="pk_sales_password_cancel">בטל</button>' +
+					'</div>' +
+				'</div>';
+			d.body.appendChild (gate);
+
+			var input = gate.getElementsByTagName ('input')[0];
+			var cleanup = function () {
+				if (gate.parentNode) gate.parentNode.removeChild (gate);
+			};
+			var submit = function () {
+				if (input.value === '112233') {
+					cleanup ();
+					onSuccess && onSuccess ();
+					return ;
+				}
+				cleanup ();
+				notifySales ('סיסמה שגויה. ההורדה בוטלה');
+			};
+
+			gate.getElementsByClassName ('pk_sales_password_ok')[0].onclick = submit;
+			gate.getElementsByClassName ('pk_sales_password_cancel')[0].onclick = cleanup;
+			input.onkeydown = function ( ev ) {
+				if (ev.key === 'Enter' || ev.keyCode === 13) submit ();
+				if (ev.key === 'Escape' || ev.keyCode === 27) cleanup ();
+			};
+			setTimeout (function () { input.focus (); }, 0);
+		}
+
+		function ensureMarkerOverlay () {
+			var ws = getWavesurfer ();
+			var wrapper = ws && ws.drawer && ws.drawer.wrapper;
+			if (!wrapper) return null;
+			if (markerOverlay && markerOverlay.parentNode === wrapper) return markerOverlay;
+
+			markerOverlay = d.createElement ('div');
+			markerOverlay.className = 'pk_sales_marker_overlay';
+			wrapper.appendChild (markerOverlay);
+			return markerOverlay;
+		}
+
+		function renderMarkerOverlays () {
+			var overlay = ensureMarkerOverlay ();
+			var ws = getWavesurfer ();
+			var duration = ws && ws.getDuration && ws.getDuration ();
+			if (!overlay || !duration) return ;
+
+			overlay.innerHTML = '';
+			var visibleStart = ws.LeftProgress || 0;
+			var visibleDuration = ws.VisibleDuration || duration;
+			var visibleEnd = visibleStart + visibleDuration;
+			var width = overlay.clientWidth || (ws.drawer.wrapper && ws.drawer.wrapper.clientWidth) || ws.drawer.width || 0;
+			if (!width) return ;
+
+			for (var i = 0; i < markers.length; ++i) {
+				var marker = markers[i];
+				if (!isFinite (marker.start) || !isFinite (marker.end)) continue;
+
+				var start = Math.max (marker.start, visibleStart);
+				var end = Math.min (marker.end, visibleEnd);
+				if (end <= visibleStart || start >= visibleEnd || end <= start) continue;
+
+				var el = d.createElement ('div');
+				var color = getMarkerColor (marker.type);
+				el.className = 'pk_sales_marker_range';
+				el.title = marker.type + ' · ' + formatReviewTime (marker.start) + ' - ' + formatReviewTime (marker.end);
+				el.style.left = (((start - visibleStart) / visibleDuration) * 100) + '%';
+				el.style.width = (((end - start) / visibleDuration) * 100) + '%';
+				el.style.backgroundColor = color;
+				el.style.borderColor = color;
+				overlay.appendChild (el);
+			}
+		}
+
+		function drawReviewWavePosition ( time ) {
+			var ws = getWavesurfer ();
+			var duration = ws && ws.getDuration && ws.getDuration ();
+			if (!ws || !duration || !ws.drawer || !ws.drawer.progress) return ;
+
+			var progress = Math.max (0, Math.min (0.999, time / duration));
+			ws.ActiveMarker = progress;
+			ws.drawer.progress (progress, ws.LeftProgress / duration, ws.ZoomFactor);
+		}
+
+		function applyPitchPreservation () {
+			reviewAudio.preservesPitch = true;
+			reviewAudio.mozPreservesPitch = true;
+			reviewAudio.webkitPreservesPitch = true;
+		}
+
+		function applyReviewChannelState ( chan, val ) {
+			reviewChannelState[chan] = val === 0 ? 0 : 1;
+			updateReviewAudioGains ();
+		}
+
+		function syncReviewChannelsFromWave () {
+			var ws = getWavesurfer ();
+			var active = ws && ws.ActiveChannels;
+			applyReviewChannelState (0, active && active.length > 0 ? active[0] : 1);
+			applyReviewChannelState (1, active && active.length > 1 ? active[1] : 1);
+		}
+
+		function ensureReviewAudioGraph () {
+			if (reviewAudioSource || !w.AudioContext && !w.webkitAudioContext) {
+				syncReviewChannelsFromWave ();
+				return ;
+			}
+
+			var AudioContextCtor = w.AudioContext || w.webkitAudioContext;
+			reviewAudioContext = new AudioContextCtor ();
+			reviewAudioSource = reviewAudioContext.createMediaElementSource (reviewAudio);
+			reviewAudioSplitter = reviewAudioContext.createChannelSplitter (2);
+			reviewAudioMerger = reviewAudioContext.createChannelMerger (2);
+			reviewAudioGains = [
+				reviewAudioContext.createGain (),
+				reviewAudioContext.createGain ()
+			];
+
+			reviewAudioSource.connect (reviewAudioSplitter);
+			reviewAudioSplitter.connect (reviewAudioGains[0], 0);
+			reviewAudioSplitter.connect (reviewAudioGains[1], 1);
+			reviewAudioGains[0].connect (reviewAudioMerger, 0, 0);
+			reviewAudioGains[1].connect (reviewAudioMerger, 0, 1);
+			reviewAudioMerger.connect (reviewAudioContext.destination);
+
+			syncReviewChannelsFromWave ();
+		}
+
+		function setSpeed ( speed ) {
+			currentSpeed = speed;
+			storageSet ('am_playback_speed', speed);
+			reviewAudio.playbackRate = speed;
+			applyPitchPreservation ();
+
+			for (var i = 0; i < speedButtons.length; ++i) {
+				if (speedButtons[i].getAttribute ('data-speed') / 1 === speed) {
+					speedButtons[i].classList.add ('pk_act');
+				} else {
+					speedButtons[i].classList.remove ('pk_act');
+				}
+			}
+		}
+
+		function setReviewSource ( file ) {
+			if (!file) return ;
+			if (reviewAudioUrl) {
+				URL.revokeObjectURL (reviewAudioUrl);
+				reviewAudioUrl = null;
+			}
+			reviewAudio.pause ();
+			reviewAudioReady = false;
+			playPauseBtn.textContent = 'נגן';
+			playPauseBtn.classList.remove ('pk_act');
+			reviewAudioUrl = URL.createObjectURL (file);
+			reviewAudio.src = reviewAudioUrl;
+			reviewAudio.load ();
+			setSpeed (currentSpeed);
+		}
+
+		function setReviewTime ( time, syncWave ) {
+			if (!isFinite (time)) return ;
+			time = Math.max (0, time);
+			if (reviewAudioReady && reviewAudio.duration) {
+				time = Math.min (time, reviewAudio.duration);
+				if (Math.abs (reviewAudio.currentTime - time) > 0.08) {
+					reviewAudio.currentTime = time;
+				}
+			}
+			panel.getElementsByClassName ('pk_sales_current')[0].textContent = formatReviewTime (time);
+			reviewMuteActive = isMutedReviewTime (time);
+			updateReviewAudioGains ();
+
+			if (syncWave) {
+				var ws = getWavesurfer ();
+				var duration = ws && ws.getDuration && ws.getDuration ();
+				if (duration) {
+					syncingFromReviewAudio = true;
+					UI.fireEvent ('RequestSeekTo', Math.min (0.999, time / duration));
+					setTimeout (function () { syncingFromReviewAudio = false; }, 0);
+				}
+			}
+		}
+
+		function syncWaveWhilePlaying () {
+			if (reviewAudio.paused || reviewAudio.ended) {
+				reviewSyncFrame = 0;
+				return ;
+			}
+			panel.getElementsByClassName ('pk_sales_current')[0].textContent = formatReviewTime (reviewAudio.currentTime);
+			reviewMuteActive = isMutedReviewTime (reviewAudio.currentTime);
+			updateReviewAudioGains ();
+			drawReviewWavePosition (reviewAudio.currentTime);
+			reviewSyncFrame = w.requestAnimationFrame (syncWaveWhilePlaying);
+		}
+
+		function startReviewPlayback () {
+			if (!reviewAudio.src) return ;
+			UI.fireEvent ('RequestPause');
+			ensureReviewAudioGraph ();
+			if (reviewAudioContext && reviewAudioContext.state === 'suspended' && reviewAudioContext.resume) {
+				reviewAudioContext.resume ();
+			}
+			setSpeed (currentSpeed);
+			var promise = reviewAudio.play ();
+			if (promise && promise.catch) promise.catch (function () {});
+		}
+
+		function pauseReviewPlayback () {
+			reviewAudio.pause ();
+		}
+
+		function stopReviewPlayback () {
+			reviewAudio.pause ();
+			setReviewTime (0, true);
+		}
+
+		function skipReviewPlayback ( delta ) {
+			var baseTime = reviewAudioReady ? reviewAudio.currentTime : getCurrentReviewTime ();
+			setReviewTime (baseTime + delta, true);
+		}
+
+		function getCurrentReviewTime () {
+			if (reviewAudioReady && reviewAudio.src) return reviewAudio.currentTime;
+			var ws = getWavesurfer ();
+			return ws && ws.getCurrentTime ? ws.getCurrentTime () : 0;
+		}
+
+		function saveMarkers () {
+			storageSet (getRecordingKey (), JSON.stringify (markers));
+		}
+
+		function loadMarkers () {
+			var raw = storageGet (getRecordingKey ());
+			try { markers = raw ? JSON.parse (raw) : []; }
+			catch (err) { markers = []; }
+			if (!markers || !markers.length) markers = [];
+			renderMarkers ();
+		}
+
+		function renderMarkers () {
+			markerList.innerHTML = '';
+			if (!markers.length) {
+				var empty = d.createElement ('div');
+				empty.className = 'pk_sales_marker_empty';
+				empty.textContent = 'אין סימונים עדיין';
+				markerList.appendChild (empty);
+				renderMarkerOverlays ();
+				return;
+			}
+
+			for (var i = 0; i < markers.length; ++i) {
+				(function ( marker ) {
+					var row = d.createElement ('div');
+					row.className = 'pk_sales_marker';
+
+					var jump = d.createElement ('button');
+					jump.type = 'button';
+					jump.className = 'pk_sales_marker_jump';
+					if (isFinite (marker.start) && isFinite (marker.end)) {
+						jump.textContent = marker.type + ' · ' + formatReviewTime (marker.start) + ' - ' + formatReviewTime (marker.end);
+						jump.style.borderInlineStart = '4px solid ' + getMarkerColor (marker.type);
+					} else {
+						jump.textContent = marker.type + ' · ' + formatReviewTime (marker.time);
+					}
+					jump.onclick = function () {
+						if (isFinite (marker.start) && isFinite (marker.end)) {
+							UI.fireEvent ('RequestRegionSet', marker.start, marker.end);
+							setReviewTime (marker.start, true);
+						} else {
+							setReviewTime (marker.time, true);
+						}
+						this.blur ();
+					};
+
+					var del = d.createElement ('button');
+					del.type = 'button';
+					del.className = 'pk_sales_marker_delete';
+					del.textContent = '×';
+					del.title = 'מחיקת סימון';
+					del.onclick = function () {
+						var shouldRestoreMute = marker.type === '\u05de\u05d5\u05e9\u05ea\u05e7' &&
+							isFinite (marker.start) && isFinite (marker.end);
+						var restoreData = muteRestoreData[marker.id];
+
+						for (var x = markers.length - 1; x >= 0; --x) {
+							if (markers[x].id === marker.id) markers.splice (x, 1);
+						}
+						saveMarkers ();
+						renderMarkers ();
+						reviewMuteActive = isMutedReviewTime (getCurrentReviewTime ());
+						updateReviewAudioGains ();
+
+						if (shouldRestoreMute && restoreData) {
+							delete muteRestoreData[marker.id];
+							UI.fireEvent ('RequestActionRestoreMutedSelection', {
+								start: marker.start,
+								end: marker.end,
+								restoreData: restoreData
+							});
+						}
+						this.blur ();
+					};
+
+					row.appendChild (jump);
+					row.appendChild (del);
+					markerList.appendChild (row);
+				})( markers[i] );
+			}
+			renderMarkerOverlays ();
+		}
+
+		function addRangeMarker ( type, start, end, restoreData ) {
+			if (!isFinite (start) || !isFinite (end) || end <= start) return ;
+			var marker = {
+				id: Date.now () + '-' + Math.random ().toString (36).slice (2),
+				type: type,
+				start: start,
+				end: end,
+				createdAt: new Date ().toISOString ()
+			};
+			if (type === '\u05de\u05d5\u05e9\u05ea\u05e7' && restoreData) {
+				muteRestoreData[marker.id] = restoreData;
+			}
+			markers.push (marker);
+			markers.sort (function (a, b) { return markerStartTime (a) - markerStartTime (b); });
+			saveMarkers ();
+			renderMarkers ();
+			return marker;
+		}
+
+		function addMarker ( type ) {
+			var region = getActiveRegion ();
+			if (!region) return ;
+			addRangeMarker (type, region.start, region.end);
+		}
+
+		function getCustomMarkerText () {
+			if (!customMarkerInput) return '';
+			return customMarkerInput.value.replace (/\s+/g, ' ').trim ().slice (0, 80);
+		}
+
+		function updateCustomMarkerState () {
+			if (!customMarkerInput || !customMarkerBtn) return ;
+			var enabled = !!getActiveRegion ();
+			var hasText = getCustomMarkerText ().length > 0;
+			customMarkerInput.disabled = !enabled;
+			customMarkerBtn.disabled = !enabled || !hasText;
+			customMarkerBtn.classList.toggle ('pk_inact', !enabled || !hasText);
+		}
+
+		function addCustomMarker () {
+			var text = getCustomMarkerText ();
+			var region = getActiveRegion ();
+			if (!region || !text) return ;
+			addRangeMarker (text, region.start, region.end);
+			customMarkerInput.value = '';
+			updateCustomMarkerState ();
+		}
+
+		function updateSelectionState ( region ) {
+			currentRegion = region || null;
+			var activeRegion = getActiveRegion ();
+			if (activeRegion) {
+				downloadSelectionBtn.disabled = false;
+				downloadSelectionBtn.classList.remove ('pk_inact');
+				muteSelectionBtn.disabled = false;
+				muteSelectionBtn.classList.remove ('pk_inact');
+			} else {
+				downloadSelectionBtn.disabled = true;
+				downloadSelectionBtn.classList.add ('pk_inact');
+				muteSelectionBtn.disabled = true;
+				muteSelectionBtn.classList.add ('pk_inact');
+			}
+
+			for (var i = 0; i < markerButtons.length; ++i) {
+				markerButtons[i].disabled = !activeRegion;
+				markerButtons[i].classList.toggle ('pk_inact', !activeRegion);
+			}
+			updateCustomMarkerState ();
+		}
+
+		function quickDownload ( selectionOnly ) {
+			var eng = w.PKAudioEditor && w.PKAudioEditor.engine;
+			if (!eng || !eng.DownloadFile) return ;
+			var selection = false;
+			if (selectionOnly) {
+				var region = getActiveRegion ();
+				if (!region) return ;
+				selection = [region.start, region.end];
+			}
+			requestDownloadPassword (function () {
+				eng.DownloadFile (selectionOnly ? 'sales-call-selection.mp3' : 'sales-call.mp3', 'mp3', 128, selection, true);
+			});
+		}
+
+		function muteSelection () {
+			if (!getActiveRegion ()) return ;
+			pauseReviewPlayback ();
+			UI.fireEvent ('RequestActionMuteSelection');
+		}
+
+		function renderRoles () {
+			var roles = getRoleState ();
+			w.PKSalesChannelRoles = roles;
+			leftRole.textContent = roles.left;
+			rightRole.textContent = roles.right;
+		}
+
+		panel.innerHTML =
+			'<div class="pk_sales_block pk_sales_time_block">' +
+				'<span class="pk_sales_label">זמן שיחה</span>' +
+				'<strong class="pk_sales_current">00:00:000</strong>' +
+				'<span class="pk_sales_total">מתוך 00:00:000</span>' +
+			'</div>';
+
+		var reviewAudio = d.createElement ('audio');
+		reviewAudio.className = 'pk_sales_audio';
+		reviewAudio.preload = 'auto';
+		applyPitchPreservation ();
+		panel.appendChild (reviewAudio);
+
+		var playbackBlock = d.createElement ('div');
+		playbackBlock.className = 'pk_sales_block pk_sales_playback_block';
+		var playbackLabel = d.createElement ('span');
+		playbackLabel.className = 'pk_sales_label';
+		playbackLabel.textContent = 'נגן ביקורת';
+		playbackBlock.appendChild (playbackLabel);
+
+		var back10Btn = d.createElement ('button');
+		back10Btn.type = 'button';
+		back10Btn.className = 'pk_sales_btn';
+		back10Btn.textContent = '-10 שנ׳';
+		back10Btn.onclick = function () { skipReviewPlayback (-10); this.blur (); };
+		playbackBlock.appendChild (back10Btn);
+
+		var playPauseBtn = d.createElement ('button');
+		playPauseBtn.type = 'button';
+		playPauseBtn.className = 'pk_sales_btn pk_sales_play';
+		playPauseBtn.textContent = 'נגן';
+		playPauseBtn.onclick = function () {
+			if (reviewAudio.paused) startReviewPlayback ();
+			else pauseReviewPlayback ();
+			this.blur ();
+		};
+		playbackBlock.appendChild (playPauseBtn);
+
+		var stopReviewBtn = d.createElement ('button');
+		stopReviewBtn.type = 'button';
+		stopReviewBtn.className = 'pk_sales_btn';
+		stopReviewBtn.textContent = 'עצור';
+		stopReviewBtn.onclick = function () { stopReviewPlayback (); this.blur (); };
+		playbackBlock.appendChild (stopReviewBtn);
+
+		var forward10Btn = d.createElement ('button');
+		forward10Btn.type = 'button';
+		forward10Btn.className = 'pk_sales_btn';
+		forward10Btn.textContent = '+10 שנ׳';
+		forward10Btn.onclick = function () { skipReviewPlayback (10); this.blur (); };
+		playbackBlock.appendChild (forward10Btn);
+		panel.appendChild (playbackBlock);
+
+		var speedBlock = d.createElement ('div');
+		speedBlock.className = 'pk_sales_block pk_sales_speed_block';
+		var speedLabel = d.createElement ('span');
+		speedLabel.className = 'pk_sales_label';
+		speedLabel.textContent = 'מהירות האזנה';
+		speedBlock.appendChild (speedLabel);
+
+		var speedButtons = [];
+		for (var s = 0; s < speedValues.length; ++s) {
+			(function ( speed ) {
+				var btn = d.createElement ('button');
+				btn.type = 'button';
+				btn.className = 'pk_sales_btn pk_sales_speed';
+				btn.setAttribute ('data-speed', speed);
+				btn.textContent = speed + 'x';
+				btn.onclick = function () {
+					setSpeed (speed);
+					this.blur ();
+				};
+				speedButtons.push (btn);
+				speedBlock.appendChild (btn);
+			})( speedValues[s] );
+		}
+		panel.appendChild (speedBlock);
+
+		var exportBlock = d.createElement ('div');
+		exportBlock.className = 'pk_sales_block pk_sales_export_block';
+		exportBlock.innerHTML = '<span class="pk_sales_label">הורדה</span>';
+		var downloadAllBtn = d.createElement ('button');
+		downloadAllBtn.type = 'button';
+		downloadAllBtn.className = 'pk_sales_btn';
+		downloadAllBtn.textContent = 'הורד הכל';
+		downloadAllBtn.onclick = function () { quickDownload (false); this.blur (); };
+		var downloadSelectionBtn = d.createElement ('button');
+		downloadSelectionBtn.type = 'button';
+		downloadSelectionBtn.className = 'pk_sales_btn pk_inact';
+		downloadSelectionBtn.textContent = 'הורד קטע';
+		downloadSelectionBtn.disabled = true;
+		downloadSelectionBtn.onclick = function () { quickDownload (true); this.blur (); };
+		var muteSelectionBtn = d.createElement ('button');
+		muteSelectionBtn.type = 'button';
+		muteSelectionBtn.className = 'pk_sales_btn pk_sales_mute pk_inact';
+		muteSelectionBtn.textContent = 'השתק קטע';
+		muteSelectionBtn.disabled = true;
+		muteSelectionBtn.onclick = function () { muteSelection (); this.blur (); };
+		exportBlock.appendChild (downloadAllBtn);
+		exportBlock.appendChild (downloadSelectionBtn);
+		exportBlock.appendChild (muteSelectionBtn);
+		panel.appendChild (exportBlock);
+
+		var channelBlock = d.createElement ('div');
+		channelBlock.className = 'pk_sales_block pk_sales_channel_block';
+		channelBlock.innerHTML = '<span class="pk_sales_label">ערוצים</span>';
+		var leftRole = d.createElement ('strong');
+		leftRole.className = 'pk_sales_channel pk_sales_channel_left';
+		var rightRole = d.createElement ('strong');
+		rightRole.className = 'pk_sales_channel pk_sales_channel_right';
+		var swapRoles = d.createElement ('button');
+		swapRoles.type = 'button';
+		swapRoles.className = 'pk_sales_btn pk_sales_swap';
+		swapRoles.textContent = 'החלף';
+		swapRoles.onclick = function () {
+			var roles = getRoleState ();
+			setRoleState ({ left: roles.right, right: roles.left });
+			renderRoles ();
+			this.blur ();
+		};
+		channelBlock.appendChild (leftRole);
+		channelBlock.appendChild (rightRole);
+		channelBlock.appendChild (swapRoles);
+		panel.appendChild (channelBlock);
+
+		var markerBlock = d.createElement ('div');
+		markerBlock.className = 'pk_sales_block pk_sales_marker_block';
+		markerBlock.innerHTML = '<span class="pk_sales_label">סימוני איכות נציג</span>';
+		for (var m = 0; m < markerTypes.length; ++m) {
+			(function ( type ) {
+				var btn = d.createElement ('button');
+				btn.type = 'button';
+				btn.className = 'pk_sales_btn pk_sales_tag';
+				btn.textContent = type;
+				btn.onclick = function () { addMarker (type); this.blur (); };
+				markerButtons.push (btn);
+				markerBlock.appendChild (btn);
+			})( markerTypes[m] );
+		}
+		var customMarkerWrap = d.createElement ('div');
+		customMarkerWrap.className = 'pk_sales_custom_marker';
+		customMarkerInput = d.createElement ('input');
+		customMarkerInput.type = 'text';
+		customMarkerInput.maxLength = 80;
+		customMarkerInput.placeholder = 'תיוג חופשי';
+		customMarkerInput.disabled = true;
+		customMarkerBtn = d.createElement ('button');
+		customMarkerBtn.type = 'button';
+		customMarkerBtn.className = 'pk_sales_btn pk_sales_custom_btn pk_inact';
+		customMarkerBtn.textContent = 'הוסף';
+		customMarkerBtn.disabled = true;
+		customMarkerInput.oninput = updateCustomMarkerState;
+		customMarkerInput.onkeydown = function ( ev ) {
+			if (ev.key === 'Enter' || ev.keyCode === 13) {
+				ev.preventDefault ();
+				addCustomMarker ();
+			}
+		};
+		customMarkerBtn.onclick = function () { addCustomMarker (); this.blur (); };
+		customMarkerWrap.appendChild (customMarkerInput);
+		customMarkerWrap.appendChild (customMarkerBtn);
+		markerBlock.appendChild (customMarkerWrap);
+		panel.appendChild (markerBlock);
+
+		var markerList = d.createElement ('div');
+		markerList.className = 'pk_sales_marker_list';
+		panel.appendChild (markerList);
+
+		UI.listenFor ('DidAudioProcess', function ( val ) {
+			if (!val || val[0] < 0) return ;
+			if (!syncingFromReviewAudio && reviewAudioReady) {
+				setReviewTime (val[0], false);
+			} else {
+				panel.getElementsByClassName ('pk_sales_current')[0].textContent = formatReviewTime (val[0]);
+			}
+		});
+
+		UI.listenFor ('DidUpdateLen', function ( val ) {
+			panel.getElementsByClassName ('pk_sales_total')[0].textContent = 'מתוך ' + formatReviewTime (val);
+			setSpeed (currentSpeed);
+			loadMarkers ();
+		});
+
+		UI.listenFor ('DidCreateRegion', function ( region ) {
+			updateSelectionState (region);
+		});
+
+		UI.listenFor ('DidDestroyRegion', function () {
+			updateSelectionState (null);
+		});
+
+		UI.listenFor ('DidChanToggle', function ( chan, val ) {
+			applyReviewChannelState (chan, val);
+		});
+
+		UI.listenFor ('DidMuteSelection', function ( payload, legacyEnd ) {
+			if (payload && typeof payload === 'object') {
+				addRangeMarker ('\u05de\u05d5\u05e9\u05ea\u05e7', payload.start, payload.end, payload.restoreData);
+				return ;
+			}
+			addRangeMarker ('\u05de\u05d5\u05e9\u05ea\u05e7', payload, legacyEnd);
+		});
+
+		UI.listenFor ('DidLoadReviewFile', function ( file ) {
+			setReviewSource (file);
+		});
+
+		UI.listenFor ('DidZoom', function () {
+			renderMarkerOverlays ();
+		});
+
+		reviewAudio.addEventListener ('loadedmetadata', function () {
+			reviewAudioReady = true;
+			panel.getElementsByClassName ('pk_sales_total')[0].textContent = 'מתוך ' + formatReviewTime (reviewAudio.duration);
+			setSpeed (currentSpeed);
+			renderMarkerOverlays ();
+		});
+
+		reviewAudio.addEventListener ('play', function () {
+			playPauseBtn.textContent = 'השהה';
+			playPauseBtn.classList.add ('pk_act');
+			if (!reviewSyncFrame) reviewSyncFrame = w.requestAnimationFrame (syncWaveWhilePlaying);
+		});
+
+		reviewAudio.addEventListener ('pause', function () {
+			playPauseBtn.textContent = 'נגן';
+			playPauseBtn.classList.remove ('pk_act');
+		});
+
+		reviewAudio.addEventListener ('ended', function () {
+			playPauseBtn.textContent = 'נגן';
+			playPauseBtn.classList.remove ('pk_act');
+		});
+
+		d.addEventListener ('keydown', function ( ev ) {
+			var tagName = (ev.target && ev.target.tagName || '').toLowerCase ();
+			if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return ;
+			if (ev.key !== ' ' && ev.keyCode !== 32) return ;
+			if (UI.InteractionHandler.on) return ;
+			ev.preventDefault ();
+			ev.stopPropagation ();
+			if (ev.stopImmediatePropagation) ev.stopImmediatePropagation ();
+			if (reviewAudio.paused) startReviewPlayback ();
+			else pauseReviewPlayback ();
+		}, true);
+
+		w.addEventListener && w.addEventListener ('resize', function () {
+			renderMarkerOverlays ();
+		});
+
+		currentSpeed = parseFloat (storageGet ('am_playback_speed') || '1') || 1;
+		if (speedValues.indexOf (currentSpeed) === -1) currentSpeed = 1;
+		setSpeed (currentSpeed);
+		renderRoles ();
+		loadMarkers ();
+		updateSelectionState (null);
+
+		return panel;
+	}
+
+
 	function _makeUIToolbar (UI) {
 		var container = d.createElement ( 'div' );
 		container.className = 'pk_tbc';
@@ -2958,6 +3786,7 @@
 		});
 
 		// end
+		toolbar.appendChild ( _makeSalesReviewPanel ( UI ) );
 		toolbar.appendChild ( btn_groups );
 		btn_groups.appendChild ( transport );
 		btn_groups.appendChild ( actions );

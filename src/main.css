@@ -140,7 +140,8 @@ body,html{height:100%;background:#111;
 
 /** TOOL BAR **/
 .pk_tb{
-    height:48px;
+    min-height:48px;
+    height:auto;
     background: #363636;
     position: relative;
     z-index: 6;
@@ -293,6 +294,298 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_btngroup{float:left;}
 
+.pk_sales_panel{
+	float:left;
+	display:flex;
+	flex-wrap:wrap;
+	align-items:stretch;
+	gap:8px;
+	max-width:100%;
+	margin:0 12px 8px 0;
+	color:#f4f6f8;
+	direction:rtl;
+	font-family:Arial, Helvetica, sans-serif;
+}
+
+.pk_sales_block{
+	display:flex;
+	align-items:center;
+	gap:6px;
+	min-height:44px;
+	padding:0 8px;
+	border:1px solid #666;
+	border-radius:4px;
+	background:#242424;
+	box-sizing:border-box;
+}
+
+.pk_sales_label{
+	color:#aeb8c2;
+	font-size:11px;
+	white-space:nowrap;
+}
+
+.pk_sales_current{
+	font-family:Consolas, "Courier New", monospace;
+	font-size:24px;
+	color:#fff;
+	direction:ltr;
+	min-width:116px;
+	text-align:center;
+}
+
+.pk_sales_total{
+	font-size:12px;
+	color:#a5dce0;
+	white-space:nowrap;
+}
+
+.pk_sales_btn{
+	min-height:30px;
+	padding:0 10px;
+	border:1px solid #69737d;
+	border-radius:4px;
+	background:#30363a;
+	color:#f7f7f7;
+	font-size:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	cursor:pointer;
+	white-space:nowrap;
+}
+
+.pk_sales_btn:hover{
+	border-color:#9bcad0;
+	background:#3b4449;
+}
+
+.pk_sales_btn.pk_act,
+.pk_sales_speed.pk_act{
+	background:#0d6f76;
+	border-color:#4fd1d9;
+	color:#fff;
+}
+
+.pk_sales_btn.pk_inact,
+.pk_sales_btn:disabled{
+	opacity:.45;
+	cursor:default;
+}
+
+.pk_sales_channel{
+	display:inline-block;
+	min-width:48px;
+	text-align:center;
+	padding:6px 8px;
+	border-radius:4px;
+	background:#101820;
+	color:#8ee6d3;
+	font-size:13px;
+}
+
+.pk_sales_marker_block{
+	flex-wrap:wrap;
+	align-content:center;
+	height:auto;
+	max-width:100%;
+	padding-top:6px;
+	padding-bottom:6px;
+}
+
+.pk_sales_tag{
+	background:#3b3421;
+	border-color:#8c7440;
+	color:#ffe4ad;
+}
+
+.pk_sales_mute{
+	background:#4b2020;
+	border-color:#b84c4c;
+	color:#ffd3d3;
+}
+
+.pk_sales_custom_marker{
+	display:flex;
+	align-items:center;
+	gap:6px;
+	flex:1 1 220px;
+	min-width:210px;
+	max-width:320px;
+}
+
+.pk_sales_custom_marker input{
+	flex:1 1 auto;
+	min-width:120px;
+	width:140px;
+	height:30px;
+	padding:0 9px;
+	border:1px solid #69737d;
+	border-radius:4px;
+	background:#101820;
+	color:#fff;
+	font-size:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	box-sizing:border-box;
+}
+
+.pk_sales_custom_marker input:disabled{
+	opacity:.45;
+	cursor:default;
+}
+
+.pk_sales_custom_marker input::placeholder{
+	color:#aeb8c2;
+}
+
+.pk_sales_custom_btn{
+	background:#20384b;
+	border-color:#5489b8;
+	color:#d4ecff;
+	flex:0 0 auto;
+}
+
+.pk_sales_marker_list{
+	display:flex;
+	align-items:center;
+	gap:6px;
+	min-height:44px;
+	max-width:620px;
+	overflow-x:auto;
+	padding:0 4px;
+}
+
+.pk_sales_marker_empty{
+	color:#aeb8c2;
+	font-size:12px;
+	padding:0 8px;
+	white-space:nowrap;
+}
+
+.pk_sales_marker{
+	display:flex;
+	align-items:center;
+	gap:2px;
+	border:1px solid #5c6670;
+	border-radius:4px;
+	background:#15191d;
+	white-space:nowrap;
+}
+
+.pk_sales_marker_jump,
+.pk_sales_marker_delete{
+	border:0;
+	background:transparent;
+	color:#f1f4f6;
+	min-height:30px;
+	cursor:pointer;
+	font-family:Arial, Helvetica, sans-serif;
+}
+
+.pk_sales_marker_jump{
+	padding:0 8px;
+	font-size:12px;
+}
+
+.pk_sales_marker_delete{
+	width:28px;
+	font-size:18px;
+	color:#ffb0a8;
+}
+
+.pk_sales_marker_overlay{
+	position:absolute;
+	inset:0;
+	z-index:2;
+	pointer-events:none;
+	overflow:hidden;
+}
+
+.pk_sales_marker_range{
+	position:absolute;
+	top:0;
+	bottom:0;
+	border-inline-start:2px solid;
+	border-inline-end:2px solid;
+	opacity:.28;
+	box-sizing:border-box;
+}
+
+.pk_sales_password_gate{
+	position:fixed;
+	inset:0;
+	z-index:999999;
+	display:flex;
+	align-items:center;
+	justify-content:center;
+	background:rgba(0,0,0,.58);
+	font-family:Arial, Helvetica, sans-serif;
+}
+
+.pk_sales_password_box{
+	width:min(320px, calc(100vw - 32px));
+	padding:18px;
+	border:1px solid #69737d;
+	border-radius:6px;
+	background:#202427;
+	color:#f4f6f8;
+	box-shadow:0 12px 32px rgba(0,0,0,.45);
+	box-sizing:border-box;
+}
+
+.pk_sales_password_box label{
+	display:block;
+	margin-bottom:10px;
+	font-size:14px;
+	color:#c9e9eb;
+}
+
+.pk_sales_password_box input{
+	width:100%;
+	height:36px;
+	padding:0 10px;
+	border:1px solid #69737d;
+	border-radius:4px;
+	background:#101820;
+	color:#fff;
+	font-size:16px;
+	box-sizing:border-box;
+}
+
+.pk_sales_password_actions{
+	display:flex;
+	gap:8px;
+	justify-content:flex-start;
+	margin-top:14px;
+}
+
+.pk_sales_password_actions button{
+	min-height:32px;
+	padding:0 14px;
+	border:1px solid #69737d;
+	border-radius:4px;
+	background:#30363a;
+	color:#fff;
+	cursor:pointer;
+}
+
+.pk_sales_password_ok{
+	border-color:#4fd1d9 !important;
+	background:#0d6f76 !important;
+}
+
+.pk_sales_audio{
+	display:none;
+}
+
+.pk_app.pk_sales_mode .pk_hdr,
+.pk_app.pk_sales_mode .pk_transport,
+.pk_app.pk_sales_mode .pk_selection,
+.pk_app.pk_sales_mode .pk_timecontainer,
+.pk_app.pk_sales_mode .pk_ctns,
+.pk_app.pk_sales_mode .icon-rec,
+.pk_app.pk_sales_mode .pk_zoombtn{
+	display:none !important;
+}
+
 .pk_selection,
 .pk_ctns,
 .pk_transport{
@@ -401,6 +694,7 @@ a{cursor:pointer;color:#99c2c6;-webkit-tap-highlight-color:rgba(0,0,0,0)}
 
 .pk_av wave{
 	cursor:text;
+	position:relative;
 }
 
 #pk_prgwv{
