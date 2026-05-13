@@ -2534,14 +2534,14 @@
 				}
 				if ((e.button !== undefined && e.button !== 0) || e.which === 3) return ;
 
-				focusMain ();
-				e.preventDefault ();
-				e.stopPropagation ();
 				var cls = e.target && e.target.classList;
 				drag_mode = cls && cls.contains ('pk_mt_trim_l') ? 1 :
 					(cls && cls.contains ('pk_mt_trim_r') ? 2 :
 					(cls && cls.contains ('pk_mt_fade_l') ? 3 :
 					(cls && cls.contains ('pk_mt_fade_r') ? 4 : 0)));
+				focusMain ();
+				if (!e._touch || drag_mode) e.preventDefault ();
+				e.stopPropagation ();
 				if (!drag_mode && selected_clip !== clip.id) {
 					if (e.shiftKey) {
 						selectClip ( clip );
@@ -2620,8 +2620,13 @@
 				var dx = e.clientX - down_x;
 				var dy = e.clientY - down_y;
 				if (!moved && Math.abs (dx) + Math.abs (dy) < 4) return ;
+				if (!moved && e._touch && !drag_mode && Math.abs (dy) > Math.abs (dx)) {
+					up ();
+					return ;
+				}
 				moved = true;
 				did_move = true;
+				e.preventDefault ();
 
 				if (drag_mode === 1 || drag_mode === 2) {
 					trimClip ( dx / px_per_sec, e );
