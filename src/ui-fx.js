@@ -306,36 +306,148 @@
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'speed';
+			var auto = null;
 
-			var x = new PKAudioFXModal({
-				id: filter_id,
-			  title:'Change Speed',
-				presets:[
-					{name:'-1/4',val:0.25},
-					{name:'-1/2',val:0.5},
-					{name:'Slightly slower',val:0.85},
-					{name:'Slightly faster',val:1.1},
-					{name:'+1/4',val:1.25},
-					{name:'+1/2',val:1.5}
-				],
-				custom_pres:custom_presets.Get (filter_id),
-			ondestroy: function ( q ) {
-				app.ui.InteractionHandler.on = false;
-				app.ui.KeyHandler.removeCallback (modal_esc_key);
-			},
-			preview: function ( q ) {
+			var getvalue = function ( q ) {
 				var input = q.el_body.getElementsByTagName('input')[0];
-				var value = input.value.trim() / 1;
-				app.fireEvent ('RequestActionFX_PREVIEW_SPEED', value);
-			},
+				var points = auto && auto.GetValue ()[0];
+
+				if (points && points.length > 1) {
+					return {
+						type: 'profile',
+						points: points
+					};
+				}
+
+				return input.value / 1;
+			};
+
+			var profile_points = function ( val ) {
+				var raw = val.substring (8).split ('|');
+				var points = [];
+
+				for (var i = 0; i < raw.length; ++i) {
+					var pair = raw[i].split (':');
+					if (pair.length !== 2) continue;
+
+					points.push ({
+						x: pair[0] / 1,
+						val: pair[1] / 1
+					});
+				}
+
+				return points;
+			};
+
+			var draw_axis = function () {
+				if (!auto || !auto.act) return ;
+
+				var ctx = auto.ctx;
+				var min = auto.act.min;
+				var max = auto.act.max;
+				var vals = [max, 1, min];
+
+				ctx.save ();
+				ctx.font = '10px Arial';
+				ctx.textBaseline = 'middle';
+				for (var i = 0; i < vals.length; ++i) {
+					var y = (1 - ((vals[i] - min) / (max - min))) * auto.ch;
+					var txt = vals[i].toFixed (2) + 'x';
+					var w = ctx.measureText (txt).width + 8;
+
+					if (y < 8) y = 8;
+					else if (y > auto.ch - 8) y = auto.ch - 8;
+
+					ctx.fillStyle = 'rgba(0,0,0,0.65)';
+					ctx.fillRect (3, y - 7, w, 14);
+					ctx.fillStyle = '#d9d955';
+					ctx.fillText (txt, 7, y);
+				}
+				ctx.restore ();
+			};
+
+			var setpoints = function ( q, points ) {
+				if (!auto || !points.length) return ;
+
+				var input = q.el_body.getElementsByTagName('input')[0];
+				var min = input.min / 1;
+				var max = input.max / 1;
+				var duration = auto.wv.getDuration ();
+				var region = auto.wv.regions.list[0];
+				if (region) duration = region.end - region.start;
+
+				if (!input.id) input.id = 'pk_speed';
+				auto.act = {id:input.id, el:input, min:min, max:max, step:input.step/1};
+				auto.points[input.id] = [];
+
+				for (var i = 0; i < points.length; ++i) {
+					var xval = Math.max (0, Math.min (1, points[i].x / 1));
+					var yval = Math.max (min, Math.min (max, points[i].val / 1));
+					var y = 1 - ((yval - min) / (max - min));
+
+					auto.points[input.id].push ({
+						id:i, x:xval, y:y, ax:xval * auto.cw, ay:y * auto.ch,
+						time:duration * xval, val:yval, _on:true, _hov:false
+					});
+				}
+
+				auto.points[input.id].sort (function (a, b) { return a.x > b.x ? 1 : -1; });
+				auto.act_point = auto.points[input.id][auto.points[input.id].length - 1];
+				auto.Render ();
+			};
+
+				var x = new PKAudioFXModal({
+					id: filter_id,
+				  title:'Pitch / Speed Profile',
+					presets:[
+						{name:'Doppler Pass',val:'profile:0:1.35|0.5:0.72|1:1.35'},
+						{name:'Accelerate',val:'profile:0:0.70|0.55:1.00|1:1.65'},
+						{name:'Engine Rev',val:'profile:0:0.82|0.25:1.35|0.58:1.08|1:1.55'},
+						{name:'-1/4',val:0.25},
+						{name:'-1/2',val:0.5},
+						{name:'Slightly slower',val:0.85},
+						{name:'Slightly faster',val:1.1},
+						{name:'+1/4',val:1.25},
+						{name:'+1/2',val:1.5},
+						{name:'Car Approaching',val:'profile:0:0.72|0.3:0.88|0.65:1.18|1:1.55'},
+						{name:'Car Driving Away',val:'profile:0:1.55|0.35:1.18|0.7:0.88|1:0.72'}
+					],
+				custom_pres:custom_presets.Get (filter_id),
+				ondestroy: function ( q ) {
+					app.ui.InteractionHandler.on = false;
+					app.ui.KeyHandler.removeCallback (modal_esc_key);
+					auto = null;
+				},
+				preview: function ( q ) {
+					app.fireEvent ('RequestActionFX_PREVIEW_SPEED', getvalue ( q ));
+				},
+				onpreset: function ( val ) {
+					var range = x.el_body.getElementsByTagName('input')[0];
+					var span = x.el_body.getElementsByTagName('span')[0];
+
+					if ((val + '').indexOf ('profile:') === 0) {
+						var points = profile_points ( val );
+						if (!points.length) return ;
+
+						range.value = points[0].val.toFixed (2);
+						span.innerHTML = range.value;
+						setpoints (x, points);
+					}
+					else {
+						range.value = val;
+						span.innerHTML = range.value;
+						setpoints (x, [{x:0, val:range.value}, {x:1, val:range.value}]);
+					}
+
+					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue ( x ));
+				},
 
 			  buttons: [
 				{
-					title:'Apply Rate',
+					title:'Apply Profile',
 					clss:'pk_modal_a_accpt',
 					callback: function( q ) {
-						var input = q.el_body.getElementsByTagName('input')[0];
-						var value = input.value.trim() / 1;
+						var value = getvalue ( q );
 
 						if (value != 1.0)
 							app.fireEvent ('RequestActionFX_SPEED', value);
@@ -347,17 +459,28 @@
 			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' +
 				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.01" value="1.0" />'+
 				'<span class="pk_val">1.0</span></div>',
-			  setup:function( q ) {
-				  var range = q.el_body.getElementsByTagName('input')[0];
-				  var span = q.el_body.getElementsByTagName('span')[0];
+				  setup:function( q ) {
+					  var range = q.el_body.getElementsByTagName('input')[0];
+					  var span = q.el_body.getElementsByTagName('span')[0];
 
-				  range.oninput = function() {
-					span.innerHTML = range.value;
-					app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', range.value/1);
-				  };
+						  range.oninput = function() {
+							span.innerHTML = range.value;
+							if (auto)
+								setpoints (q, [{x:0, val:range.value}, {x:1, val:range.value}]);
+							app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue (q));
+						  };
 
-				  app.fireEvent ('RequestPause');
-				  app.ui.InteractionHandler.checkAndSet (modal_name);
+					  auto = new PKAudioEditor._deps.FxAUT (app, q);
+					  auto.btn_auto.style.display = 'none';
+					  var render = auto.Render;
+					  auto.Render = function () {
+						render.call (auto);
+						draw_axis ();
+					  };
+					  setpoints (q, [{x:0, val:range.value}, {x:1, val:range.value}]);
+
+					  app.fireEvent ('RequestPause');
+					  app.ui.InteractionHandler.checkAndSet (modal_name);
 
 				  app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
 					if (!app.ui.InteractionHandler.check (modal_name)) return ;

@@ -1612,7 +1612,7 @@ input,textarea{-webkit-touch-callout:none}
 /* Multitrack track-list sidebar momentum scrolling on iOS. */
 .pk_mt_tracks_wrap,.pk_mt_main{-webkit-overflow-scrolling:touch;overscroll-behavior:none}
 .pk_mt_tracks_wrap,.pk_mt_main,.pk_mt_lanes,.pk_mt_lane{touch-action:pan-y}
-.pk_mt_clip.pk_mt_clip_sel,.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,.pk_mt_clip.pk_mt_clip_sel .pk_mt_fade,
+.pk_mt_clip.pk_mt_clip_sel .pk_mt_trim,.pk_mt_clip.pk_mt_clip_sel .pk_mt_fade,
 .pk_mt_region,.pk_mt_knob,.pk_mt_resize{touch-action:none}
 
 /* ---------- Mobile-only sizing & visibility (.pk_mob) ---------- */

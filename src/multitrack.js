@@ -605,8 +605,12 @@
 				loadMultiSample ();
 			};
 			main.addEventListener ('wheel', wheelZoom, {passive:false});
-			bindTouchZoom ( main );
-			bindTouchZoom ( side );
+			el.addEventListener ('gesturestart', gestureStart, {passive:false,capture:true});
+			el.addEventListener ('gesturechange', gestureChange, {passive:false,capture:true});
+			el.addEventListener ('gestureend', gestureEnd, {passive:false,capture:true});
+			el.addEventListener ('touchstart', touchZoomStart, {passive:false,capture:true});
+			el.addEventListener ('touchend', touchZoomEnd, true);
+			el.addEventListener ('touchcancel', touchZoomEnd, true);
 			main.addEventListener ('scroll', syncScroll, false);
 			main.addEventListener ('mousemove', hoverTime, false);
 			bindDown ( main, mainDown );
@@ -2969,16 +2973,6 @@
 			touch_zoom = null;
 			touchZoomDoc ( false );
 			if (!gesture_zoom) finishZoom ();
-		}
-
-		function bindTouchZoom ( node ) {
-			node.addEventListener ('gesturestart', gestureStart, {passive:false,capture:true});
-			node.addEventListener ('gesturechange', gestureChange, {passive:false,capture:true});
-			node.addEventListener ('gestureend', gestureEnd, {passive:false,capture:true});
-			node.addEventListener ('touchstart', touchZoomStart, {passive:false,capture:true});
-			node.addEventListener ('touchmove', touchZoomMove, {passive:false,capture:true});
-			node.addEventListener ('touchend', touchZoomEnd, true);
-			node.addEventListener ('touchcancel', touchZoomEnd, true);
 		}
 
 		function touchZoomDoc ( on ) {

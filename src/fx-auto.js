@@ -415,7 +415,7 @@
 
 			var newbuffer = audio_ctx.createBuffer (1, durr * buffer.sampleRate, buffer.sampleRate);
 			newbuffer.getChannelData ( 0 ).set (
-				buffer.getChannelData ( 0 ).slice ( (offs * buffer.sampleRate) / 4, ((offs + durr) * buffer.sampleRate)/4 ) 
+				buffer.getChannelData ( 0 ).slice ( offs * buffer.sampleRate, (offs + durr) * buffer.sampleRate )
 			);
 
 			var source = audio_ctx.createBufferSource ();

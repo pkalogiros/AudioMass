@@ -3445,6 +3445,7 @@
 				if (/^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL)$/i.test (target.tagName || '')) return true;
 				if (target.classList && (
 					target.classList.contains ('pk_btn') ||
+					target.classList.contains ('pk_mt') ||
 					target.classList.contains ('pk_mt_topbtn') ||
 					target.classList.contains ('pk_modal_a_bottom')
 				)) return true;

@@ -347,32 +347,33 @@
 		function stopPreview (_fx) {
 			if (!this.previewing) return ;
 
-			if (_fx) {
-				_fx.destroy && _fx.destroy ();
-			}
+			var source = this.PreviewSource;
+
+			if (_fx) try { _fx.destroy && _fx.destroy (); } catch (e) {}
+			try { this.PreviewTog && this.PreviewTog (false, source); } catch (e) {}
 
 			if (this.PreviewFilter)
 			{
 				if (this.PreviewFilter.length > 0)
 				{
 					for (var ii = 0; ii < this.PreviewFilter.length; ++ii)
-						this.PreviewFilter[ ii ].disconnect ();
+						try { this.PreviewFilter[ ii ].disconnect (); } catch (e) {}
 				}
 				else
-					this.PreviewFilter.disconnect ();
+					try { this.PreviewFilter.disconnect (); } catch (e) {}
 			}
 
 			var script_node = audio_script_node; // wavesurfer.backend.scriptNode
 
-			script_node.disconnect ();
-			wavesurfer.backend.scriptNode.connect (audio_ctx.destination);
+			try { script_node.disconnect (); } catch (e) {}
+			try { wavesurfer.backend.scriptNode.connect (audio_ctx.destination); } catch (e) {}
 			// wavesurfer.backend.scriptNode.connect (audio_ctx.destination);
 			// wavesurfer.backend.scriptNode.onaudioprocess = null;
 
-			this.PreviewSource.stop();
-			this.PreviewSource.disconnect ();
+			try { source && source.stop(); } catch (e) {}
+			try { source && source.disconnect (); } catch (e) {}
 
-			this.PreviewDestination = this.PreviewSource = this.PreviewFilter = this.PreviewUpdate = null;
+			this.PreviewDestination = this.PreviewSource = this.PreviewFilter = this.PreviewUpdate = this.PreviewTog = null;
 			this.previewing = 0;
 		}
 		function togglePreview () {
@@ -1134,6 +1135,59 @@
 			return gain > 0 ? gain : 1;
 		}
 
+			function clampRate ( val ) {
+				val = val / 1;
+				if (isNaN (val)) val = 1;
+				return Math.max (0.05, Math.min (4, val));
+			}
+
+			function ratePoints ( val, duration ) {
+				if (!val || val.type !== 'profile' || !val.points || !val.points.length) return null;
+
+				var points = [];
+				var src = val.points;
+				for (var i = 0; i < src.length; ++i) {
+					var x = src[i].x;
+					if (x === undefined && duration > 0) x = src[i].time / duration;
+					x = x / 1;
+					if (isNaN (x)) x = i / Math.max (1, src.length - 1);
+					points.push ({x:Math.max (0, Math.min (1, x)), val:clampRate (src[i].val)});
+				}
+
+				points.sort (function (a, b) { return a.x > b.x ? 1 : -1; });
+				if (points[0].x > 0) points.unshift ({x:0, val:points[0].val});
+				if (points[points.length - 1].x < 1) points.push ({x:1, val:points[points.length - 1].val});
+				return points;
+			}
+
+			function rateDuration ( val, duration ) {
+				var points = ratePoints (val, duration);
+				var total = 0;
+				if (!points) return duration / clampRate (val);
+
+				for (var i = 1; i < points.length; ++i)
+					total += (points[i].x - points[i - 1].x) * ((points[i].val + points[i - 1].val) / 2);
+
+				return duration / (total > 0.001 ? total : 1);
+			}
+
+			function setRate ( param, audio_ctx, val, duration ) {
+				var now = audio_ctx ? audio_ctx.currentTime : 0;
+				var points = ratePoints (val, duration);
+				param.cancelScheduledValues && param.cancelScheduledValues (now);
+
+				if (!points) {
+					val = clampRate (val);
+					param.setValueAtTime (val, now);
+					return ;
+				}
+
+				duration = rateDuration (val, duration);
+				param.setValueAtTime (points[0].val, now);
+				for (var i = 1; i < points.length; ++i)
+					param.linearRampToValueAtTime (points[i].val, now + points[i].x * duration);
+			}
+
 		// EFFECTS LOGIC
 		var FXBank = {
 			Gain : function( val ) {
@@ -1685,14 +1739,20 @@
 			},
 
 			Speed : function ( val ) {
-				var prev_val = 1.0;
+				var ctx = null;
+				var curr_val = val;
 
 				return {
+					duration: function ( duration ) {
+						return rateDuration (curr_val, duration);
+					},
+
 					filter : function ( audio_ctx, destination, source, duration ) {
+						ctx = audio_ctx;
 
 						var inputNode = audio_ctx.createGain();
 
-						source.playbackRate.value = val;
+						setRate (source.playbackRate, audio_ctx, curr_val, duration);
 						source.connect (inputNode);
 
 						// line in to dry mix
@@ -1704,13 +1764,22 @@
 					},
 
 					preview: function (state, source) {
-						if (!state) source.playbackRate.value = 1.0;
-						else source.playbackRate.value = prev_val;
+						setRate (
+							source.playbackRate,
+							ctx || source.context || audio_ctx,
+							state ? curr_val : 1.0,
+							source.buffer ? source.buffer.duration : 1
+						);
 					},
 
 					update : function ( filter_chain, audio_ctx, val, source ) {
-						prev_val = val;
-						source.playbackRate.value = val;
+						curr_val = val;
+						setRate (
+							source.playbackRate,
+							audio_ctx,
+							curr_val,
+							source.buffer ? source.buffer.duration : 1
+						);
 					}
 				};
 			},

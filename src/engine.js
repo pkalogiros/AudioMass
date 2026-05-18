@@ -174,81 +174,81 @@
 			// --------
 		};
 
-			this.LoadFile = function ( e ) {
-				var file = e.files && e.files[0];
-				if (!file) return ;
-				if (!isLoadableAudioFile ( file )) {
-					app.fireEvent ('ShowError', 'Unsupported audio file type');
-					return ;
-				}
-	
-								var func = function () {
-										app.listenFor ('RequestCancelModal', function() {
-											wavesurfer.cancelBufferLoad ();
-											AudioUtils.DownloadFileCancel ();
-										if (wavesurfer.arraybuffer) q.is_ready = true;
+		this.LoadFile = function ( e ) {
+			var file = e.files && e.files[0];
+			if (!file) return ;
+			if (!isLoadableAudioFile ( file )) {
+				app.fireEvent ('ShowError', 'Unsupported audio file type');
+				return ;
+			}
 
-										app.fireEvent ('RequestResize');
-										setTimeout(function() {
-											app.fireEvent ('DidDownloadFile');
-										}, 12);
-										app.stopListeningForName ('RequestCancelModal');
+			var func = function () {
+				app.listenFor ('RequestCancelModal', function() {
+					wavesurfer.cancelBufferLoad ();
+					AudioUtils.DownloadFileCancel ();
+					if (wavesurfer.arraybuffer) q.is_ready = true;
 
-										OneUp ('Canceled Loading', 1350);
-									});
-	
-										app.fireEvent ('WillDownloadFile');
-										q.is_ready = false;
-										wavesurfer.loadBlob( file );
-										app.fireEvent ('DidUnloadFile');
-										wavesurfer.regions && wavesurfer.regions.clear();
-								};
+					app.fireEvent ('RequestResize');
+					setTimeout(function() {
+						app.fireEvent ('DidDownloadFile');
+					}, 12);
+					app.stopListeningForName ('RequestCancelModal');
 
-							if ( q.is_ready )
-							{
-									//  ----------------
-									new PKSimpleModal ({
-										title : 'Open or append',
-										clss  : 'pk_modal_anim pk_fnt10',
-										ondestroy : function ( q ) {
-											app.ui.InteractionHandler.on = false;
-											app.ui.KeyHandler.removeCallback ('modalTempErr');
-										},
-										buttons:[
-											{
-												title:'OPEN NEW',
-												callback: function( q ) {
-													wavesurfer.backend._add = 0;
-													func ();
-													q.Destroy ();
-												}
-											},
-											{
-												title:'ADD IN EXISTING',
-												callback: function( q ) {
-													wavesurfer.backend._add = 1;
-													func ();
-													q.Destroy ();
-												}
-											}
-										],
-										body    : '<p>Append file to existing track?</p>',
-										setup   : function( q ) {
-											app.ui.InteractionHandler.checkAndSet ('modal');
-											app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
-												q.Destroy ();
-											}, [27]);
-										}
-									}).Show ();
+					OneUp ('Canceled Loading', 1350);
+				});
 
-									return ;
+				app.fireEvent ('WillDownloadFile');
+				q.is_ready = false;
+				wavesurfer.loadBlob( file );
+				app.fireEvent ('DidUnloadFile');
+				wavesurfer.regions && wavesurfer.regions.clear();
+			};
+
+			if ( q.is_ready )
+			{
+				//  ----------------
+				new PKSimpleModal ({
+					title : 'Open or append',
+					clss  : 'pk_modal_anim pk_fnt10',
+					ondestroy : function ( q ) {
+						app.ui.InteractionHandler.on = false;
+						app.ui.KeyHandler.removeCallback ('modalTempErr');
+					},
+					buttons:[
+						{
+							title:'OPEN NEW',
+							callback: function( q ) {
+								wavesurfer.backend._add = 0;
+								func ();
+								q.Destroy ();
 							}
+						},
+						{
+							title:'ADD IN EXISTING',
+							callback: function( q ) {
+								wavesurfer.backend._add = 1;
+								func ();
+								q.Destroy ();
+							}
+						}
+					],
+					body    : '<p>Append file to existing track?</p>',
+					setup   : function( q ) {
+						app.ui.InteractionHandler.checkAndSet ('modal');
+						app.ui.KeyHandler.addCallback ('modalTempErr', function ( e ) {
+							q.Destroy ();
+						}, [27]);
+					}
+				}).Show ();
 
-							wavesurfer.backend._add = 0;
-							func ();
-	
-								// ----
-				};
+				return ;
+			}
+
+			wavesurfer.backend._add = 0;
+			func ();
+
+			// ----
+		};
 
 		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
 			var canceled = false;
@@ -2740,7 +2740,9 @@
 
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
-			var duration = (region.end - region.start) / val;
+			var selected_duration = region.end - region.start;
+			var fx = AudioUtils.FXBank.Speed( val );
+			var duration = fx.duration ? fx.duration (selected_duration) : selected_duration / val;
 			duration = q.TrimTo (duration, 3);
 
 			handleStateInline ( start, end );
@@ -2760,7 +2762,6 @@
 
 			q.in_fx = true;
 			app.ui.InteractionHandler.on = true;
-			var fx = AudioUtils.FXBank.Speed( val );
 
 			var getOfflineAudioContext = function (channels, sampleRate, duration) {
 					return new (window.OfflineAudioContext ||
