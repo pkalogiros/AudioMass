@@ -34,6 +34,12 @@
 		var AudioUtils = new app._deps.audioutils ( app, wavesurfer );
 		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
+		var loadableAudioExtensions = /\.(aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav|wave|webm)$/i;
+		function isLoadableAudioFile ( file ) {
+			var type = (file.type || '').toLowerCase ();
+			if (type.indexOf ('audio/') === 0) return true;
+			return loadableAudioExtensions.test (file.name || '');
+		}
 
 		this.TrimTo = function( val, num ) {
 			var nums = {'0':1, '1':10, '2':100,'3':1000,'4':10000,'5':100000};
@@ -168,21 +174,18 @@
 			// --------
 		};
 
-		this.LoadFile = function ( e ) {
-			if (e.files.length > 0)
-			{
-				if (e.files[0].type == "audio/mp3"
-					|| e.files[0].type == "audio/wave"
-					|| e.files[0].type == "audio/mpeg"
-					|| e.files[0].type == "audio/aiff"
-					|| e.files[0].type == "audio/flac"
-					|| e.files[0].type == "audio/ogg")
-				{
-
-							var func = function () {
-									app.listenFor ('RequestCancelModal', function() {
-										wavesurfer.cancelBufferLoad ();
-										AudioUtils.DownloadFileCancel ();
+			this.LoadFile = function ( e ) {
+				var file = e.files && e.files[0];
+				if (!file) return ;
+				if (!isLoadableAudioFile ( file )) {
+					app.fireEvent ('ShowError', 'Unsupported audio file type');
+					return ;
+				}
+	
+								var func = function () {
+										app.listenFor ('RequestCancelModal', function() {
+											wavesurfer.cancelBufferLoad ();
+											AudioUtils.DownloadFileCancel ();
 										if (wavesurfer.arraybuffer) q.is_ready = true;
 
 										app.fireEvent ('RequestResize');
@@ -193,13 +196,13 @@
 
 										OneUp ('Canceled Loading', 1350);
 									});
-
-									app.fireEvent ('WillDownloadFile');
-									q.is_ready = false;
-									wavesurfer.loadBlob( e.files[0] );
-									app.fireEvent ('DidUnloadFile');
-									wavesurfer.regions && wavesurfer.regions.clear();
-							};
+	
+										app.fireEvent ('WillDownloadFile');
+										q.is_ready = false;
+										wavesurfer.loadBlob( file );
+										app.fireEvent ('DidUnloadFile');
+										wavesurfer.regions && wavesurfer.regions.clear();
+								};
 
 							if ( q.is_ready )
 							{
@@ -243,11 +246,9 @@
 
 							wavesurfer.backend._add = 0;
 							func ();
-
-							// ----
-				}
-			}
-			};
+	
+								// ----
+				};
 
 		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
 			var canceled = false;

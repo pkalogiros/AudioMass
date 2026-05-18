@@ -278,7 +278,7 @@
 				}
 			  ],
 			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' +
-				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.05" value="1.0" />'+
+				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.01" value="1.0" />'+
 				'<span class="pk_val">1.0</span></div>',
 			  setup:function( q ) {
 				  var range = q.el_body.getElementsByTagName('input')[0];
@@ -345,7 +345,7 @@
 				}
 			  ],
 			  body:'<div class="pk_row" style="border:none"><label>Playback Rate</label>' +
-				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.05" value="1.0" />'+
+				'<input type="range" class="pk_horiz" min="0.2" max="2.0" step="0.01" value="1.0" />'+
 				'<span class="pk_val">1.0</span></div>',
 			  setup:function( q ) {
 				  var range = q.el_body.getElementsByTagName('input')[0];
