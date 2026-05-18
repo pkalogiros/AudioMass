@@ -4117,13 +4117,17 @@
 			var items = new Array ( pending );
 			var completed = new Array ( pending );
 			var replace = !clips.length;
+			var canceled = false;
+			var abort = w.AbortController ? new w.AbortController () : null;
 
+			app.listenFor ('RequestCancelModal', cancelMultiSample);
 			app.fireEvent ('WillDownloadFile');
 
 			for (var i = 0; i < multi_sample_files.length; ++i)
 				loadMultiSampleFile ( i, sampleInfo ( multi_sample_files[i] ), 0 );
 
 			function loadMultiSampleFile ( index, info, retry ) {
+				if (canceled) return ;
 				var url = 'mp3/multi/' + info.f;
 				var cached = sample_cache[info.f];
 
@@ -4141,8 +4145,9 @@
 
 				var settled = false;
 				fetchArrayBuffer ( url, function ( arr ) {
+					if (canceled) return ;
 					decodeMp3Buffer ( arr, function ( buffer ) {
-						if (settled) return ;
+						if (canceled || settled) return ;
 						settled = true;
 						sample_cache[info.f] = buffer;
 						items[index] = {
@@ -4154,10 +4159,10 @@
 						};
 						finishMultiSampleFile ( index );
 					}, fail);
-				}, fail);
+				}, fail, abort && abort.signal);
 
 				function fail () {
-					if (settled) return ;
+					if (canceled || settled) return ;
 					settled = true;
 					if (retry < 2) loadMultiSampleFile ( index, info, retry + 1 );
 					else finishMultiSampleFile ( index );
@@ -4165,15 +4170,28 @@
 			}
 
 			function finishMultiSampleFile ( index ) {
-				if (completed[index]) return ;
+				if (canceled || completed[index]) return ;
 				completed[index] = true;
 				done ();
 			}
 
-			function done () {
-				if (--pending > 0) return ;
+			function cancelMultiSample () {
+				if (canceled) return ;
+				canceled = true;
+				if (abort) abort.abort ();
+				finishMultiSampleLoad ();
+				OneUp ('Canceled Loading', 1350);
+			}
+
+			function finishMultiSampleLoad () {
 				sample_loading = false;
 				app.fireEvent ('DidDownloadFile');
+				app.stopListeningForName ('RequestCancelModal');
+			}
+
+			function done () {
+				if (--pending > 0) return ;
+				finishMultiSampleLoad ();
 				addMultiSampleBuffers ( prev, items, replace, zoom );
 			}
 		}
@@ -4238,8 +4256,8 @@
 			}).then ( ok ).catch ( bad );
 		}
 
-		function fetchArrayBuffer ( url, ok, bad ) {
-			fetch ( url ).then (function ( res ) {
+		function fetchArrayBuffer ( url, ok, bad, signal ) {
+			fetch ( url, signal ? {signal:signal} : undefined ).then (function ( res ) {
 				if (!res.ok) throw 1;
 				return res.arrayBuffer ();
 			}).then ( ok ).catch ( bad );
