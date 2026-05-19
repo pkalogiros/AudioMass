@@ -445,7 +445,7 @@
 
 
 		function previewEffect ( _offset, _duration, _fx ) {
-			if (this.previewing) stopPreview (_fx);
+			if (this.previewing) stopPreview.call (this, _fx);
 
 			var orig_buffer = wavesurfer.backend.buffer;
 
@@ -551,6 +551,103 @@
 			}
 
 			return (source);
+		}
+
+		function previewBuffer ( buffer ) {
+			if (this.previewing) stopPreview.call (this);
+
+			var audio_ctx = wavesurfer.backend.ac || getAudioContext ();
+			var source = audio_ctx.createBufferSource ();
+			source.buffer = buffer;
+			source.loop = true;
+			source.connect (audio_destination);
+			source.start ();
+
+			this.PreviewFilter = this.PreviewTog = this.PreviewUpdate = null;
+			this.PreviewSource = source;
+			this.PreviewDestination = audio_destination;
+			this.previewing = 2;
+
+			return (source);
+		}
+
+		function findZero ( data, i, dir, max, slope ) {
+			var any = -1;
+			for (var n = 0; n < max; ++n, i += dir) {
+				if (i < 1 || i >= data.length - 1) break;
+				if ((data[i - 1] <= 0 && data[i] >= 0) || (data[i - 1] >= 0 && data[i] <= 0)) {
+					if (any < 0) any = i;
+					if (!slope || (data[i + 1] - data[i - 1]) * slope > 0) return (i);
+				}
+			}
+			return (any);
+		}
+
+		function seamlessBuffer ( buffer, val ) {
+			val = val || {};
+			var data = buffer.getChannelData (0);
+			var start = 0, end = buffer.length;
+
+			if (val.trim) {
+				var pad = (buffer.sampleRate / 1000) >> 0;
+				while (start < end - 8 && Math.abs (data[start]) < 0.0007) ++start;
+				while (end > start + 8 && Math.abs (data[end - 1]) < 0.0007) --end;
+				if (end > start + 8) {
+					start = Math.max (0, start - pad);
+					end = Math.min (buffer.length, end + pad);
+				}
+				else {
+					start = 0;
+					end = buffer.length;
+				}
+			}
+
+			var max = Math.min ((buffer.sampleRate / 100) >> 0, (end - start) >> 3);
+
+			if (val.snap && max > 2) {
+				var z1 = findZero (data, start + 1, 1, max, 0);
+				var slope = z1 > 0 ? data[z1 + 1] - data[z1 - 1] : 0;
+				var z2 = findZero (data, end - 2, -1, max, slope);
+				if (z1 > 0 && z2 > z1 + 8) {
+					start = z1;
+					end = z2 + 1;
+				}
+			}
+
+			var len = end - start;
+			var fade = Math.min (((val.fade || 0) * buffer.sampleRate / 1000) >> 0, len >> 2);
+			var out = audio_ctx.createBuffer (buffer.numberOfChannels, len - fade, buffer.sampleRate);
+
+			for (var ch = 0; ch < buffer.numberOfChannels; ++ch) {
+				var src = buffer.getChannelData (ch);
+				var dst = out.getChannelData (ch);
+				var i = 0;
+
+				for (; i < fade; ++i) {
+					var p = i / (fade - 1 || 1);
+					dst[i] = src[start + i] * Math.sin (p * 1.570796) +
+						src[end - fade + i] * Math.cos (p * 1.570796);
+				}
+				for (; i < dst.length; ++i)
+					dst[i] = src[start + i];
+			}
+
+			var repeat = Math.max (1, Math.min (64, (val.repeat || 1) >> 0));
+			if (repeat < 2) return (out);
+
+			var ret = audio_ctx.createBuffer (out.numberOfChannels, out.length * repeat, out.sampleRate);
+			for (var ch = 0; ch < out.numberOfChannels; ++ch) {
+				var src = out.getChannelData (ch);
+				var dst = ret.getChannelData (ch);
+				for (var n = 0; n < repeat; ++n)
+					dst.set (src, n * src.length);
+			}
+
+			return (ret);
+		}
+
+		function seamlessLoop ( _offset, _duration, val ) {
+			return seamlessBuffer (CopyBufferSegment (_offset, _duration), val);
 		}
 
 		function applyEffect( _offset, _duration, _fx ) {
@@ -2042,9 +2139,11 @@
 		this.FXPreviewStop = stopPreview;
 		this.FXPreviewToggle = togglePreview;
 		this.FXPreviewInit = initPreview;
+		this.FXPreviewBuffer = previewBuffer;
 		this.FXPreview = previewEffect;
 		this.FX = applyEffect;
 		this.FXBank = FXBank;
+		this.SeamlessLoop = seamlessLoop;
 		this.Loudness = AnalyzeLoudness;
 
 		this.Trim = TrimBuffer;

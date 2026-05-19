@@ -3736,13 +3736,19 @@
 			var new_len = old_len;
 			var fx_val = val;
 			var Ctx = w.OfflineAudioContext || w.webkitOfflineAudioContext;
-			if (name === 'Speed' || name === 'Rate')
+			if (name === 'Rate') {
 				new_len = Math.max (1, (old_len / Math.max (0.001, val)) >> 0);
-			if (name === 'Rate')
 				fx_val = new_len / old_len;
+			}
+			var fx = app.engine.GetFX ( name, fx_val );
+			if (name === 'Speed') {
+				var fx_dur = fx.duration ?
+					fx.duration ( segment.duration ) :
+					segment.duration / Math.max (0.001, val);
+				new_len = Math.max (1, (fx_dur * rate) >> 0);
+			}
 			var ctx = new Ctx (segment.numberOfChannels, new_len, rate);
 			var source = ctx.createBufferSource ();
-			var fx = app.engine.GetFX ( name, fx_val );
 			var filter = null;
 
 			source.buffer = segment;
@@ -4068,6 +4074,11 @@
 
 			OneUp ('Select a waveform box first', 1200);
 			return null;
+		}
+
+		function GetFxBuffer () {
+			var clip = findClip ( selected_clip );
+			return clip ? copyClipBuffer ( clipRegionPart ( clip ) ) : null;
 		}
 
 		function addSilence ( offset, seconds ) {
@@ -5194,6 +5205,7 @@
 		q.Mixdown = Mixdown;
 		q.MixdownAsync = MixdownAsync;
 		q.GetTempoBuffer = GetTempoBuffer;
+		q.GetFxBuffer = GetFxBuffer;
 		q.RecordToggle = RecordToggle;
 		q.RecordStart = RecordStart;
 		q.RecordStop = RecordStop;

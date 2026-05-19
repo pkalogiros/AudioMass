@@ -429,9 +429,9 @@
 								app.listenFor ('DidUpdateMultitrack', setExportReady);
 								setExportReady ();
 							}
-						},
+					},
 
-					{
+			                    {
 						name: 'Load from Computer',
 						type: 'file',
 						action: function ( e ) {
@@ -1073,6 +1073,13 @@
 							app.listenFor ('DidLoadFile', function () {
 								obj.classList.remove ('pk_inact');
 							});
+						}
+					},
+
+					{
+						name:'Seamless Loop',
+						action:function () {
+							app.fireEvent ('RequestActionFXUI_SeamlessLoop');
 						}
 					}
 				]
@@ -2722,7 +2729,7 @@
 						return ;
 					}
 				}
-				UI.fireEvent( 'RequestSeekTo', 0.994 );
+				UI.fireEvent( 'RequestSeekTo', 1 );
 				return ;
 			}
 
@@ -2750,7 +2757,7 @@
 				}
 			}
 
-			UI.fireEvent( 'RequestSeekTo', 0.994 );
+			UI.fireEvent( 'RequestSeekTo', 1 );
 		}, [16, 39]);
 		UI.KeyHandler.addCallback ('killctx', function ( e ) {
 			var event = new Event ('killCTX', {bubbles: true});
@@ -2774,7 +2781,7 @@
 		btn_front_total.innerHTML = '<span>Seek End (Shift + right arrow)</span>';
 		btn_front_total.onclick = function() {
 			UI.fireEvent( 'RequestRegionClear');
-			UI.fireEvent( 'RequestSeekTo', 0.996);
+			UI.fireEvent( 'RequestSeekTo', 1);
 			this.blur();
 		};
 		transport.appendChild ( btn_front_total );
@@ -2941,6 +2948,13 @@
 				UI.fireEvent ('RequestFXUI_Gain');
 			}, false );
 
+			main_context.addOption ('Seamless Loop...', function( e ) {
+				var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
+				if (!region) return ;
+
+				UI.fireEvent ('RequestActionFXUI_SeamlessLoop');
+			}, false );
+
 			main_context.addOption ('Copy', function( e ) {
 				var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
 				if (!region) return ;
@@ -2973,7 +2987,7 @@
 
 			main_context.onOpen = function ( menu, div ) {
 				var divs = div.childNodes;
-				if (!copable) divs[4].className += ' pk_inact';
+				if (!copable) divs[5].className += ' pk_inact';
 
 				UI.fireEvent ('RequestPause');
 
@@ -2981,7 +2995,8 @@
 				if (region) return ;
 
 				divs[3].className += ' pk_inact';
-				divs[5].className += ' pk_inact';
+				divs[4].className += ' pk_inact';
+				divs[6].className += ' pk_inact';
 			};
 
 		}, 1000);

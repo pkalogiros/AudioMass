@@ -10,6 +10,15 @@
 		q.modal = filter_modal;
 		q.app  = app;
 		q.wv    = app.engine.wavesurfer;
+		var mt = app.multitrack;
+		var mt_buffer = mt && mt.IsOn && mt.IsOn () && mt.GetFxBuffer ?
+			mt.GetFxBuffer () :
+			null;
+		if (mt_buffer) q.wv = {
+			backend:{buffer:mt_buffer},
+			regions:{list:[]},
+			getDuration:function () { return mt_buffer.duration; }
+		};
 		q.points = {};
 		q.act = null;
 		q.act_point = null;
@@ -407,15 +416,21 @@
 				durr = region.end - region.start;
 			}
 
+			var rate = buffer.sampleRate;
+			var from = Math.min (buffer.length, Math.max (0, (offs * rate) >> 0));
+			var to = Math.min (buffer.length, ((offs + durr) * rate) >> 0);
+			var len = Math.max (1, to - from);
+			durr = len / rate;
+
 			var audio_ctx = getOfflineAudioContext (
 					1, // orig_buffer.numberOfChannels,
 					8000,
-					(durr * 8000) >> 0
+					Math.max (1, (durr * 8000) >> 0)
 			);
 
-			var newbuffer = audio_ctx.createBuffer (1, durr * buffer.sampleRate, buffer.sampleRate);
+			var newbuffer = audio_ctx.createBuffer (1, len, rate);
 			newbuffer.getChannelData ( 0 ).set (
-				buffer.getChannelData ( 0 ).slice ( offs * buffer.sampleRate, (offs + durr) * buffer.sampleRate )
+				buffer.getChannelData ( 0 ).subarray ( from, to )
 			);
 
 			var source = audio_ctx.createBufferSource ();

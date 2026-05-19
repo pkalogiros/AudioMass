@@ -530,6 +530,15 @@
 			wavesurfer.stop ( val );
 		});
 		var record_stop_done = null;
+		function playLoop () {
+			var region = wavesurfer.regions.list[0];
+			if (region && region.loop && wavesurfer.backend.playLoop) {
+				var at = wavesurfer.getCurrentTime ();
+				wavesurfer.backend.playLoop (region.start, region.end, at >= region.start && at < region.end ? at : region.start);
+				return ;
+			}
+			wavesurfer.play ();
+		}
 		function afterRecordStop ( ok, dims ) {
 			var done = record_stop_done;
 			record_stop_done = null;
@@ -537,7 +546,7 @@
 		}
 		function playAfterRecordStop () {
 			app.fireEvent ('RequestActionRecordStop', function ( ok ) {
-				if (ok && !wavesurfer.isPlaying ()) wavesurfer.play ();
+				if (ok && !wavesurfer.isPlaying ()) playLoop ();
 			});
 		}
 
@@ -553,15 +562,15 @@
 
 			if ( !x && wavesurfer.isPlaying ()) {
 				wavesurfer.stop ();
-				wavesurfer.play ();
+				playLoop ();
 			}
 			else {
 				if (!app.rec.isActive ()) {
-					wavesurfer.play ();
+					playLoop ();
 				} else {
 					setTimeout(function() {
 						if (!app.rec.isActive () && !x && !wavesurfer.isPlaying ()) {
-							wavesurfer.play ();
+							playLoop ();
 						}
 					}, 220);
 				}
@@ -573,7 +582,7 @@
 		});
 		app.listenFor ('RequestTransportToggle', function ( mode ) {
 			if (mode === 'pause') {
-				wavesurfer.playPause();
+				wavesurfer.isPlaying () ? wavesurfer.pause () : playLoop ();
 				return ;
 			}
 
@@ -608,8 +617,8 @@
 			{
 				skip_seek = true;
 				wavesurfer.regions.add({
-					start:0.01,
-					end:wavesurfer.getDuration() - 0.01,
+					start:0,
+					end:wavesurfer.getDuration(),
 					id:'t'
 				});
 				wavesurfer.regions.list[0].loop = true;
@@ -620,6 +629,14 @@
 			if (will_loop && !skip_seek /*&& wavesurfer.isPlaying ()*/) {
 				app.fireEvent ('RequestSeekTo', wavesurfer.regions.list[0].start / wavesurfer.getDuration ());
 			}
+		});
+		wavesurfer.on ('finish', function () {
+			var region = wavesurfer.regions.list[0];
+			if (region && region.loop && region.end >= wavesurfer.getDuration ())
+				setTimeout (function () {
+					region = wavesurfer.regions.list[0];
+					region && region.loop && (wavesurfer.backend.playLoop ? wavesurfer.backend.playLoop (region.start, region.end) : wavesurfer.play (region.start));
+				}, 0);
 		});
 		app.listenFor ('RequestSkipBack', function( val ) {
 			wavesurfer.skipBackward ( val )
@@ -1034,7 +1051,7 @@
 			var start_offset = offset || 0;
 			var end_offset   = llen || ((buffer.duration * sample_rate) >> 0);
 			var length       = end_offset - start_offset;
-			var mod          = (length / width) >> 0;
+			var mod          = Math.max (1, (length / width) >> 0);
 
 			var max   = 0;
 			var min   = 0;
@@ -1047,7 +1064,7 @@
 
 				if (new_offset >= 0)
 				{
-					for (var j = 0; j < mod; j += 3) {
+					for (var j = 0; j < mod && new_offset + j < end_offset; j += 3) {
 						if ( chan_data[ new_offset + j] > max ) {
 							max = chan_data[ new_offset + j];
 						}
@@ -1094,7 +1111,7 @@
 			ctx.closePath();
 			ctx.fill();
 
-			return (canvas.toDataURL('image/jpeg', 0.56));
+			return (cnv ? canvas : canvas.toDataURL('image/jpeg', 0.56));
 			// ---
 		};
 
@@ -2347,6 +2364,96 @@
 		app.listenFor ('RequestActionFX_PREVIEW_STOP', function () {
 			AudioUtils.FXPreviewStop ();
 			app.fireEvent ('DidStopPreview');
+		});
+			function seamlessRegion () {
+				var region = wavesurfer.regions.list[0];
+				if (!region) {
+					app.fireEvent ('RequestSelect');
+					region = wavesurfer.regions.list[0];
+					if (!region) return ;
+				}
+
+				var start = q.TrimTo (region.start, 3);
+			var end = q.TrimTo ((region.end - region.start), 3);
+			if (end <= 0.002) {
+				OneUp ('Selection too short', 1200);
+				return ;
+			}
+
+			return ([ start, end ]);
+		}
+		app.listenFor ('RequestActionFX_PREVIEW_SeamlessLoop', function ( val ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+
+			var r = seamlessRegion ();
+			if (!r) return ;
+
+			AudioUtils.FXPreviewBuffer (AudioUtils.SeamlessLoop (r[0], r[1], val));
+			app.fireEvent ('DidStartPreview');
+		});
+		app.listenFor ('RequestActionFX_SeamlessLoop', function ( val ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+			}
+
+			var r = seamlessRegion ();
+			if (!r) return ;
+
+			app.fireEvent('RequestPause');
+			app.fireEvent ('StateRequestPush', {
+				desc : 'Seamless Loop',
+				meta : r,
+				data : wavesurfer.backend.buffer
+			});
+
+			var dims = AudioUtils.Replace (r[0], r[1], AudioUtils.SeamlessLoop (r[0], r[1], val));
+			wavesurfer.regions.clear();
+			wavesurfer.regions.add({ start:dims[0], end:dims[1], id:'t' });
+			app.fireEvent ('RequestSeekTo', (dims[0]/wavesurfer.getDuration()));
+
+			OneUp ('Seamless Loop');
+		});
+		app.listenFor ('RequestActionFX_OpenSeamlessLoop', function ( val ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+			}
+
+			var r = seamlessRegion ();
+			if (!r) return ;
+
+			var win = val && val.win;
+			var loop = AudioUtils.SeamlessLoop (r[0], r[1], val && val.val ? val.val : val);
+			var open = function ( fls ) {
+				var id = 'loop_' + Math.random().toString(36).substring(7);
+				fls.SaveSession (loop, id, 'Seamless Loop', win && function () {
+					var url = window.location.href.split('?')[0].split('#')[0] + '?local=' + id;
+					win.location = url;
+					OneUp ('Opened Seamless Loop', 1000);
+				}, !!win);
+				app.stopListeningFor ('DidOpenDB', open);
+			};
+
+			if (!app.fls) {
+				win && win.close && win.close ();
+				return ;
+			}
+			app.listenFor ('DidOpenDB', open);
+			if (!app.fls.on) app.fls.Init (function ( err ) {
+				if (!err) return ;
+				win && win.close && win.close ();
+				app.stopListeningFor ('DidOpenDB', open);
+				OneUp ('Could not open local storage', 1400);
+			});
+			else app.fireEvent ('DidOpenDB', app.fls);
 		});
 		app.listenFor ('RequestActionFX_PREVIEW_GAIN', function ( val ) {
 			if (!q.is_ready) return ;

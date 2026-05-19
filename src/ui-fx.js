@@ -400,15 +400,15 @@
 					id: filter_id,
 				  title:'Pitch / Speed Profile',
 					presets:[
-						{name:'Doppler Pass',val:'profile:0:1.35|0.5:0.72|1:1.35'},
-						{name:'Accelerate',val:'profile:0:0.70|0.55:1.00|1:1.65'},
-						{name:'Engine Rev',val:'profile:0:0.82|0.25:1.35|0.58:1.08|1:1.55'},
 						{name:'-1/4',val:0.25},
 						{name:'-1/2',val:0.5},
 						{name:'Slightly slower',val:0.85},
 						{name:'Slightly faster',val:1.1},
 						{name:'+1/4',val:1.25},
 						{name:'+1/2',val:1.5},
+						{name:'Doppler Pass',val:'profile:0:1.35|0.5:0.72|1:1.35'},
+						{name:'Accelerate',val:'profile:0:0.70|0.55:1.00|1:1.65'},
+						{name:'Engine Rev',val:'profile:0:0.82|0.25:1.35|0.58:1.08|1:1.55'},
 						{name:'Car Approaching',val:'profile:0:0.72|0.3:0.88|0.65:1.18|1:1.55'},
 						{name:'Car Driving Away',val:'profile:0:1.55|0.35:1.18|0.7:0.88|1:0.72'}
 					],
@@ -1784,6 +1784,219 @@
 				// ---
 			  }
 			}, app);
+			x.Show();
+		});
+
+			app.listenFor ('RequestActionFXUI_SeamlessLoop', function () {
+				if (!app.engine.is_ready) return ;
+				if (!app.engine.wavesurfer.regions.list[0]) {
+					app.fireEvent ('RequestSelect');
+				}
+				if (!app.engine.wavesurfer.regions.list[0]) return ;
+
+				var x = new PKSimpleModal ({
+					title:'Seamless Loop',
+					ondestroy: function ( q ) {
+						app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+						if (q._sloopRAF) cancelAnimationFrame (q._sloopRAF);
+						if (q._sloopRestart) clearTimeout (q._sloopRestart);
+						app.stopListeningFor ('DidStartPreview', q._sloopStart);
+						app.stopListeningFor ('DidStopPreview', q._sloopStop);
+					app.ui.InteractionHandler.on = false;
+					app.ui.KeyHandler.removeCallback (modal_esc_key);
+					},
+					toolbar: [
+					{
+						title:'Preview Loop',
+						callback: function( q ) {
+							app.fireEvent ('RequestActionFX_PREVIEW_SeamlessLoop', q._val ());
+						}
+					}
+				],
+				buttons: [
+					{
+						title:'Open in New Editor',
+						callback: function( q ) {
+							app.fireEvent ('RequestActionFX_OpenSeamlessLoop', {
+								val:q._val (),
+								win:window.open ('about:blank')
+							});
+							q.Destroy ();
+						}
+					},
+					{
+						title:'Apply',
+						clss:'pk_modal_a_accpt',
+						callback: function( q ) {
+							app.fireEvent ('RequestActionFX_SeamlessLoop', q._val ());
+							q.Destroy ();
+						}
+					}
+				],
+				body:'<canvas class="pk_sloop" width="520" height="96"></canvas>' +
+					'<div class="pk_sloop_meta"></div>' +
+					'<div class="pk_row" style="border:none"><label>Crossfade</label>' +
+					'<input type="range" class="pk_horiz" min="0" max="500" step="1" value="10" />' +
+					'<span class="pk_val">10 ms</span></div>' +
+					'<div class="pk_row" style="border:none"><label>Repeat loop</label>' +
+					'<input class="pk_txt" style="display:inline-block;width:64px;margin:0" type="number" min="1" max="64" step="1" value="1" /></div>' +
+					'<div class="pk_row" style="border:none"><input type="checkbox" class="pk_check" id="pk_sloop_trim" />' +
+					'<label for="pk_sloop_trim">Trim edge silence</label></div>' +
+					'<div class="pk_row" style="border:none"><input type="checkbox" class="pk_check" id="pk_sloop_zc" checked />' +
+					'<label for="pk_sloop_zc">Snap to zero crossing</label></div>',
+				setup:function( q ) {
+					var canvas = q.el_body.getElementsByTagName ('canvas')[0];
+					var ctx = canvas.getContext ('2d', {alpha:false,antialias:false});
+					var inputs = q.el_body.getElementsByTagName ('input');
+					var span = q.el_body.getElementsByTagName ('span')[0];
+					var meta = q.el_body.getElementsByClassName ('pk_sloop_meta')[0];
+					var region = app.engine.wavesurfer.regions.list[0];
+					var buffer = app.engine.wavesurfer.backend.buffer;
+					var start = (region.start * buffer.sampleRate) >> 0;
+					var len = ((region.end - region.start) * buffer.sampleRate) >> 0;
+					var end = start + len;
+					var playing = 0;
+					var now = function () {
+						return ((w.performance && w.performance.now ? w.performance.now () : Date.now ()) / 1000);
+					};
+					var repeat = function () {
+						return Math.max (1, Math.min (64, inputs[1].value >> 0 || 1));
+					};
+					var zero = function (data, i, dir, max, slope) {
+						var any = -1;
+						for (var n = 0; n < max; ++n, i += dir) {
+							if (i < 1 || i >= data.length - 1) break;
+							if ((data[i - 1] <= 0 && data[i] >= 0) || (data[i - 1] >= 0 && data[i] <= 0)) {
+								if (any < 0) any = i;
+								if (!slope || (data[i + 1] - data[i - 1]) * slope > 0) return (i);
+							}
+						}
+						return (any);
+					};
+
+					function edges () {
+						var s = start, e = end, data = buffer.getChannelData (0);
+						if (inputs[2].checked) {
+							var pad = (buffer.sampleRate / 1000) >> 0;
+							while (s < e - 8 && Math.abs (data[s]) < 0.0007) ++s;
+							while (e > s + 8 && Math.abs (data[e - 1]) < 0.0007) --e;
+							if (e > s + 8) {
+								s = Math.max (start, s - pad);
+								e = Math.min (end, e + pad);
+							}
+							else {
+								s = start;
+								e = end;
+							}
+						}
+						if (inputs[3].checked) {
+							var max = Math.min ((buffer.sampleRate / 100) >> 0, (e - s) >> 3);
+							var z1 = max > 2 ? zero (data, s + 1, 1, max, 0) : -1;
+							var slope = z1 > 0 ? data[z1 + 1] - data[z1 - 1] : 0;
+							var z2 = z1 > 0 ? zero (data, e - 2, -1, max, slope) : -1;
+							if (z2 > z1 + 8) {
+								s = z1;
+								e = z2 + 1;
+							}
+						}
+						return ([ s, e ]);
+					}
+
+					function draw ( pos ) {
+						var w = canvas.width, h = canvas.height;
+						var b = edges (), l = b[1] - b[0];
+						if (l < 1) return ;
+						app.engine.GetWave (buffer, w, h, b[0], b[1], canvas, ctx);
+
+						var f = Math.min ((inputs[0].value * buffer.sampleRate / 1000) >> 0, l >> 2);
+						var fx = f ? Math.max (2, (f / l * w) >> 0) : 0;
+						ctx.fillStyle = 'rgba(255,179,92,.22)';
+						ctx.fillRect (0, 0, fx, h);
+						ctx.fillRect (w - fx, 0, fx, h);
+						if (fx > 1) {
+							var data = buffer.getChannelData (0);
+							ctx.strokeStyle = '#ffb35c';
+							ctx.beginPath ();
+							for (var x = 0; x < fx; ++x) {
+								var v = data[b[1] - f + ((x / fx * f) >> 0)] || 0;
+								ctx[x ? 'lineTo' : 'moveTo'] (x, h/2 - v * h/2);
+							}
+							ctx.stroke ();
+						}
+						var r = repeat ();
+						var ol = l - f;
+						meta.innerHTML = 'Loop ' + (ol / buffer.sampleRate).toFixed (3) + 's' +
+							(r > 1 ? ' x' + r + ' = ' + (ol * r / buffer.sampleRate).toFixed (3) + 's' : '');
+						if (pos >= 0) {
+							ctx.fillStyle = '#ff3355';
+							ctx.fillRect ((pos * w) >> 0, 0, 2, h);
+						}
+					}
+
+					function tick () {
+						if (!playing) return ;
+						var l = (edges()[1] - edges()[0]) / buffer.sampleRate;
+						if (l <= 0) return ;
+						draw (((now () - playing) % l) / l);
+						q._sloopRAF = requestAnimationFrame (tick);
+					}
+
+					q._val = function () {
+						return ({ fade:inputs[0].value/1, repeat:repeat (), trim:inputs[2].checked, snap:inputs[3].checked });
+					};
+					q._sloopStart = function () {
+						playing = now ();
+						tick ();
+					};
+					q._sloopStop = function () {
+						playing = 0;
+						if (q._sloopRAF) cancelAnimationFrame (q._sloopRAF);
+						q._sloopRAF = 0;
+						draw ();
+					};
+					app.listenFor ('DidStartPreview', q._sloopStart);
+					app.listenFor ('DidStopPreview', q._sloopStop);
+					var updatePreview = function () {
+						if (!playing) return ;
+						if (q._sloopRestart) clearTimeout (q._sloopRestart);
+						q._sloopRestart = setTimeout (function () {
+							app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+							app.fireEvent ('RequestActionFX_PREVIEW_SeamlessLoop', q._val ());
+						}, 35);
+					};
+					inputs[0].oninput = function() {
+						span.innerHTML = inputs[0].value + ' ms';
+						draw ();
+						updatePreview ();
+					};
+					inputs[1].oninput = inputs[1].onchange = function() {
+						draw ();
+						updatePreview ();
+					};
+					inputs[2].onchange = function() {
+						draw ();
+						updatePreview ();
+					};
+					inputs[3].onchange = function() {
+						draw ();
+						updatePreview ();
+					};
+					canvas.onpointerdown = canvas.onpointermove = function ( e ) {
+						if (e.type === 'pointermove' && !e.buttons) return ;
+						var r = canvas.getBoundingClientRect ();
+						inputs[0].value = Math.max (0, Math.min (500, ((e.clientX - r.left) / r.width * 500) >> 0));
+						inputs[0].oninput ();
+					};
+					setTimeout (draw, 0);
+
+					app.fireEvent ('RequestPause');
+					app.ui.InteractionHandler.checkAndSet (modal_name);
+					app.ui.KeyHandler.addCallback (modal_esc_key, function ( e ) {
+						if (!app.ui.InteractionHandler.check (modal_name)) return ;
+						q.Destroy ();
+					}, [27]);
+				}
+			});
 			x.Show();
 		});
 

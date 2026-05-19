@@ -98,13 +98,13 @@
 			};
 		};
 
-		this.SaveSession = function ( buffer, id, name ) {
+		this.SaveSession = function ( buffer, id, name, callback, quiet ) {
 			var q = this;
 
 			var comp = compressors[ compression ];
 			if (!comp.loading && !comp.ready) {
 				comp.init (function() {
-					q.SaveSession (buffer, id, name);
+					q.SaveSession (buffer, id, name, callback, quiet);
 				});
 
 				return ;
@@ -152,9 +152,10 @@
 			};
 
 			trans.oncomplete = function ( e ) {
-				app.fireEvent ('DidStoreDB', ob, e );
+				if (!quiet) app.fireEvent ('DidStoreDB', ob, e );
+				callback && callback (ob, e);
 				// console.log( 'data stored', id, e );
-            };
+			};
 		};
 
 		this.GetSession = function ( id, callback ) {

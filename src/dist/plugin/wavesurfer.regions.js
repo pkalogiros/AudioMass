@@ -358,7 +358,8 @@ var Region = function () {
             this.on('out', function () {
                 //debugger;
                 if (_this3.loop) {
-                    _this3.wavesurfer.play(_this3.start);
+                    if (_this3.wavesurfer.backend.source && _this3.wavesurfer.backend.source.loop) return;
+                    _this3.wavesurfer.backend.playLoop ? _this3.wavesurfer.backend.playLoop(_this3.start, _this3.end) : _this3.wavesurfer.play(_this3.start);
                 } else {
                     // ####
                     _this3.wavesurfer.seekTo(_this3.start / _this3.wavesurfer.getDuration());

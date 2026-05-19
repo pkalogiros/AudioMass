@@ -4927,6 +4927,40 @@ var WebAudio = function (_util$Observer) {
             this.fireEvent('play');
         }
 
+    }, {
+        key: 'playLoop',
+        value: function playLoop(start, end, at) {
+            if (!this.buffer) {
+                return;
+            }
+
+            if (end <= start) {
+                return this.play(start, end);
+            }
+
+            this.createSource();
+
+            var adjustedTime = this.seekTo(at == null ? start : at, end);
+            at = adjustedTime.start;
+            end = adjustedTime.end;
+
+            this.loopStart = start;
+            this.loopEnd = end;
+            this.scheduledPause = Infinity;
+            this.source.loop = true;
+            this.source.loopStart = start;
+            this.source.loopEnd = end;
+            this.source.start(0, at);
+
+            if (this.ac.state == 'suspended') {
+                this.ac.resume && this.ac.resume();
+            }
+
+            this.setState(PLAYING);
+
+            this.fireEvent('play');
+        }
+
         /**
          * Pauses the loaded audio.
          */
@@ -4938,7 +4972,7 @@ var WebAudio = function (_util$Observer) {
 
             this.scheduledPause = null;
 
-            this.startPosition += this.getPlayedTime();
+            this.startPosition = this.getCurrentTime();
             if (this.source) {
                 try {
                     this.source.stop(0);
@@ -4961,7 +4995,12 @@ var WebAudio = function (_util$Observer) {
         key: 'getCurrentTime',
         value: function getCurrentTime() {
             if (this.state === PLAYING) {
-                return this.startPosition + this.getPlayedTime();
+                var time = this.startPosition + this.getPlayedTime();
+                if (this.source && this.source.loop) {
+                    var len = this.loopEnd - this.loopStart;
+                    return len > 0 ? this.loopStart + ((time - this.loopStart) % len) : this.loopStart;
+                }
+                return time;
             }
             return this.state === FINISHED ? this.getDuration() : this.startPosition;
         }
