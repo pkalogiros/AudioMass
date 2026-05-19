@@ -1947,7 +1947,6 @@
 			app.fireEvent('RequestPause');
 
 			var region = wavesurfer.regions.list[0];
-			var dims = [ 0, 0 ];
 
 			function handleStateInline ( start, end ) {
 				app.fireEvent ('StateRequestPush', {
@@ -1975,10 +1974,18 @@
 						var sil_arr = [];
 						var sil_offset = 210;
 						var vol_offset = 56;
+						var region_start = Math.max (0, Math.min (
+							originalBuffer.length,
+							(region.start * originalBuffer.sampleRate) >> 0
+						));
+						var region_end = Math.max (region_start, Math.min (
+							originalBuffer.length,
+							(region.end * originalBuffer.sampleRate) >> 0
+						));
 						var count = 0;
 						var inv_count = 0;
-						var start = 0;
-						var end   = 0;
+						var sil_start = 0;
+						var sil_end   = 0;
 						var found = false;
 						var jump = 500;
 
@@ -1986,21 +1993,17 @@
 						{
 							var channel = originalBuffer.getChannelData (i);
 
-							for (var j = 0; j < channel.length; ++j)
+							for (var j = region_start; j < region_end; ++j)
 							{
 								if (Math.abs (channel[j]) < 0.000368)
 								{
 									if (count === 0) {
-
-										if (j > jump)
-											start = j - jump;
-										else
-											start = j;
+										sil_start = Math.max (region_start, j - jump);
 									}
 									if (++count > sil_offset)
 									{
 										inv_count = 0;
-										end = j;
+										sil_end = j;
 										found = true;
 									}
 								}
@@ -2010,25 +2013,25 @@
 									{
 										if (++inv_count > vol_offset)
 										{
-											sil_arr.push([start, end]);
+											sil_arr.push([sil_start, sil_end]);
 											j += jump;
 
 											count = 0;
-											start = 0;
-											end =   0;
+											sil_start = 0;
+											sil_end =   0;
 											found = false;
 											inv_count = 0;
 										}
 										else
 										{
-											end = j;
+											sil_end = j;
 										}
 									}
 									else
 									{
 										count = 0;
-										start = 0;
-										end =   0;
+										sil_start = 0;
+										sil_end =   0;
 										found = false;
 										inv_count = 0;
 									}
@@ -2036,7 +2039,7 @@
 							}
 
 							if (found) {
-								sil_arr.push([start, end]);
+								sil_arr.push([sil_start, sil_end]);
 							}
 						}
 
@@ -2050,7 +2053,7 @@
 
 								var emptySegment   = wavesurfer.backend.ac.createBuffer (
 									originalBuffer.numberOfChannels,
-									originalBuffer.length - reduce,
+									Math.max (1, originalBuffer.length - reduce),
 									originalBuffer.sampleRate
 								);
 
@@ -2076,8 +2079,9 @@
 											if (h < sil_curr_start + jump)
 											{
 												var perc = (jump - (h - sil_curr_start)) / jump;
-												new_channel[ j ] = (channel[ h ] * perc) ; // / (h - sil_curr_start));
-												new_channel[ j ] += (1 - perc) * channel[ j + (sil_offset + (sil_curr_end - sil_curr_start)) ];
+												new_channel[ j ] = ((channel[ h ] || 0) * perc) ; // / (h - sil_curr_start));
+												new_channel[ j ] += (1 - perc) *
+													(channel[ j + (sil_offset + (sil_curr_end - sil_curr_start)) ] || 0);
 
 												continue;
 											}
@@ -2094,13 +2098,23 @@
 											}
 										}
 
-										new_channel[ j ] = channel[ h ];
+										new_channel[ j ] = channel[ h ] || 0;
 									}
 								}
 
 								AudioUtils.FullReplace (
 									emptySegment
 								);
+
+								var new_end = start + Math.max (0, end - (reduce / originalBuffer.sampleRate));
+								wavesurfer.regions.clear ();
+								if (new_end > start) {
+									wavesurfer.regions.add ({
+										start : start,
+										end   : Math.min (new_end, wavesurfer.getDuration ()),
+										id    : 't'
+									});
+								}
 						}
 
 			setTimeout (function() {

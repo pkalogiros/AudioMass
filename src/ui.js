@@ -2911,6 +2911,74 @@
 		hover_duration.className = 'pk_hover_dur';
 		timing.appendChild( hover_duration );
 
+		var tb = null, tc = 0, td = 0;
+		function closeTB () {
+			if (!tb) return ;
+			d.removeEventListener ('mousedown', tb._off);
+			tb.parentNode && tb.parentNode.removeChild (tb);
+			tb = null;
+		}
+		function openTB ( e ) {
+			e && e.stopPropagation ();
+			e && e.preventDefault ();
+			var dur = activeDurationFor ( app ) || td || 0;
+			closeTB ();
+			var t = Math.max (0, Math.min (dur, tc || activeCursorTimeFor ( app ) || 0));
+			var s = t >> 0;
+			var ms = ((t - s) * 1000 + 0.5) >> 0;
+			if (ms > 999) { ms = 0; ++s; }
+			var m = (s / 60) >> 0;
+			s %= 60;
+			var b = tb = d.createElement ('div');
+			b.className = 'pk_pgeq_freq';
+			b.innerHTML =
+				'<input class="pk_mtbeat_bpm"> <b>:</b> <input class="pk_mtbeat_bpm">' +
+				' <b>:</b> <input class="pk_mtbeat_bpm"> <button class="pk_modal_a_bottom pk_modal_a_accpt">Go</button>';
+			d.body.appendChild ( b );
+			var i = b.getElementsByTagName ('input');
+			var g = b.lastChild;
+			var a = [i[0], i[1], i[2], g];
+			i[0].value = m; i[1].value = s; i[2].value = ms;
+			var r = timing.getBoundingClientRect ();
+			b.style.left = (r.left|0) + 'px';
+			b.style.top = ((r.top + 3)|0) + 'px';
+			function go () {
+				var durr = activeDurationFor ( app ) || td || 0;
+				if (!(durr > 0)) return closeTB ();
+				var v = Math.max (0, Math.min (durr, ((i[0].value|0) * 60) + (i[1].value|0) + ((i[2].value|0) / 1000)));
+				tc = v;
+				drawT (v);
+				UI.fireEvent ('RequestSeekTo', v / durr);
+				closeTB ();
+			}
+			b._off = function ( ev ) { if (!b.contains (ev.target) && !timing.contains (ev.target)) closeTB (); };
+			b.onkeydown = function (ev) {
+				var k = ev.keyCode;
+				ev.stopPropagation ();
+				if (k === 13) go ();
+				else if (k === 27) closeTB ();
+				else if (k > 36 && k < 41) {
+					var j = a.indexOf (ev.target);
+					if (j > -1) {
+						if ((k === 37 || k === 39) &&
+							j < 3 &&
+							(ev.target.selectionStart !== ev.target.selectionEnd ||
+							(k === 37 && ev.target.selectionStart > 0) ||
+							(k === 39 && ev.target.selectionEnd < ev.target.value.length))) return ;
+						j = (j + (k < 39 ? -1 : 1) + 4) % 4;
+						a[j].focus ();
+						j < 3 && a[j].select ();
+						ev.preventDefault ();
+					}
+				}
+			};
+			g.onclick = go;
+			d.addEventListener ('mousedown', b._off);
+			i[0].focus ();
+			i[0].select ();
+		}
+		timing.onmousedown = openTB;
+
 		setTimeout(function () {
 			UI.listenFor ('DidZoom', function (v, f) {
 				// do something smarter for f (event) ####
@@ -3010,8 +3078,9 @@
 			};
 
 		}, 1000);
-		
+
 		UI.listenFor ('DidUpdateLen', function( val ) {
+			td = val || 0;
 			total_duration.textContent = formatTime (val);
 		});
 		
@@ -3043,6 +3112,27 @@
 			return time_s + ':' + ((miliseconds*1000)>>0); // (miliseconds+'').substr(2, 3);
 		}
 		UI.formatTime = formatTime;
+
+		function drawT ( time ) {
+			var ttm = formatTime (time);
+			if (!is_chrome)
+			{
+				timingspan.textContent = ttm;
+				return ;
+			}
+
+			var exit = false;
+			for (var jk = 0; jk < ttm.length; ++jk)
+			{
+				if (!exit)
+				{
+					if (ttm[jk] === pk_timingnum[jk]) continue;
+					exit = true;
+				}
+				pk_timingctx.drawImage (timing_caches[ttm[jk]], jk * 16, 10);
+			}
+			pk_timingnum = ttm;
+		}
 
 		function formatTimelineTime ( time, format ) {
 			var time_s = time >> 0;
@@ -3140,6 +3230,7 @@
 
 			var time = val[0];
 			var loudness = val[1];
+			if (time > -1) tc = time;
 
 			var new_refresh =  val[2] || w.performance.now ();
 
@@ -3151,34 +3242,8 @@
 
 			if (time > -1)
 			{
-				if (!is_chrome)
-				{
-					timingspan.textContent = formatTime (time);
-				}
-				else
-				{
-					var ttm = formatTime (time);
-					var exit = false;
+					drawT (time);
 
-					for (var jk = 0; jk < ttm.length; ++jk)
-					{
-						if (!exit)
-						{
-							if (ttm[jk] === pk_timingnum[jk]) {
-								continue;
-							}
-							else {
-								// pk_timingctx.clearRect ((jk * 16), 10, (9 - jk) * 16, 35);
-								exit = true;
-							}
-						}
-
-						pk_timingctx.drawImage (timing_caches[ttm[jk]], jk * 16, 10);
-					}
-					pk_timingnum = ttm;
-				}
-
-				
 				var mt_on = activeMultitrackFor ( app );
 				var zoomed = mt_on ?
 					mt_on.GetZoomFactor () > 1 :
