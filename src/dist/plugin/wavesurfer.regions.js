@@ -680,6 +680,11 @@ var Region = function () {
     }, {
         key: 'onResize',
         value: function onResize(delta, direction) {
+            var snap = this.wavesurfer.SnapTime;
+            if (snap) {
+                var edge = direction == 'start' ? this.start + delta : this.end + delta;
+                delta = snap(edge) - (direction == 'start' ? this.start : this.end);
+            }
 
             if (direction == 'start') {
                 if (this.start + delta > this.end)
@@ -947,6 +952,7 @@ var RegionsPlugin = function () {
 
                 // Update range
                 var end = _this8.wavesurfer.ZoomifyValue(_this8.wavesurfer.drawer.handleEvent(e));
+                if (_this8.wavesurfer.SnapTime) end = _this8.wavesurfer.SnapTime(end * duration) / duration;
                 region.update({
                     start: Math.min(end * duration, start * duration),
                     end: Math.max(end * duration, start * duration)
@@ -991,6 +997,7 @@ var RegionsPlugin = function () {
 
                 drag = true;
                 start = _this8.wavesurfer.ZoomifyValue(_this8.wavesurfer.drawer.handleEvent(e, true));
+                if (_this8.wavesurfer.SnapTime) start = _this8.wavesurfer.SnapTime(start * duration) / duration;
 
                 region = null;
                 scrollDirection = null;
@@ -1025,18 +1032,24 @@ var RegionsPlugin = function () {
                         direction = 1;
                     }
 
+                    var snap = _this8.wavesurfer.SnapTime;
+                    if (snap) {
+                        orig_marker = snap(orig_marker * durr) / durr;
+                        _end = snap(_end * durr) / durr;
+                    }
+
                     if (region) {
                         region.update({
-                            start: orig_marker * durr,
-                            end: _end * durr
+                            start: Math.min(orig_marker, _end) * durr,
+                            end: Math.max(orig_marker, _end) * durr
                         });
                         region.direction = direction;
                         start = direction === 1 ? _end : orig_marker;
                         //end = region.end;
                     } else {
                         _this8.wavesurfer.regions.add({
-                            start: orig_marker * durr,
-                            end: _end * durr,
+                            start: Math.min(orig_marker, _end) * durr,
+                            end: Math.max(orig_marker, _end) * durr,
                             id: 't',
                             direction: direction
                         });
@@ -1152,6 +1165,7 @@ var RegionsPlugin = function () {
                 }
 
                 var end = _this8.wavesurfer.ZoomifyValue(_this8.wavesurfer.drawer.handleEvent(e));
+                if (_this8.wavesurfer.SnapTime) end = _this8.wavesurfer.SnapTime(end * duration) / duration;
                 region.update({
                     start: Math.min(end * duration, start * duration),
                     end: Math.max(end * duration, start * duration)

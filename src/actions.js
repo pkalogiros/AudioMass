@@ -1603,12 +1603,12 @@
 							{
 								for (var i = 0; i < band.length; ++i)
 								{
-									eq.gain.linearRampToValueAtTime (~~band[i].val, audio_ctx.currentTime + band[i].time);
+									eq.gain.linearRampToValueAtTime (band[i].val, audio_ctx.currentTime + band[i].time);
 								}
 
 								band = band[0];
 							}
-							else eq.gain.value = ~~band.val;
+							else eq.gain.value = band.val;
 
 							eq.type = band.type;
 							eq.Q.value = band.q || 1.0;
@@ -1705,7 +1705,7 @@
 						{
 							var eq = bands [ i ];
 							eq.type = val[ i ].type;
-							eq.gain.value =  ~~val[ i ].val;
+							eq.gain.value = val[ i ].val;
 							eq.Q.value = val[ i ].q || 1.0;
 							eq.frequency.value = val[ i ].freq;
 						}

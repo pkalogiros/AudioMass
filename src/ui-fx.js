@@ -303,6 +303,9 @@
 		});
 
 		app.listenFor ('RequestActionFXUI_Speed', function () {
+			var mt = app.multitrack;
+			if (!(app.engine && app.engine.wavesurfer.backend.buffer) && !(mt && mt.IsOn && mt.IsOn ()))
+				return OneUp ('Load audio first', 1200);
 			app.fireEvent ('RequestSelect', 1);
 
 			var filter_id = 'speed';
@@ -346,10 +349,17 @@
 				var min = auto.act.min;
 				var max = auto.act.max;
 				var vals = [max, 1, min];
+				var pts = auto.points[auto.act.id] || [];
 
 				ctx.save ();
 				ctx.font = '10px Arial';
 				ctx.textBaseline = 'middle';
+				var y1 = (1 - ((1 - min) / (max - min))) * auto.ch;
+				ctx.strokeStyle = 'rgba(217,217,85,0.35)';
+				ctx.beginPath ();
+				ctx.moveTo (0, y1);
+				ctx.lineTo (auto.cw, y1);
+				ctx.stroke ();
 				for (var i = 0; i < vals.length; ++i) {
 					var y = (1 - ((vals[i] - min) / (max - min))) * auto.ch;
 					var txt = vals[i].toFixed (2) + 'x';
@@ -362,6 +372,16 @@
 					ctx.fillRect (3, y - 7, w, 14);
 					ctx.fillStyle = '#d9d955';
 					ctx.fillText (txt, 7, y);
+				}
+				ctx.fillStyle = '#fff';
+				for (var i = 0; i < pts.length; ++i) {
+					var txt = pts[i].val.toFixed (2) + 'x';
+					var w = ctx.measureText (txt).width;
+					var x = pts[i].ax + 9;
+					var y = pts[i].ay - 10;
+					if (x + w > auto.cw - 3) x = pts[i].ax - w - 9;
+					if (y < 8) y = pts[i].ay + 12;
+					ctx.fillText (txt, x, y);
 				}
 				ctx.restore ();
 			};
@@ -470,12 +490,30 @@
 							app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue (q));
 						  };
 
+					  q.waveDarken = 0.45;
 					  auto = new PKAudioEditor._deps.FxAUT (app, q);
 					  auto.btn_auto.style.display = 'none';
+					  var rm = d.createElement ('a');
+					  rm.className = 'pk_modal_a_bottom';
+					  rm.innerHTML = 'Delete';
+					  rm.style.cssText = 'display:none;position:absolute;z-index:4;margin:0';
+					  q.el_body.appendChild (rm);
+					  function rmb () {
+						var p = auto.act_point, a = auto.act && auto.points[auto.act.id];
+						if (!p || !a || a.length < 3) return rm.style.display = 'none';
+						rm.style.display = 'block';
+						rm.style.left = auto.canvas.offsetLeft + auto.canvas.offsetWidth - rm.offsetWidth - 6 + 'px';
+						rm.style.top = auto.canvas.offsetTop + auto.canvas.offsetHeight - rm.offsetHeight - 6 + 'px';
+					  }
+					  rm.onclick = function (e) {
+						e.preventDefault ();
+						auto.DelAct (2) && app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue (q));
+					  };
 					  var render = auto.Render;
 					  auto.Render = function () {
 						render.call (auto);
 						draw_axis ();
+						rmb ();
 					  };
 					  setpoints (q, [{x:0, val:range.value}, {x:1, val:range.value}]);
 
@@ -1847,6 +1885,9 @@
 				setup:function( q ) {
 					var canvas = q.el_body.getElementsByTagName ('canvas')[0];
 					var ctx = canvas.getContext ('2d', {alpha:false,antialias:false});
+					var cache = d.createElement ('canvas');
+					cache.width = canvas.width; cache.height = canvas.height;
+					var cctx = cache.getContext ('2d', {alpha:false,antialias:false});
 					var inputs = q.el_body.getElementsByTagName ('input');
 					var span = q.el_body.getElementsByTagName ('span')[0];
 					var meta = q.el_body.getElementsByClassName ('pk_sloop_meta')[0];
@@ -1856,6 +1897,7 @@
 					var len = ((region.end - region.start) * buffer.sampleRate) >> 0;
 					var end = start + len;
 					var playing = 0;
+					var dirty = 1, dur = 0;
 					var now = function () {
 						return ((w.performance && w.performance.now ? w.performance.now () : Date.now ()) / 1000);
 					};
@@ -1904,40 +1946,45 @@
 
 					function draw ( pos ) {
 						var w = canvas.width, h = canvas.height;
-						var b = edges (), l = b[1] - b[0];
-						if (l < 1) return ;
-						app.engine.GetWave (buffer, w, h, b[0], b[1], canvas, ctx);
+							if (dirty) {
+								var b = edges (), l = b[1] - b[0];
+								if (l < 1) { dur = 0; return ; }
+							app.engine.GetWave (buffer, w, h, b[0], b[1], cache, cctx);
 
-						var f = Math.min ((inputs[0].value * buffer.sampleRate / 1000) >> 0, l >> 2);
-						var fx = f ? Math.max (2, (f / l * w) >> 0) : 0;
-						ctx.fillStyle = 'rgba(255,179,92,.22)';
-						ctx.fillRect (0, 0, fx, h);
-						ctx.fillRect (w - fx, 0, fx, h);
-						if (fx > 1) {
-							var data = buffer.getChannelData (0);
-							ctx.strokeStyle = '#ffb35c';
-							ctx.beginPath ();
-							for (var x = 0; x < fx; ++x) {
-								var v = data[b[1] - f + ((x / fx * f) >> 0)] || 0;
-								ctx[x ? 'lineTo' : 'moveTo'] (x, h/2 - v * h/2);
+							var f = Math.min ((inputs[0].value * buffer.sampleRate / 1000) >> 0, l >> 2);
+							var fx = f ? Math.max (2, (f / l * w) >> 0) : 0;
+							cctx.fillStyle = 'rgba(255,179,92,.22)';
+							cctx.fillRect (0, 0, fx, h);
+							cctx.fillRect (w - fx, 0, fx, h);
+							if (fx > 1) {
+								var data = buffer.getChannelData (0);
+								cctx.strokeStyle = '#ffb35c';
+								cctx.beginPath ();
+								for (var x = 0; x < fx; ++x) {
+									var v = data[b[1] - f + ((x / fx * f) >> 0)] || 0;
+									cctx[x ? 'lineTo' : 'moveTo'] (x, h/2 - v * h/2);
+								}
+								cctx.stroke ();
 							}
-							ctx.stroke ();
+							var r = repeat ();
+							var ol = l - f;
+							dur = ol / buffer.sampleRate;
+							meta.innerHTML = 'Loop ' + dur.toFixed (3) + 's' +
+								(r > 1 ? ' x' + r + ' = ' + (ol * r / buffer.sampleRate).toFixed (3) + 's' : '');
+							dirty = 0;
 						}
-						var r = repeat ();
-						var ol = l - f;
-						meta.innerHTML = 'Loop ' + (ol / buffer.sampleRate).toFixed (3) + 's' +
-							(r > 1 ? ' x' + r + ' = ' + (ol * r / buffer.sampleRate).toFixed (3) + 's' : '');
+						ctx.drawImage (cache, 0, 0);
 						if (pos >= 0) {
 							ctx.fillStyle = '#ff3355';
 							ctx.fillRect ((pos * w) >> 0, 0, 2, h);
-						}
 					}
+				}
 
 					function tick () {
 						if (!playing) return ;
-						var l = (edges()[1] - edges()[0]) / buffer.sampleRate;
-						if (l <= 0) return ;
-						draw (((now () - playing) % l) / l);
+						if (dirty) draw ();
+						if (dur <= 0) return ;
+						draw (((now () - playing) % dur) / dur);
 						q._sloopRAF = requestAnimationFrame (tick);
 					}
 
@@ -1966,18 +2013,22 @@
 					};
 					inputs[0].oninput = function() {
 						span.innerHTML = inputs[0].value + ' ms';
+						dirty = 1;
 						draw ();
 						updatePreview ();
 					};
 					inputs[1].oninput = inputs[1].onchange = function() {
+						dirty = 1;
 						draw ();
 						updatePreview ();
 					};
 					inputs[2].onchange = function() {
+						dirty = 1;
 						draw ();
 						updatePreview ();
 					};
 					inputs[3].onchange = function() {
+						dirty = 1;
 						draw ();
 						updatePreview ();
 					};

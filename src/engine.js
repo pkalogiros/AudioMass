@@ -34,6 +34,7 @@
 		var AudioUtils = new app._deps.audioutils ( app, wavesurfer );
 		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
+		var snap_sel = w.localStorage && w.localStorage.pk_snapzc === '1';
 		var loadableAudioExtensions = /\.(aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav|wave|webm)$/i;
 		function isLoadableAudioFile ( file ) {
 			var type = (file.type || '').toLowerCase ();
@@ -46,6 +47,27 @@
 			var dec = nums[num];
 			return ((val *dec) >> 0) / dec;
 		}
+
+		function snapTime ( t ) {
+			var b = wavesurfer.backend && wavesurfer.backend.buffer;
+			if (!b) return t;
+			if (t <= 0 || t >= b.duration) return Math.max (0, Math.min (b.duration, t));
+
+			var c = 0;
+			while (c < b.numberOfChannels - 1 && wavesurfer.ActiveChannels && !wavesurfer.ActiveChannels[c]) ++c;
+			var r = b.sampleRate;
+			var d = b.getChannelData ( c );
+			var i = Math.max (1, Math.min (d.length - 1, (t * r) >> 0));
+			var m = Math.min ((r / 125) >> 0, i, d.length - i - 1);
+			for (var j = 0; j <= m; ++j) {
+				var k = i - j;
+				if (d[k] === 0 || d[k - 1] < 0 && d[k] > 0 || d[k - 1] > 0 && d[k] < 0) return k / r;
+				k = i + j;
+				if (d[k] === 0 || d[k - 1] < 0 && d[k] > 0 || d[k - 1] > 0 && d[k] < 0) return k / r;
+			}
+			return t;
+		}
+		wavesurfer.SnapTime = snap_sel ? snapTime : null;
 
 		this.PreserveCurrentForUndo = function ( desc, cb ) {
 			var buffer = wavesurfer.backend && wavesurfer.backend.buffer;
@@ -3333,6 +3355,12 @@
 			wavesurfer.ForceDraw ();
 
 			app.fireEvent ( 'DidViewPeakSeparatorToggle', val );
+		});
+		app.listenFor ('RequestSnapSelDrag', function () {
+			snap_sel = !snap_sel;
+			wavesurfer.SnapTime = snap_sel ? snapTime : null;
+			if (w.localStorage) w.localStorage.pk_snapzc = snap_sel ? '1' : '0';
+			app.fireEvent ( 'DidSnapSelDrag', snap_sel );
 		});
 
 

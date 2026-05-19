@@ -1081,9 +1081,22 @@
 						action:function () {
 							app.fireEvent ('RequestActionFXUI_SeamlessLoop');
 						}
+					},
+
+					{
+						name: 'Zero Cross Selection',
+						action: function () {
+							app.fireEvent ('RequestSnapSelDrag');
+						},
+						setup: function ( obj ) {
+							var txt = 'Zero Cross Selection';
+							function set ( val ) { obj.innerHTML = txt + (val ? ' &#10004;' : ''); }
+							set (w.localStorage && w.localStorage.pk_snapzc === '1');
+							app.listenFor ('DidSnapSelDrag', set);
+						}
 					}
-				]
-			},
+					]
+				},
 			{
 				name:'Effects',
 				children:[
@@ -2716,18 +2729,18 @@
 				{
 					var mt_pos = mt_on.GetMarker ? mt_on.GetMarker () : mt_on.GetCursor ();
 					var mt_total = mt_on.GetDuration ();
-					var mt_durr = mt_region.start / mt_total;
-					if (mt_pos < (mt_region.start - 0.004))
-					{
-						UI.fireEvent( 'RequestSeekTo', mt_durr );
-						return ;
-					}
-					mt_durr = mt_region.end / mt_total;
-					if (mt_pos < (mt_region.end - 0.004))
-					{
-						UI.fireEvent( 'RequestSeekTo', mt_durr - 0.0001 );
-						return ;
-					}
+						var mt_durr = mt_region.start / mt_total;
+						if (mt_pos < (mt_region.start - 0.004))
+						{
+							UI.fireEvent( 'RequestSeekTo', mt_durr );
+							return ;
+						}
+						mt_durr = mt_region.end / mt_total;
+						if (mt_pos < (mt_region.end - 0.004))
+						{
+							UI.fireEvent( 'RequestSeekTo', mt_durr );
+							return ;
+						}
 				}
 				UI.fireEvent( 'RequestSeekTo', 1 );
 				return ;
@@ -2752,7 +2765,7 @@
 
 				if (pos < (durr - 0.004))
 				{
-					UI.fireEvent( 'RequestSeekTo', durr - 0.0001 );
+					UI.fireEvent( 'RequestSeekTo', durr );
 					return ;
 				}
 			}
@@ -2949,9 +2962,6 @@
 			}, false );
 
 			main_context.addOption ('Seamless Loop...', function( e ) {
-				var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
-				if (!region) return ;
-
 				UI.fireEvent ('RequestActionFXUI_SeamlessLoop');
 			}, false );
 

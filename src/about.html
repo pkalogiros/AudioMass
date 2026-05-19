@@ -108,7 +108,7 @@
 
 
 <p>AudioMass lets you record, or use your existing audio tracks, and modify them by trimming, cutting, pasting or applying a plethora of effects, from compression and paragraphic equalizers to reverb, delay and distortion fx. AudioMass also supports more than 20 hotkeys combinations and a dynamic responsive interface to ensure ease of use and that your producivity remains high.
-it is written solely in plain old-school javascript, weights approximately 65kb and has no backend or framework dependencies.</p>
+it is written solely in plain old-school javascript, weights approximately 85kb and has no backend or framework dependencies.</p>
 
 <img class="mid" src="/about/audiomass_support.jpg" />
 <p>It also has very good browser and device support.</p>
@@ -117,30 +117,33 @@ it is written solely in plain old-school javascript, weights approximately 65kb 
 <h5>:: Feature List ::</h5>
 
 <ul>
-<li>Loading Audio, navigating the waveform, zoom and pan</li>
-<li>Visualization of frequency levels</li>
-<li>Peak and distortion signaling</li>
-<li>Cutting/Pasting/Trimming parts of the audio</li>
-<li>Inverting and Reversing Audio</li>
-<li>Exporting to mp3</li>
-<li>Modifying volume levels</li>
-<li>Fade In/Out</li>
-<li>Compressor</li>
-<li>Normalization</li>
-<li>Reverb</li>
-<li>Delay</li>
-<li>Distortion</li>
-<li>Pitch Shift</li>
-<li>Keeps track of states so you can undo mistakes</li>
-<li>Offline support!</li>
+<li><a href="#getting-started">Loading Audio, navigating the waveform, zoom and pan</a></li>
+<li><a href="#waveform-tools">Visualization of frequency levels</a></li>
+<li><a href="#waveform-tools">Peak and distortion signaling</a></li>
+<li><a href="#waveform-tools">Cutting/Pasting/Trimming parts of the audio</a></li>
+<li><a href="#waveform-tools">Inverting and Reversing Audio</a></li>
+<li><a href="#recording-audio">Recording Audio</a></li>
+<li><a href="#export-mp3">Exporting to mp3</a></li>
+<li><a href="#effects">Modifying volume levels</a></li>
+<li><a href="#effects">Fade In/Out</a></li>
+<li><a href="#effects">Compressor</a></li>
+<li><a href="#effects">Normalization</a></li>
+<li><a href="#effects">Reverb</a></li>
+<li><a href="#effects">Delay</a></li>
+<li><a href="#effects">Distortion</a></li>
+<li><a href="#effects">Pitch Shift</a></li>
+<li><a href="#seamless-loops">Creating seamless loops with crossfade preview</a></li>
+<li><a href="#undo-offline">Keeps track of states so you can undo mistakes</a></li>
+<li><a href="#undo-offline">Offline support!</a></li>
+<li><a href="#multitrack">Multitrack editing and mixdown</a></li>
 </ul>
 
-<p>And all this, in only 83kb of JS!</p>
+<p>And all this, in only 85kb of JS!</p>
 </div>
 
 
 <div>
-<h3>Getting Started</h3>
+<h3 id="getting-started">Getting Started</h3>
 
 
 <p>To get started, drag and drop an audio file, or try the included sample.<br />
@@ -148,15 +151,30 @@ Once the file is loaded and you can view the waveform, zoom in, pan around, or s
 
 <img class="mid" src="/about/audiomass_2.jpg" />
 
+<h3 id="waveform-tools">Waveform Tools</h3>
 
-<h3>Recording Audio</h3>
+<p>The main editor is built around fast region editing. Select part of the waveform to cut, copy, paste, trim, silence, reverse, invert, or process only that section. The display also includes frequency visualization and peak/distortion signaling so you can spot obvious problems while editing.</p>
+
+<h3 id="effects">Effects And Processing</h3>
+
+<p>AudioMass includes the usual quick processing tools: gain, fade in/out, compressor, normalization, reverb, delay, distortion and pitch shifting. Effects can be previewed before applying, and most of them work on either the current selection or the whole file.</p>
+
+<h3 id="seamless-loops">Creating Seamless Loops</h3>
+
+<p>Select a region and use <i>Edit &gt; Seamless Loop</i>, or right-click the waveform and choose <i>Seamless Loop</i>. AudioMass opens a small loop preview where you can adjust the crossfade, trim silence from the edges, snap to smoother zero crossings, repeat the loop, then apply it back to the file or open it in a new editor tab.</p>
+
+<h3 id="undo-offline">Undo And Offline</h3>
+
+<p>AudioMass keeps an undo stack for edits, so you can experiment without committing every change permanently. It also runs locally in the browser with no backend, and can keep working offline after it has been loaded.</p>
+
+<h3 id="recording-audio">Recording Audio</h3>
 
 <p>To record audio, simply press the Recording button, or the <i>[R]</i> key.</p>
 
 <img class="mid" src="/about/audiomass_3.jpg" />
 
 
-<h3>Exporting to mp3</h3>
+<h3 id="export-mp3">Exporting to mp3</h3>
 
 <p>In order to export back to mp3, click on 'File', then 'Export to mp3', and follow the modal's instructions.</p>
 
@@ -295,7 +313,7 @@ It might be a bit too verbose, but it worked very well for structuring AudioMass
 <hr />
 
 <div>
-<h3>Multitrack <small>(back in 2026!)</small></h3>
+<h3 id="multitrack">Multitrack <small>(back in 2026!)</small></h3>
 
 <img class="top" src="/about/multitrack.png" />
 

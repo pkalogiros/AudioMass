@@ -24,6 +24,7 @@
 		q.act_point = null;
 		q.in_auto = false;
 		q.rbuff = null;
+		q.waveDarken = filter_modal.waveDarken || 0;
 
 		q.btn_auto = _make_btn_auto ( q );
 
@@ -61,8 +62,15 @@
 					val_cb && val_cb (tmp, curr);
 				}
 			}
-
 			return (data);
+		};
+		q.DelAct = function ( min ) {
+			var p = q.act && q.points[q.act.id], i = p && p.indexOf (q.act_point);
+			if (!p || i < 0 || p.length <= min) return ;
+			p.splice (i, 1);
+			q.act_point = p[Math.min (i, p.length - 1)];
+			q.Render ();
+			return 1;
 		};
 
 		q.cw = 500;
@@ -78,8 +86,13 @@
 				var cw = q.cw;
 				var ch = q.ch;
 
-				if (q.rbuff)
+				if (q.rbuff) {
 					q.app.engine.GetWave (q.rbuff, 500, 200, null, null, q.canvas, q.ctx);
+					if (q.waveDarken) {
+						ctx.fillStyle = 'rgba(0,0,0,' + q.waveDarken + ')';
+						ctx.fillRect (0, 0, cw, ch);
+					}
+				}
 
 				// ctx.clearRect (0, 0, q.cw, q.ch);
 				ctx.fillStyle   = _fillstyle;
@@ -377,10 +390,16 @@
 			q.modal.el_body.appendChild( cc );
 
 			var buff = q.wv.backend.buffer;
-			
+			if (!buff) return ([cc, ctx]);
+
 			var img = new Image();
 			img.onload = function () {
 				ctx.drawImage (img, 0, 0);
+				if (q.waveDarken) {
+					ctx.fillStyle = 'rgba(0,0,0,' + q.waveDarken + ')';
+					ctx.fillRect (0, 0, q.cw, q.ch);
+				}
+				if (q.act) q.Render ();
 			};
 
 			var offset; var length;
@@ -403,6 +422,8 @@
 		};
 
 		function _process ( q, buffer ) {
+			if (!buffer) return ;
+
 			var getOfflineAudioContext = function (channels, sampleRate, duration) {
 					return new (window.OfflineAudioContext ||
 					window.webkitOfflineAudioContext)(channels, duration, sampleRate);
