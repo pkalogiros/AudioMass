@@ -2931,9 +2931,11 @@
 			s %= 60;
 			var b = tb = d.createElement ('div');
 			b.className = 'pk_pgeq_freq';
+			b.style.padding = '3px 16px';
+			b.style.paddingRight = '6px';
 			b.innerHTML =
-				'<input class="pk_mtbeat_bpm"> <b>:</b> <input class="pk_mtbeat_bpm">' +
-				' <b>:</b> <input class="pk_mtbeat_bpm"> <button class="pk_modal_a_bottom pk_modal_a_accpt">Go</button>';
+				'<input class="pk_mtbeat_bpm" style=width:46px> <b>:</b> <input class="pk_mtbeat_bpm" style=width:46px>' +
+				' <b>:</b> <input class="pk_mtbeat_bpm" style=width:46px> <button class="pk_modal_a_bottom pk_modal_a_accpt" style="float:none;display:inline-block;vertical-align:middle">Go</button>';
 			d.body.appendChild ( b );
 			var i = b.getElementsByTagName ('input');
 			var g = b.lastChild;
