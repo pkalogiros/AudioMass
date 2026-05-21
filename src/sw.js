@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiomass-production-v36';
+const CACHE_NAME = 'audiomass-production-v37';
 const assets = [
 	'./',
 	'./manifest.json',
@@ -22,8 +22,7 @@ const assets = [
 	'./fonts/icomoon.woff',
 	'./eq.html',
 	'./sp.html',
-	'./mix.html',
-	'./test.mp3'
+	'./mix.html'//, './test.mp3'
 ];
 
 self.addEventListener( 'install', function ( event ) {
@@ -34,7 +33,6 @@ self.addEventListener( 'install', function ( event ) {
 				console.warn( '[SW] Could not cache:', asset );
 			});
 		}));
-		await self.skipWaiting();
 	})());
 });
 
@@ -51,6 +49,10 @@ self.addEventListener( 'activate', function ( event ) {
 self.addEventListener( 'fetch', async function ( event ) {
 	const request = event.request;
 	event.respondWith( cacheFirst( request ) );
+});
+
+self.addEventListener( 'message', function ( event ) {
+	if ( event.data === 'SKIP_WAITING' ) self.skipWaiting();
 });
 
 async function cacheFirst( request ) {

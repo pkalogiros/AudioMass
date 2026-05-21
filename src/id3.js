@@ -546,8 +546,6 @@
 
     function readAtom(tag, data, offset, length, indent)
     {
-        // debugger;
-
         indent = indent === undefined ? "" : indent + "  ";
         var seek = offset;
         var end = Math.min(offset + length, data.byteLength);

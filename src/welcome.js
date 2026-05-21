@@ -9,7 +9,6 @@ setTimeout(function () {
 			var mobile_note = '';
 
 			if (PKAE.isMobile) {
-				change -= 15;
 				mobile_note = '(Optimized for desktop - sorry)<br/><br/>';
 				body_str = 'Tips:<br/>Please make sure your device is not in silent mode. You might need to physically flip the silent switch. '+
 				'<img src="phone-switch.jpg" style="max-width:224px;max-height:126px;width:40%;margin: 10px auto; display: block;"/>'+
@@ -58,7 +57,7 @@ setTimeout(function () {
 			document.getElementsByClassName('pk_modal_cancel')[0].innerHTML = '&nbsp; &nbsp; &nbsp; OK &nbsp; &nbsp; &nbsp;';
 	};
 
-	var change = 96;
+	var change = 99;
 	var exists = w.localStorage && w.localStorage.getItem ('k');
 
 	if (!exists) {

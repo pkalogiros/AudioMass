@@ -37,7 +37,28 @@
 		if ('serviceWorker' in navigator) {
 			window.addEventListener('load', () => {
 				try {
-					navigator.serviceWorker.register( 'sw.js' );
+					var rl = 0;
+					function nr ( sw ) {
+						if (document.getElementById ('pk_upd')) return ;
+						var el = document.createElement ('div');
+						el.id = 'pk_upd';
+						el.className = 'pk_oneup';
+						el.style.cssText = 'top:58px;margin-top:0;opacity:1;transform:translateX(-50%);pointer-events:auto;font-size:13px';
+						el.innerHTML = 'New version ready <button class="pk_modal_a_bottom pk_modal_a_accpt" style="float:none;display:inline-block;margin-left:10px">Reload</button>';
+						document.body.appendChild ( el );
+						el.getElementsByTagName ('button')[0].onclick = function () {
+							rl = 1;
+							sw && sw.postMessage ('SKIP_WAITING');
+							setTimeout (function () { location.reload (); }, 900);
+						};
+					}
+					navigator.serviceWorker.addEventListener ('controllerchange', function () { rl && location.reload (); });
+					navigator.serviceWorker.register( 'sw.js' ).then (function (r) {
+						function ch ( sw ) { sw && (sw.state === 'installed' && navigator.serviceWorker.controller ? nr (sw) : sw.onstatechange = function () { sw.state === 'installed' && navigator.serviceWorker.controller && nr (sw); }); }
+						r.waiting && navigator.serviceWorker.controller && nr (r.waiting);
+						ch (r.installing);
+						r.onupdatefound = function () { ch (r.installing); };
+					});
 				} catch ( error ) {}
 			});
 		}

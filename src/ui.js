@@ -3414,6 +3414,49 @@
 		btn_clear_selection.innerHTML = '<span>Clear Selection (Q key)</span>';
 
 		var sel_spans = selection.getElementsByClassName('pk_dat');
+		var sb = null;
+		function closeSB () {
+			if (!sb) return ;
+			d.removeEventListener ('mousedown', sb._off);
+			sb.parentNode && sb.parentNode.removeChild (sb);
+			sb = null;
+		}
+		function openSB ( e ) {
+			var rg = activeRegionFor ( app ), dur = activeDurationFor ( app );
+			if (!rg || !(dur > 0)) return ;
+			e.stopPropagation ();
+			e.preventDefault ();
+			closeSB ();
+			var b = sb = d.createElement ('div');
+			b.className = 'pk_pgeq_freq';
+			b.style.padding = '3px 8px';
+			b.innerHTML = '<b>Start</b> <input class="pk_mtbeat_bpm" style=width:62px> <b>End</b> <input class="pk_mtbeat_bpm" style=width:62px> <button class="pk_modal_a_bottom pk_modal_a_accpt" style="float:none;display:inline-block;vertical-align:middle">Go</button>';
+			d.body.appendChild ( b );
+			var i = b.getElementsByTagName ('input');
+			i[0].value = rg.start.toFixed (3);
+			i[1].value = rg.end.toFixed (3);
+			var r = selection.getBoundingClientRect ();
+			b.style.left = (r.left|0) + 'px';
+			b.style.top = ((r.top + 3)|0) + 'px';
+			function go () {
+				var rg = activeRegionFor ( app );
+				var a = parseFloat (i[0].value), z = parseFloat (i[1].value);
+				if (!rg) return closeSB ();
+				dur = activeDurationFor ( app ) || dur;
+				if (!(a >= 0)) a = rg.start;
+				if (!(z >= 0)) z = rg.end;
+				a = Math.max (0, Math.min (dur, a));
+				z = Math.max (0, Math.min (dur, z));
+				if (Math.abs (z - a) > 0.001) UI.fireEvent ('RequestRegionSet', a, z);
+				closeSB ();
+			}
+			b._off = function ( ev ) { if (!b.contains (ev.target) && !selection.contains (ev.target)) closeSB (); };
+			b.onkeydown = function (ev) { ev.stopPropagation (); ev.keyCode === 13 ? go () : ev.keyCode === 27 && closeSB (); };
+			b.lastChild.onclick = go;
+			d.addEventListener ('mousedown', b._off);
+			i[e.target === sel_spans[1] ? 1 : 0].focus ();
+		}
+		sel_spans[0].onmousedown = sel_spans[1].onmousedown = sel_spans[2].onmousedown = openSB;
 		UI.listenFor ('DidCreateRegion', function ( region ) {
 			if (region && region.mt)
 			{
@@ -3439,6 +3482,7 @@
 			copy_btn.classList.add ('pk_inact');
 			cut_btn.classList.add  ('pk_inact');
 			btn_clear_selection.classList.add  ('pk_inact');
+			closeSB ();
 
 			if (!sel_spans[0]) sel_spans = document.querySelectorAll('.pk_sellist .pk_dat');
 			sel_spans[0].textContent = '-';

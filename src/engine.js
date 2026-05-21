@@ -978,14 +978,26 @@
 		 app.listenFor ('RequestRegionClear', function () {
 			wavesurfer.regions.clear();
 		 });
-		app.listenFor ('RequestRegionSet', function ( start, end ) {
+		 app.listenFor ('RequestRegionSet', function ( start, end ) {
 			if (!q.is_ready) return ;
 
-			if (!start) {
+			if (start === undefined) {
 				start =  wavesurfer.LeftProgress / 1;
 			}
-			if (!end) {
+			if (end === undefined) {
 				end = (wavesurfer.LeftProgress + wavesurfer.VisibleDuration) / 1;
+			}
+			var dur = wavesurfer.getDuration ();
+			start = Math.max (0, Math.min (dur, +start || 0));
+			end = Math.max (0, Math.min (dur, +end || 0));
+			if (snap_sel && wavesurfer.SnapTime) {
+				start = wavesurfer.SnapTime (start);
+				end = wavesurfer.SnapTime (end);
+			}
+			if (end < start) {
+				var tmp = start;
+				start = end;
+				end = tmp;
 			}
 
 			// add a region where the paste happened
