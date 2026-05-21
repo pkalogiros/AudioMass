@@ -2918,6 +2918,24 @@
 			tb.parentNode && tb.parentNode.removeChild (tb);
 			tb = null;
 		}
+		function tnav ( b, a, go, cl ) {
+			b.onkeydown = function (ev) {
+				var k = ev.keyCode, j;
+				ev.stopPropagation ();
+				if (k === 13) go ();
+				else if (k === 27) cl ();
+				else if (k > 36 && k < 41 && (j = a.indexOf (ev.target)) > -1) {
+					if ((k === 37 || k === 39) && ev.target.tagName === 'INPUT' &&
+						(ev.target.selectionStart !== ev.target.selectionEnd ||
+						(k === 37 && ev.target.selectionStart > 0) ||
+						(k === 39 && ev.target.selectionEnd < ev.target.value.length))) return ;
+					j = (j + (k < 39 ? -1 : 1) + a.length) % a.length;
+					a[j].focus ();
+					a[j].tagName === 'INPUT' && a[j].select ();
+					ev.preventDefault ();
+				}
+			};
+		}
 		function openTB ( e ) {
 			e && e.stopPropagation ();
 			e && e.preventDefault ();
@@ -2954,26 +2972,7 @@
 				closeTB ();
 			}
 			b._off = function ( ev ) { if (!b.contains (ev.target) && !timing.contains (ev.target)) closeTB (); };
-			b.onkeydown = function (ev) {
-				var k = ev.keyCode;
-				ev.stopPropagation ();
-				if (k === 13) go ();
-				else if (k === 27) closeTB ();
-				else if (k > 36 && k < 41) {
-					var j = a.indexOf (ev.target);
-					if (j > -1) {
-						if ((k === 37 || k === 39) &&
-							j < 3 &&
-							(ev.target.selectionStart !== ev.target.selectionEnd ||
-							(k === 37 && ev.target.selectionStart > 0) ||
-							(k === 39 && ev.target.selectionEnd < ev.target.value.length))) return ;
-						j = (j + (k < 39 ? -1 : 1) + 4) % 4;
-						a[j].focus ();
-						j < 3 && a[j].select ();
-						ev.preventDefault ();
-					}
-				}
-			};
+			tnav ( b, a, go, closeTB );
 			g.onclick = go;
 			d.addEventListener ('mousedown', b._off);
 			i[0].focus ();
@@ -3429,10 +3428,12 @@
 			closeSB ();
 			var b = sb = d.createElement ('div');
 			b.className = 'pk_pgeq_freq';
-			b.style.cssText = 'padding:6px 12px;width:auto;white-space:nowrap';
-			b.innerHTML = '<b>Start</b> <input class="pk_mtbeat_bpm" style=width:62px> <b>End</b> <input class="pk_mtbeat_bpm" style=width:62px> <button class="pk_modal_a_bottom pk_modal_a_accpt" style="float:none;display:inline-block;vertical-align:middle">Go</button>';
+			b.style.cssText = 'padding:6px 10px;width:auto;white-space:nowrap';
+			b.innerHTML = '<b style=font-size:12px>Start</b> <input class="pk_mtbeat_bpm" style=width:62px> <b style=font-size:12px>End</b> <input class="pk_mtbeat_bpm" style=width:62px> <button class="pk_modal_a_bottom pk_modal_a_accpt" style="float:none;display:inline-block;vertical-align:middle">Go</button>';
 			d.body.appendChild ( b );
 			var i = b.getElementsByTagName ('input');
+			var g = b.lastChild;
+			var a = [i[0], i[1], g];
 			i[0].value = rg.start.toFixed (3);
 			i[1].value = rg.end.toFixed (3);
 			var r = selection.getBoundingClientRect ();
@@ -3451,8 +3452,8 @@
 				closeSB ();
 			}
 			b._off = function ( ev ) { if (!b.contains (ev.target) && !selection.contains (ev.target)) closeSB (); };
-			b.onkeydown = function (ev) { ev.stopPropagation (); ev.keyCode === 13 ? go () : ev.keyCode === 27 && closeSB (); };
-			b.lastChild.onclick = go;
+			tnav ( b, a, go, closeSB );
+			g.onclick = go;
 			d.addEventListener ('mousedown', b._off);
 			i[e.target === sel_spans[1] ? 1 : 0].focus ();
 		}
