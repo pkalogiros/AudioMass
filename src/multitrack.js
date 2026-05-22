@@ -3665,7 +3665,14 @@
 		function previewFx ( name, val ) {
 			var clip = selectedFxClip ();
 			if (!clip) return true;
-			if (fx_preview) return stopFxPreview ();
+			var hasSeek = val && val.seek !== undefined;
+			var seek = hasSeek ? val.seek / 1 : 0;
+			if (!(seek > 0)) seek = 0;
+			if (hasSeek) val = val.val;
+			if (fx_preview) {
+				stopFxPreview ( hasSeek );
+				if (!hasSeek) return true;
+			}
 
 			var ctx = audioCtx ();
 			var part = clipRegionPart ( clip );
@@ -3681,10 +3688,11 @@
 
 			source.buffer = buffer;
 			source.loop = true;
+			source._pkSeek = seek;
 			wet.connect ( ctx.destination );
 			dry.connect ( ctx.destination );
 			source.connect ( dry );
-			filter = fx.filter ( ctx, wet, source, buffer.duration, true );
+			filter = fx.filter ( ctx, wet, source, buffer.duration, true, seek );
 			fx_preview = {
 				source: source,
 				filter: filter,
@@ -3699,8 +3707,8 @@
 				if (fx_preview && fx_preview.source === source)
 					stopFxPreview ();
 			};
-			source.start (0);
-			app.fireEvent ('DidStartPreview');
+			source.start (0, Math.max (0, Math.min (seek, buffer.duration - 1 / buffer.sampleRate)));
+			app.fireEvent ('DidStartPreview', seek);
 			return true;
 		}
 

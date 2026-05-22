@@ -171,9 +171,11 @@
 
 		// -------
 		function _make_controls ( q ) {
-			var click_time = 0;
+			var click_time = 0, seek_t = 0, no_seek = 0;
 			q.canvas.addEventListener ('click', function ( e ) {
 				if (!q.act) return;
+				var h = q.app.engine.FXPreviewHost;
+				if (seek_t) { clearTimeout (seek_t); seek_t = 0; }
 				if (e.timeStamp - click_time < 260)
 				{
 						var bounds = q.canvas.getBoundingClientRect ();
@@ -216,7 +218,14 @@
 						q.Render ();
 						// ----
 				}
+				else if (!no_seek && preview_cb && h && (h.previewing || h.MTPreviewing))
+				{
+					var bounds = q.canvas.getBoundingClientRect ();
+					var sx = Math.max (0, Math.min (1, (e.clientX - bounds.left) / bounds.width));
+					seek_t = setTimeout (function () { seek_t = 0; preview_cb (sx); }, 260);
+				}
 
+				no_seek = 0;
 				click_time = e.timeStamp;
 			}, false);
 
@@ -264,6 +273,7 @@
 
 				q.act_point.time = duration * rel_x;
 				q.act_point.val  = ((1 - rel_y) * (q.act.max - q.act.min)) + q.act.min;
+				no_seek = 1;
 
 				q.Render ();
 
@@ -295,6 +305,7 @@
 					if ( Math.abs (curr.ax - posx) < dist_x && Math.abs (curr.ay - posy) < dist_y)
 					{
 						is_dragging = true;
+						no_seek = 1;
 						q.act_point = curr;
 						q.Render ();
 

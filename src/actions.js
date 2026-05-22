@@ -444,7 +444,7 @@
 		}
 
 
-		function previewEffect ( _offset, _duration, _fx ) {
+		function previewEffect ( _offset, _duration, _fx, _seek ) {
 			if (this.previewing) stopPreview.call (this, _fx);
 
 			var orig_buffer = wavesurfer.backend.buffer;
@@ -459,8 +459,11 @@
 			var fx_buffer = CopyBufferSegment (_offset, _duration);
 			var audio_ctx = wavesurfer.backend.ac || getAudioContext ();
 			var source = audio_ctx.createBufferSource ();
+			var seek = _seek / 1 || 0;
+			seek = Math.max (0, Math.min (seek, fx_buffer.duration - 1 / fx_buffer.sampleRate));
 			source.buffer = fx_buffer;
 			source.loop = true;
+			source._pkSeek = seek;
 
 			this.PreviewFilter = this.PreviewTog = null;
 			if (!_fx)
@@ -469,7 +472,7 @@
 			{
 				this.PreviewTog    = _fx.preview;
 				this.PreviewUpdate = _fx.update;
-				this.PreviewFilter = _fx.filter ( audio_ctx, audio_destination, source, _duration/1, true );
+				this.PreviewFilter = _fx.filter ( audio_ctx, audio_destination, source, _duration/1, true, seek );
 			}
 
 			script_node.disconnect ();
@@ -539,7 +542,7 @@
 				}
 			};
 
-			source.start ();
+			source.start (0, seek);
 
 			this.PreviewSource = source;
 			this.PreviewDestination = audio_destination;
@@ -553,15 +556,17 @@
 			return (source);
 		}
 
-		function previewBuffer ( buffer ) {
+		function previewBuffer ( buffer, _seek ) {
 			if (this.previewing) stopPreview.call (this);
 
 			var audio_ctx = wavesurfer.backend.ac || getAudioContext ();
 			var source = audio_ctx.createBufferSource ();
+			var seek = _seek / 1 || 0;
+			seek = Math.max (0, Math.min (seek, buffer.duration - 1 / buffer.sampleRate));
 			source.buffer = buffer;
 			source.loop = true;
 			source.connect (audio_destination);
-			source.start ();
+			source.start (0, seek);
 
 			this.PreviewFilter = this.PreviewTog = this.PreviewUpdate = null;
 			this.PreviewSource = source;
@@ -1307,7 +1312,18 @@
 				return duration / (total > 0.001 ? total : 1);
 			}
 
-			function setRate ( param, audio_ctx, val, duration ) {
+			function rateAt ( points, x ) {
+				for (var i = 1; i < points.length; ++i) {
+					if (x <= points[i].x) {
+						var a = points[i - 1], b = points[i];
+						var p = (x - a.x) / (b.x - a.x || 1);
+						return a.val + (b.val - a.val) * p;
+					}
+				}
+				return points[points.length - 1].val;
+			}
+
+			function setRate ( param, audio_ctx, val, duration, seek ) {
 				var now = audio_ctx ? audio_ctx.currentTime : 0;
 				var points = ratePoints (val, duration);
 				param.cancelScheduledValues && param.cancelScheduledValues (now);
@@ -1318,10 +1334,11 @@
 					return ;
 				}
 
+				var x = Math.max (0, Math.min (1, (seek || 0) / duration));
 				duration = rateDuration (val, duration);
-				param.setValueAtTime (points[0].val, now);
+				param.setValueAtTime (rateAt (points, x), now);
 				for (var i = 1; i < points.length; ++i)
-					param.linearRampToValueAtTime (points[i].val, now + points[i].x * duration);
+					if (points[i].x > x) param.linearRampToValueAtTime (points[i].val, now + (points[i].x - x) * duration);
 			}
 
 		// EFFECTS LOGIC
@@ -1883,12 +1900,12 @@
 						return rateDuration (curr_val, duration);
 					},
 
-					filter : function ( audio_ctx, destination, source, duration ) {
+					filter : function ( audio_ctx, destination, source, duration, preview, seek ) {
 						ctx = audio_ctx;
 
 						var inputNode = audio_ctx.createGain();
 
-						setRate (source.playbackRate, audio_ctx, curr_val, duration);
+						setRate (source.playbackRate, audio_ctx, curr_val, duration, seek || source._pkSeek);
 						source.connect (inputNode);
 
 						// line in to dry mix
@@ -1904,7 +1921,8 @@
 							source.playbackRate,
 							ctx || source.context || audio_ctx,
 							state ? curr_val : 1.0,
-							source.buffer ? source.buffer.duration : 1
+							source.buffer ? source.buffer.duration : 1,
+							source._pkSeek
 						);
 					},
 
@@ -1914,7 +1932,8 @@
 							source.playbackRate,
 							audio_ctx,
 							curr_val,
-							source.buffer ? source.buffer.duration : 1
+							source.buffer ? source.buffer.duration : 1,
+							source._pkSeek
 						);
 					}
 				};

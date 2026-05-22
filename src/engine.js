@@ -2777,18 +2777,21 @@
 			return ([ start, end ]);
 		}
 		app.listenFor ('RequestActionFX_PREVIEW_SeamlessLoop', function ( val ) {
+			var hasSeek = val && val.seek !== undefined;
+			var seek = hasSeek ? val.seek / 1 : 0;
+			if (!(seek > 0)) seek = 0;
 			if (!q.is_ready) return ;
 			if (AudioUtils.previewing) {
 				AudioUtils.FXPreviewStop ();
 				app.fireEvent ('DidStopPreview');
-				return ;
+				if (!hasSeek) return ;
 			}
 
 			var r = seamlessRegion ();
 			if (!r) return ;
 
-			AudioUtils.FXPreviewBuffer (AudioUtils.SeamlessLoop (r[0], r[1], val));
-			app.fireEvent ('DidStartPreview');
+			AudioUtils.FXPreviewBuffer (AudioUtils.SeamlessLoop (r[0], r[1], val), seek);
+			app.fireEvent ('DidStartPreview', seek);
 		});
 		app.listenFor ('RequestActionFX_SeamlessLoop', function ( val ) {
 			if (!q.is_ready) return ;
@@ -2912,11 +2915,15 @@
 		});
 
 		app.listenFor ('RequestActionFX_PREVIEW_SPEED', function ( val ) {
+			var hasSeek = val && val.seek !== undefined;
+			var seek = hasSeek ? val.seek / 1 : 0;
+			if (!(seek > 0)) seek = 0;
+			var fxval = val && val.val !== undefined ? val.val : val;
 			if (!q.is_ready) return ;
 			if (AudioUtils.previewing) {
 				AudioUtils.FXPreviewStop ();
 				app.fireEvent ('DidStopPreview');
-				return ;
+				if (!hasSeek) return ;
 			}
 
 			var region = wavesurfer.regions.list[0];
@@ -2934,9 +2941,9 @@
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
 
-			AudioUtils.FXPreview( start, end, AudioUtils.FXBank.Speed( val ) );
+			AudioUtils.FXPreview( start, end, AudioUtils.FXBank.Speed( fxval ), seek );
 
-			app.fireEvent ('DidStartPreview');
+			app.fireEvent ('DidStartPreview', seek);
 		});
 
 		app.listenFor ('RequestActionFX_RATE', function ( val ) {

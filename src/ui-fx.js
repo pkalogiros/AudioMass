@@ -434,6 +434,9 @@
 					],
 				custom_pres:custom_presets.Get (filter_id),
 				ondestroy: function ( q ) {
+					if (q._spRAF) cancelAnimationFrame (q._spRAF);
+					app.stopListeningFor ('DidStartPreview', q._spStart);
+					app.stopListeningFor ('DidStopPreview', q._spStop);
 					app.ui.InteractionHandler.on = false;
 					app.ui.KeyHandler.removeCallback (modal_esc_key);
 					auto = null;
@@ -491,7 +494,33 @@
 						  };
 
 					  q.waveDarken = 0.45;
-					  auto = new PKAudioEditor._deps.FxAUT (app, q);
+					  auto = new PKAudioEditor._deps.FxAUT (app, q, null, function ( p ) {
+							var r = auto.wv.regions.list[0], d = r ? r.end - r.start : auto.wv.getDuration ();
+							app.fireEvent ('RequestActionFX_PREVIEW_SPEED', {val:getvalue (q), seek:p * d});
+					  });
+						  var pc = d.createElement ('canvas'), px = pc.getContext ('2d'), pp = 0, pt = 0, po = 0;
+						  q.el_body.style.position || (q.el_body.style.position = 'relative');
+						  pc.width = auto.cw; pc.height = auto.ch; pc.style.cssText = 'position:absolute;pointer-events:none;z-index:3';
+						  q.el_body.appendChild (pc);
+						  function pcn () { return ((w.performance && w.performance.now ? w.performance.now () : Date.now ()) / 1000); }
+						  function pcd () { var r = auto.wv.regions.list[0]; return r ? r.end - r.start : auto.wv.getDuration (); }
+						  function pcl (x) { px.clearRect (0, 0, pc.width, pc.height); if (x >= 0) { px.fillStyle = '#ff3355'; px.fillRect ((x * pc.width) >> 0, 0, 2, pc.height); } }
+						  function pcr (x) {
+							var p = auto.act && auto.points[auto.act.id], i = 1, a, b;
+							if (!p || p.length < 2) return getvalue (q) / 1 || 1;
+							for (; i < p.length && x > p[i].x; ++i) {}
+							a = p[i - 1] || p[0]; b = p[i] || a;
+							return a.val + (b.val - a.val) * (x - a.x) / (b.x - a.x || 1);
+						  }
+						  function pct () {
+							var n = pcn (), du = pcd ();
+							if (!po || !(du > 0)) return ;
+							pp = (pp + (n - pt) * pcr (pp / du)) % du; pt = n; pcl (pp / du);
+							q._spRAF = requestAnimationFrame (pct);
+						  }
+						  q._spStart = function ( seek ) { var du = pcd (); if (!(du > 0)) return ; po = 1; pp = Math.max (0, Math.min (seek || 0, du - 0.001)); pt = pcn (); pct (); };
+						  q._spStop = function () { po = 0; if (q._spRAF) cancelAnimationFrame (q._spRAF); q._spRAF = 0; pcl (-1); };
+						  app.listenFor ('DidStartPreview', q._spStart); app.listenFor ('DidStopPreview', q._spStop);
 					  auto.btn_auto.style.display = 'none';
 					  var rm = d.createElement ('a');
 					  rm.className = 'pk_modal_a_bottom';
@@ -513,6 +542,8 @@
 					  auto.Render = function () {
 						render.call (auto);
 						draw_axis ();
+						pc.style.left = auto.canvas.offsetLeft + 'px';
+						pc.style.top = auto.canvas.offsetTop + 'px';
 						rmb ();
 					  };
 					  setpoints (q, [{x:0, val:range.value}, {x:1, val:range.value}]);
@@ -2091,8 +2122,8 @@
 					q._val = function () {
 						return ({ fade:inputs[0].value/1, repeat:repeat (), trim:inputs[2].checked, snap:inputs[3].checked });
 					};
-					q._sloopStart = function () {
-						playing = now ();
+					q._sloopStart = function ( seek ) {
+						playing = now () - (seek || 0);
 						tick ();
 					};
 					q._sloopStop = function () {
@@ -2132,11 +2163,14 @@
 						draw ();
 						updatePreview ();
 					};
-					canvas.onpointerdown = canvas.onpointermove = function ( e ) {
-						if (e.type === 'pointermove' && !e.buttons) return ;
+					canvas.onclick = function ( e ) {
+						if (!playing) return ;
+						if (dirty) draw ();
+						if (dur <= 0) return ;
 						var r = canvas.getBoundingClientRect ();
-						inputs[0].value = Math.max (0, Math.min (500, ((e.clientX - r.left) / r.width * 500) >> 0));
-						inputs[0].oninput ();
+						var v = q._val ();
+						v.seek = Math.max (0, Math.min (0.999, (e.clientX - r.left) / r.width)) * dur;
+						app.fireEvent ('RequestActionFX_PREVIEW_SeamlessLoop', v);
 					};
 					setTimeout (draw, 0);
 
