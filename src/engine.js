@@ -2283,12 +2283,13 @@
 				var d = x[i] - x[i - 1];
 				var absD = d < 0 ? -d : d;
 				if (absD > ema * k && absD > absFloor) {
-					var reversed = false;
-					for (var ck = 1; ck <= 4; ++ck) {
+					var isolated = true;
+					for (var ck = 1; ck <= 20; ++ck) {
+						if (i + ck >= len) break;
 						var dd = x[i + ck] - x[i + ck - 1];
-						if ((d > 0 && dd < -absD * 0.5) || (d < 0 && dd > absD * 0.5)) { reversed = true; break; }
+						if ((dd < 0 ? -dd : dd) > absD * 0.5) { isolated = false; break; }
 					}
-					if (!reversed) {
+					if (isolated) {
 						var preMean = 0, postMean = 0, preE = 0, postE = 0;
 						for (var j = 1; j <= dcW; ++j) {
 							var pv = x[i - j], pov = x[i + j - 1];
@@ -2300,9 +2301,11 @@
 						var dcDiff = postMean - preMean;
 						var absDc = dcDiff < 0 ? -dcDiff : dcDiff;
 						var sameDir = (d > 0 && dcDiff > 0) || (d < 0 && dcDiff < 0);
-						var loE = preE < postE ? preE : postE;
-						var hiE = preE < postE ? postE : preE;
-						var balanced = loE > 1e-6 && hiE < loE * 4;
+						var preVar  = preE  / dcW - preMean  * preMean;
+						var postVar = postE / dcW - postMean * postMean;
+						var loV = preVar < postVar ? preVar : postVar;
+						var hiV = preVar < postVar ? postVar : preVar;
+						var balanced = loV > 1e-6 && hiV < loV * 4;
 						if (sameDir && balanced && absDc > dcFloor && absDc > absD * 0.5) {
 							var s = i - halfFade;
 							var e = i + halfFade;
