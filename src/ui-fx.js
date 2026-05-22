@@ -1825,6 +1825,106 @@
 			x.Show();
 		});
 
+
+		app.listenFor ('RequestActionFXUI_Repair', function () {
+			if (!app.engine.is_ready) return ;
+			app.fireEvent ('RequestSelect', 1);
+
+			function mode ( q ) {
+				return q.el_body.querySelector ('input[name=rpr_m]:checked').value;
+			}
+			function getvalue ( q ) {
+				var m = mode (q);
+				if (m === 'hum') {
+					var f = q.el_body.querySelector ('input[name=rpr_f]:checked');
+					return f ? f.value : 'auto';
+				}
+				var sel = q.el_body.querySelector ('input[name=' + (m === 'edit' ? 'rpr_e' : 'rpr_s') + ']:checked');
+				return sel ? sel.value : 'med';
+			}
+			var EVT = {
+				click: ['RequestActionFX_DeClick', 'RequestActionFX_PREVIEW_DeClick'],
+				hum:   ['RequestActionFX_HumNotch', 'RequestActionFX_PREVIEW_HumNotch'],
+				edit:  ['RequestActionFX_RepairSplice', 'RequestActionFX_PREVIEW_RepairSplice']
+			};
+
+			var x = new PKAudioFXModal ({
+				id : 'repair',
+				title : 'Audio Repair',
+				ondestroy : function () {
+					app.ui.InteractionHandler.on = false;
+					app.ui.KeyHandler.removeCallback (modal_esc_key);
+				},
+				preview : function ( q ) {
+					app.fireEvent (EVT[mode (q)][1], getvalue (q));
+				},
+				buttons : [{
+					title : 'Apply',
+					clss : 'pk_modal_a_accpt',
+					callback : function ( q ) {
+						app.fireEvent (EVT[mode (q)][0], getvalue (q));
+						q.Destroy ();
+					}
+				}],
+				body :
+					'<div class="pk_row">' +
+						'<input type="radio" class="pk_check" name="rpr_m" id="rpr_mc" value="click" checked><label for="rpr_mc">Click Reduction</label>' +
+						'<input type="radio" class="pk_check" name="rpr_m" id="rpr_mh" value="hum"><label for="rpr_mh">Hum Reduction</label>' +
+						'<input type="radio" class="pk_check" name="rpr_m" id="rpr_me" value="edit"><label for="rpr_me">Edit Repair</label>' +
+					'</div>' +
+					'<div id="rpr_pc">' +
+						'<div class="pk_row"><label>Sensitivity</label>' +
+							'<input type="radio" class="pk_check" name="rpr_s" id="rpr_sl" value="low"><label for="rpr_sl">Low</label>' +
+							'<input type="radio" class="pk_check" name="rpr_s" id="rpr_sm" value="med" checked><label for="rpr_sm">Medium</label>' +
+							'<input type="radio" class="pk_check" name="rpr_s" id="rpr_sh" value="high"><label for="rpr_sh">High</label>' +
+						'</div>' +
+						'<div class="pk_row pk_inact">Removes short transient clicks<br>(vinyl pops, mouth clicks) by detecting<br>energy spikes and interpolating across them.</div>' +
+					'</div>' +
+					'<div id="rpr_ph" style="display:none">' +
+						'<div class="pk_row"><label>Mains frequency</label>' +
+							'<input type="radio" class="pk_check" name="rpr_f" id="rpr_f50" value="50"><label for="rpr_f50">50 Hz</label>' +
+							'<input type="radio" class="pk_check" name="rpr_f" id="rpr_f60" value="60"><label for="rpr_f60">60 Hz</label>' +
+							'<input type="radio" class="pk_check" name="rpr_f" id="rpr_fa" value="auto" checked><label for="rpr_fa">Auto-detect</label>' +
+						'</div>' +
+						'<div class="pk_row pk_inact">Notches out the mains hum and seven<br>harmonics. Auto-detect scans the selection<br>and locks to the actual hum frequency.</div>' +
+					'</div>' +
+					'<div id="rpr_pe" style="display:none">' +
+						'<div class="pk_row"><label>Sensitivity</label>' +
+							'<input type="radio" class="pk_check" name="rpr_e" id="rpr_el" value="low"><label for="rpr_el">Low</label>' +
+							'<input type="radio" class="pk_check" name="rpr_e" id="rpr_em" value="med" checked><label for="rpr_em">Medium</label>' +
+							'<input type="radio" class="pk_check" name="rpr_e" id="rpr_eh" value="high"><label for="rpr_eh">High</label>' +
+						'</div>' +
+						'<div class="pk_row pk_inact">Smooths DC-offset splices between joined<br>audio of similar energy. Use after pasting<br>from another source. Not for note onsets.</div>' +
+					'</div>',
+				setup : function ( q ) {
+					var panes = {
+						click: q.el_body.querySelector ('#rpr_pc'),
+						hum:   q.el_body.querySelector ('#rpr_ph'),
+						edit:  q.el_body.querySelector ('#rpr_pe')
+					};
+					function applyMode () {
+						var m = mode (q);
+						panes.click.style.display = m === 'click' ? '' : 'none';
+						panes.hum.style.display   = m === 'hum'   ? '' : 'none';
+						panes.edit.style.display  = m === 'edit'  ? '' : 'none';
+						app.fireEvent ('RequestActionFX_PREVIEW_STOP');
+					}
+					q.el_body.querySelectorAll ('input[name=rpr_m]').forEach (function ( r ) {
+						r.onchange = applyMode;
+					});
+					applyMode ();
+					app.fireEvent ('RequestPause');
+					app.ui.InteractionHandler.checkAndSet (modal_name);
+					app.ui.KeyHandler.addCallback (modal_esc_key, function () {
+						if (!app.ui.InteractionHandler.check (modal_name)) return ;
+						q.Destroy ();
+					}, [27]);
+				}
+			}, app);
+			x.Show ();
+		});
+
+
 			app.listenFor ('RequestActionFXUI_SeamlessLoop', function () {
 				if (!app.engine.is_ready) return ;
 				if (!app.engine.wavesurfer.regions.list[0]) {

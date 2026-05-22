@@ -269,7 +269,8 @@
 											var kbps = 128;
 											var export_sel = false;
 											var stereo     = false;
-											
+											var bit_depth  = 16;
+
 											var radios = q.el_body.getElementsByClassName ('pk_check');
 											var l = radios.length;
 											while (l-- > 0) {
@@ -295,12 +296,18 @@
 															stereo = true;
 														}
 													}
+													else if (radios[l].name == 'wavbits')
+													{
+														bit_depth = radios[l].value / 1;
+													}
 													else
 													{
 														kbps = radios[l].value / 1;
 													}
 												}
 											}
+											var dither_chk = document.getElementById ('wav-dither');
+											var dither = !!(dither_chk && dither_chk.checked);
 
 											if (format === 'amss')
 											{
@@ -315,7 +322,7 @@
 												kbps = document.getElementById('flac-comp').value / 1;
 											}
 
-											app.engine.DownloadFile ( value, format, kbps, export_sel, stereo );
+											app.engine.DownloadFile ( value, format, kbps, export_sel, stereo, bit_depth, dither );
 											q.Destroy ();
 											// -
 										}
@@ -347,6 +354,18 @@
 									'<label>Flac: Compression Level</label>'+
 									'<input type="range" class="pk_horiz" min="0" max="8" step="1" value="5" id="flac-comp">'+
 									'<span class="pk_val" style="float:left;margin-left:15px">5</span></div>' +
+
+									'<div class="pk_row" style="display:none" id="frmtex-wav">'+
+									'<input type="radio" class="pk_check" id="kwb1" name="wavbits" checked value="16">'+
+									'<label for="kwb1">16-bit</label>'+
+									'<input type="radio" class="pk_check" id="kwb2" name="wavbits" value="24">'+
+									'<label for="kwb2">24-bit</label>'+
+									'<input type="radio" class="pk_check" id="kwb3" name="wavbits" value="32">'+
+									'<label for="kwb3">32-bit float</label>'+
+									'<div id="wav-dither-wrap" style="margin-top:6px">'+
+									'<input type="checkbox" class="pk_check" id="wav-dither">'+
+									'<label for="wav-dither">TPDF dither</label>'+
+									'</div></div>' +
 
 									'<div class="pk_row" style="padding-bottom:5px">' +
 									'<input type="radio" class="pk_check" id="k6" name="chnl" checked value="mono">'+
@@ -391,7 +410,19 @@
 									  		var format = document.getElementById('frmtex');
 									  		var mp3conf = document.getElementById('frmtex-mp3');
 									  		var flacconf = document.getElementById('frmtex-flac');
+												var wavconf = document.getElementById('frmtex-wav');
+												var ditherWrap = document.getElementById('wav-dither-wrap');
 											var amss = q.el_body.getElementsByClassName ('pk_amss');
+											function setDitherFor ( bits ) {
+												var on = bits === 16;
+												document.getElementById('wav-dither').disabled = !on;
+												ditherWrap.classList.toggle ('pk_inact', !on);
+											}
+											function showConf ( m, f, w ) {
+												mp3conf.style.display  = m ? 'block' : 'none';
+												flacconf.style.display = f ? 'block' : 'none';
+												wavconf.style.display  = w ? 'block' : 'none';
+											}
 											var k6 = document.getElementById ('k6');
 											var k7 = document.getElementById ('k7');
 											if (!mt_on) {
@@ -406,8 +437,7 @@
 											}
 											if (mt_on) {
 												document.getElementById ('k01').checked = true;
-												mp3conf.style.display = 'block';
-												flacconf.style.display = 'none';
+												showConf (1, 0, 0);
 												chanOff ( false );
 												setExt ('.mp3');
 											}
@@ -416,37 +446,26 @@
 												this.parentNode.getElementsByTagName('span')[0].innerText = this.value;
 											};
 
+											setDitherFor (16);
+											wavconf.addEventListener ('change', function () {
+												var ws = wavconf.getElementsByTagName ('input');
+												for (var i = 0; i < ws.length; ++i)
+													if (ws[i].name === 'wavbits' && ws[i].checked) {
+														setDitherFor (ws[i].value / 1);
+														break;
+													}
+											}, false);
+
 									  		format && format.addEventListener('change', function(e){
 												var inputs = this.getElementsByTagName('input');
 												for (var i = 0; i < inputs.length; ++i)
 												{
 													if (inputs[i].checked)
 													{
-														chanOff (inputs[i].value === 'amss');
-														if (inputs[i].value === 'mp3')
-														{
-															mp3conf.style.display = 'block';
-															flacconf.style.display = 'none';
-															setExt ('.mp3');
-														}
-														else if (inputs[i].value === 'flac')
-														{
-															mp3conf.style.display = 'none';
-															flacconf.style.display = 'block';
-															setExt ('.flac');
-														}
-														else if (inputs[i].value === 'amss')
-														{
-															mp3conf.style.display = 'none';
-															flacconf.style.display = 'none';
-															setExt ('.amss');
-														}
-														else
-														{
-															mp3conf.style.display = 'none';
-															flacconf.style.display = 'none';
-															setExt ('.wav');
-														}
+														var v = inputs[i].value;
+														chanOff (v === 'amss');
+														showConf (v === 'mp3', v === 'flac', v === 'wav');
+														setExt ('.' + v);
 													}
 												}
 									  		}, false);
@@ -1233,6 +1252,13 @@
 						name:'Reverb',
 						action:function () {
 							app.fireEvent ('RequestActionFXUI_Reverb');
+						}
+					},
+
+					{
+						name:'Audio Repair',
+						action:function () {
+							app.fireEvent ('RequestActionFXUI_Repair');
 						}
 					},
 

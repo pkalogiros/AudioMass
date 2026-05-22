@@ -276,7 +276,7 @@
 			// ----
 		};
 
-		this.DownloadFile = function ( name, format, kbps, selection, stereo ) {
+		this.DownloadFile = function ( name, format, kbps, selection, stereo, bit_depth, dither ) {
 			var canceled = false;
 			var mt = app.multitrack &&
 				app.multitrack.IsOn &&
@@ -327,7 +327,7 @@
 
 			function startDownload ( mt_buffer ) {
 				if (canceled) return ;
-				AudioUtils.DownloadFile ( name, format, kbps, mt_buffer ? false : selection, stereo, function ( val ) {
+				AudioUtils.DownloadFile ( name, format, kbps, mt_buffer ? false : selection, stereo, bit_depth, dither, function ( val ) {
 					if (val === 'done')
 					{
 						setTimeout(function() { app.fireEvent ('DidDownloadFile'); }, 12);
@@ -671,7 +671,7 @@
 			wavesurfer.skipForward ( val );
 		});
 		app.listenFor ('RequestSeekTo', function( val ) {
-			if (val > 1.0) return ;
+			val = val < 0 ? 0 : val > 1 ? 1 : val;
 			wavesurfer.seekTo( val );
 		});
 		app.ui.KeyHandler.addCallback ('zkA', function ( key, m, e ) {
@@ -2262,6 +2262,327 @@
 			OneUp ('Applied Channel Change: ' + val);
 		});
 
+		function repairSpliceChannel ( x, sampleRate, sens ) {
+			var len = x.length;
+			if (len < 512) return 0;
+			var k = sens === 'low' ? 8 : sens === 'high' ? 4 : 6;
+			var absFloor = sens === 'low' ? 0.05 : sens === 'high' ? 0.015 : 0.025;
+			var dcFloor  = sens === 'low' ? 0.04 : sens === 'high' ? 0.008 : 0.018;
+			var dcW = Math.max (256, (sampleRate * 0.020) >> 0);
+			var fadeW = Math.max (16, (sampleRate * 0.004) >> 0);
+			var halfFade = fadeW >> 1;
+			var ema = 0;
+			var boot = Math.min (2048, len);
+			for (var i = 1; i < boot; ++i) ema += Math.abs (x[i] - x[i - 1]);
+			ema = ema / (boot - 1) || 1e-4;
+			if (ema < 1e-4) ema = 1e-4;
+			var alpha = 1 / 2048;
+			var count = 0;
+			i = dcW + halfFade + 4;
+			while (i < len - dcW - halfFade - 4) {
+				var d = x[i] - x[i - 1];
+				var absD = d < 0 ? -d : d;
+				if (absD > ema * k && absD > absFloor) {
+					var reversed = false;
+					for (var ck = 1; ck <= 4; ++ck) {
+						var dd = x[i + ck] - x[i + ck - 1];
+						if ((d > 0 && dd < -absD * 0.5) || (d < 0 && dd > absD * 0.5)) { reversed = true; break; }
+					}
+					if (!reversed) {
+						var preMean = 0, postMean = 0, preE = 0, postE = 0;
+						for (var j = 1; j <= dcW; ++j) {
+							var pv = x[i - j], pov = x[i + j - 1];
+							preMean += pv; postMean += pov;
+							preE += pv * pv; postE += pov * pov;
+						}
+						preMean /= dcW;
+						postMean /= dcW;
+						var dcDiff = postMean - preMean;
+						var absDc = dcDiff < 0 ? -dcDiff : dcDiff;
+						var sameDir = (d > 0 && dcDiff > 0) || (d < 0 && dcDiff < 0);
+						var loE = preE < postE ? preE : postE;
+						var hiE = preE < postE ? postE : preE;
+						var balanced = loE > 1e-6 && hiE < loE * 4;
+						if (sameDir && balanced && absDc > dcFloor && absDc > absD * 0.5) {
+							var s = i - halfFade;
+							var e = i + halfFade;
+							if (s < 2) s = 2;
+							if (e > len - 2) e = len - 2;
+							var x0 = x[s - 1], x1 = x[e];
+							var m0 = 0.5 * (x[s] - x[s - 2]);
+							var m1 = 0.5 * (x[e + 1] - x[e - 1]);
+							var span = e - (s - 1);
+							for (var jj = s; jj < e; ++jj) {
+								var t = (jj - (s - 1)) / span;
+								var t2 = t * t, t3 = t2 * t;
+								var h00 = 2 * t3 - 3 * t2 + 1;
+								var h10 = t3 - 2 * t2 + t;
+								var h01 = -2 * t3 + 3 * t2;
+								var h11 = t3 - t2;
+								x[jj] = h00 * x0 + h10 * m0 * span + h01 * x1 + h11 * m1 * span;
+							}
+							++count;
+							i = e + dcW;
+							continue;
+						}
+					}
+				}
+				ema = ema * (1 - alpha) + absD * alpha;
+				if (ema < 1e-4) ema = 1e-4;
+				++i;
+			}
+			return count;
+		}
+
+		function deClickChannel ( x, sampleRate, sens ) {
+			var len = x.length;
+			if (len < 128) return 0;
+			var k = sens === 'low' ? 6 : sens === 'high' ? 3 : 4;
+			var maxW = Math.max (8, (sampleRate * 0.002) >> 0);
+			var minW = 2, margin = 2;
+			var absFloor = sens === 'low' ? 0.03 : sens === 'high' ? 0.008 : 0.015;
+			var i, d, sd, ema = 0;
+			var boot = Math.min (2048, len);
+			for (i = 1; i < boot; ++i) ema += Math.abs (x[i] - x[i - 1]);
+			ema = ema / (boot - 1) || 1e-9;
+			if (ema < 1e-4) ema = 1e-4;
+			var alpha = 1 / 2048;
+			var count = 0;
+			i = 4;
+			while (i < len - maxW - 4) {
+				sd = x[i] - x[i - 1];
+				d = sd < 0 ? -sd : sd;
+				if (d > ema * k && d > absFloor) {
+					var thresh = d * 0.4;
+					var end = i + 1;
+					var maxEnd = i + maxW;
+					var posMax = sd, negMax = sd;
+					while (end < maxEnd && Math.abs (x[end] - x[end - 1]) > thresh) {
+						var dd = x[end] - x[end - 1];
+						if (dd > posMax) posMax = dd;
+						if (dd < negMax) negMax = dd;
+						++end;
+					}
+					var w = end - i;
+					var hitMax = end >= maxEnd;
+					var bipolar = posMax > thresh && -negMax > thresh;
+					if (w >= minW && !hitMax && bipolar) {
+						var s = i - margin;
+						var e = end + margin;
+						if (s < 2) s = 2;
+						if (e > len - 2) e = len - 2;
+						var x0 = x[s - 1], x1 = x[e];
+						var m0 = 0.5 * (x[s] - x[s - 2]);
+						var m1 = 0.5 * (x[e + 1] - x[e - 1]);
+						var span = e - (s - 1);
+						for (var j = s; j < e; ++j) {
+							var t = (j - (s - 1)) / span;
+							var t2 = t * t;
+							var t3 = t2 * t;
+							var h00 = 2 * t3 - 3 * t2 + 1;
+							var h10 = t3 - 2 * t2 + t;
+							var h01 = -2 * t3 + 3 * t2;
+							var h11 = t3 - t2;
+							x[j] = h00 * x0 + h10 * m0 * span + h01 * x1 + h11 * m1 * span;
+						}
+						++count;
+						i = e + 4;
+						continue;
+					}
+				}
+				ema = ema * (1 - alpha) + d * alpha;
+				if (ema < 1e-4) ema = 1e-4;
+				++i;
+			}
+			return count;
+		}
+
+		function goertzelMag ( x, freq, sampleRate, N ) {
+			if (N > x.length) N = x.length;
+			var k = (0.5 + (N * freq) / sampleRate) >> 0;
+			var omega = 2 * Math.PI * k / N;
+			var coeff = 2 * Math.cos (omega);
+			var s0, s1 = 0, s2 = 0;
+			for (var i = 0; i < N; ++i) {
+				s0 = x[i] + coeff * s1 - s2;
+				s2 = s1;
+				s1 = s0;
+			}
+			return s1 * s1 + s2 * s2 - coeff * s1 * s2;
+		}
+
+		function resolveHumFreq ( mode, start, end, sr ) {
+			if (mode === '50' || mode === 50) return 50;
+			if (mode === '60' || mode === 60) return 60;
+			var x = wavesurfer.backend.buffer.getChannelData (0);
+			var off = (start * sr) >> 0;
+			var N = Math.min (((end * sr) >> 0), (sr * 2) >> 0);
+			if (N < 256) N = Math.min (x.length - off, 4096);
+			var sub = x.subarray (off, off + N);
+			var m50 = goertzelMag (sub, 50, sr, N);
+			var m60 = goertzelMag (sub, 60, sr, N);
+			var center = m60 > m50 ? 60 : 50;
+			var best = center, bestMag = 0;
+			for (var f = center - 1; f <= center + 1; f += 0.1) {
+				var m = goertzelMag (sub, f, sr, N);
+				if (m > bestMag) { bestMag = m; best = f; }
+			}
+			return best;
+		}
+
+		app.listenFor ('RequestActionFX_PREVIEW_HumNotch', function ( mode ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var end   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (end * sr < 256) return OneUp ('Selection too short', 1200);
+			var freq  = resolveHumFreq (mode, start, end, sr);
+			AudioUtils.FXPreview (start, end, AudioUtils.FXBank.HumNotch ({freq:freq, harmonics:8, q:12}));
+			app.fireEvent ('DidStartPreview');
+		});
+
+		app.listenFor ('RequestActionFX_PREVIEW_DeClick', function ( sens ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var len   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (len * sr < 256) return OneUp ('Selection too short', 1200);
+			var seg = AudioUtils.Copy (start, len);
+			for (var c = 0; c < seg.numberOfChannels; ++c)
+				deClickChannel (seg.getChannelData (c), sr, sens);
+			AudioUtils.FXPreviewBuffer (seg);
+			app.fireEvent ('DidStartPreview');
+		});
+
+		app.listenFor ('RequestActionFX_HumNotch', function ( mode ) {
+			if (!q.is_ready) return ;
+			app.fireEvent ('RequestPause');
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var end   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (end * sr < 256) return OneUp ('Selection too short', 1200);
+			var freq  = resolveHumFreq (mode, start, end, sr);
+
+			app.fireEvent ('StateRequestPush', {
+				desc : 'Hum Notch ' + freq + 'Hz',
+				meta : [start, end],
+				data : wavesurfer.backend.buffer
+			});
+
+			AudioUtils.FX (start, end, AudioUtils.FXBank.HumNotch ({freq:freq, harmonics:8, q:12}));
+			OneUp ('Notched ' + freq.toFixed (1) + 'Hz hum', 1400);
+		});
+
+		app.listenFor ('RequestActionFX_DeClick', function ( sens ) {
+			if (!q.is_ready) return ;
+			app.fireEvent ('RequestPause');
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var len   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (len * sr < 256) return OneUp ('Selection too short', 1200);
+
+			app.fireEvent ('StateRequestPush', {
+				desc : 'De-Click',
+				meta : [start, len],
+				data : wavesurfer.backend.buffer
+			});
+
+			var seg = AudioUtils.Copy (start, len);
+			var total = 0;
+			for (var c = 0; c < seg.numberOfChannels; ++c)
+				total += deClickChannel (seg.getChannelData (c), sr, sens);
+			AudioUtils.Replace (start, len, seg);
+
+			wavesurfer.regions.clear ();
+			wavesurfer.regions.add ({start:start, end:start + len, id:'t'});
+			app.fireEvent ('RequestSeekTo', start / wavesurfer.getDuration ());
+			OneUp (total ? 'De-Click: removed ' + total + ' click' + (total > 1 ? 's' : '') : 'De-Click: nothing detected', 1400);
+		});
+
+		app.listenFor ('RequestActionFX_PREVIEW_RepairSplice', function ( sens ) {
+			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+				return ;
+			}
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var len   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (len * sr < 512) return OneUp ('Selection too short', 1200);
+			var seg = AudioUtils.Copy (start, len);
+			for (var c = 0; c < seg.numberOfChannels; ++c)
+				repairSpliceChannel (seg.getChannelData (c), sr, sens);
+			AudioUtils.FXPreviewBuffer (seg);
+			app.fireEvent ('DidStartPreview');
+		});
+
+		app.listenFor ('RequestActionFX_RepairSplice', function ( sens ) {
+			if (!q.is_ready) return ;
+			app.fireEvent ('RequestPause');
+			var region = wavesurfer.regions.list[0];
+			if (!region) {
+				wavesurfer.regions.add ({start:0, end:wavesurfer.getDuration (), id:'t'});
+				region = wavesurfer.regions.list[0];
+			}
+			var start = q.TrimTo (region.start, 3);
+			var len   = q.TrimTo (region.end - region.start, 3);
+			var sr    = wavesurfer.backend.buffer.sampleRate;
+			if (len * sr < 512) return OneUp ('Selection too short', 1200);
+
+			app.fireEvent ('StateRequestPush', {
+				desc : 'Edit Repair',
+				meta : [start, len],
+				data : wavesurfer.backend.buffer
+			});
+
+			var seg = AudioUtils.Copy (start, len);
+			var total = 0;
+			for (var c = 0; c < seg.numberOfChannels; ++c)
+				total += repairSpliceChannel (seg.getChannelData (c), sr, sens);
+			AudioUtils.Replace (start, len, seg);
+
+			wavesurfer.regions.clear ();
+			wavesurfer.regions.add ({start:start, end:start + len, id:'t'});
+			app.fireEvent ('RequestSeekTo', start / wavesurfer.getDuration ());
+			OneUp (total ? 'Edit Repair: smoothed ' + total + ' splice' + (total > 1 ? 's' : '') : 'Edit Repair: nothing detected', 1400);
+		});
+
 		app.listenFor ('RequestActionFX_Reverse', function ( val ) {
 			if (!q.is_ready) return ;
 
@@ -3013,18 +3334,17 @@
 
 			if (state.meta && state.meta.length > 0)
 			{
+				var st = Math.max (0, Math.min (new_durr, state.meta[0]/1 || 0));
 				if (state.meta[1])
 				{
-					wavesurfer.regions.add({
-						start:state.meta[0]/1,
-						end:state.meta[0]/1 + state.meta[1]/1,
-						id:'t'
-					});
+					var en = Math.max (0, Math.min (new_durr, st + state.meta[1]/1));
+					if (en > st) wavesurfer.regions.add({start:st, end:en, id:'t'});
+					else app.fireEvent ('RequestSeekTo', new_durr ? st/new_durr : 0);
 				}
 				else
 				{
 					if (!new_durr) new_durr = 0.0001;
-					app.fireEvent ('RequestSeekTo', (state.meta[0]/new_durr));
+					app.fireEvent ('RequestSeekTo', (st/new_durr));
 				}
 			}
 

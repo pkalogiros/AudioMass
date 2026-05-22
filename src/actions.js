@@ -909,7 +909,7 @@
 			}
 		}
 
-		function DownloadFile( with_name, format, kbps, selection, stereo, callback, source_buffer ) {
+		function DownloadFile( with_name, format, kbps, selection, stereo, bit_depth, dither, callback, source_buffer ) {
 			var originalBuffer = source_buffer ||
 				(wavesurfer && wavesurfer.backend && wavesurfer.backend.buffer);
 			if (!originalBuffer) {
@@ -972,15 +972,32 @@
 				len = ((selection[1] * sample_rate) >> 0) - offset;
 			}
 
-			var dataAsInt16ArrayLeft = new Int16Array(len);
-			var dataAsInt16ArrayRight = data_right ? new Int16Array(len) : null;
+			var wav_bits = format === 'wav' ? ((bit_depth / 1) || 16) : 16;
+			if (wav_bits !== 16 && wav_bits !== 24 && wav_bits !== 32) wav_bits = 16;
+			var wav_dither = format === 'wav' && wav_bits === 16 && !!dither;
+			var ArrType = wav_bits === 32 ? Float32Array : wav_bits === 24 ? Int32Array : Int16Array;
+
+			var dataArrLeft = new ArrType(len);
+			var dataArrRight = data_right ? new ArrType(len) : null;
 			var encode_base = 10;
 			var last_progress = -1;
 
-			function convert ( n ) {
-				 var v = n < 0 ? n * 32768 : n * 32767;       // convert in range [-32768, 32767]
-				 return Math.max(-32768, Math.min(32767, v)); // clamp
+			function convert16 ( n ) {
+				 var v = n < 0 ? n * 32768 : n * 32767;
+				 return Math.max(-32768, Math.min(32767, v));
 			}
+			function convert16dith ( n ) {
+				 var v = (n < 0 ? n * 32768 : n * 32767) + (Math.random () - Math.random ());
+				 return Math.max(-32768, Math.min(32767, Math.round (v)));
+			}
+			function convert24 ( n ) {
+				 var v = n < 0 ? n * 8388608 : n * 8388607;
+				 return Math.max(-8388608, Math.min(8388607, Math.round (v)));
+			}
+			var convert = wav_bits === 32 ? null :
+			              wav_bits === 24 ? convert24 :
+			              wav_dither ? convert16dith :
+			              convert16;
 			function progress ( val ) {
 				val = Math.max (0, Math.min (99, val >> 0));
 				if (val === last_progress) return ;
@@ -1003,17 +1020,17 @@
 			function fillChunk () {
 				if (!worker) return ;
 				var end = Math.min (len, i + 262144);
-				if (data_right) {
-					while(i < end) {
-						dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
-						dataAsInt16ArrayRight[i] = convert(data_right[offset + i]);
-						++i;
-					}
-				}
-				else {
-					if (mono_right) {
+				if (convert) {
+					if (data_right) {
 						while(i < end) {
-							dataAsInt16ArrayLeft[i] = convert(
+							dataArrLeft[i] = convert(data_left[offset + i]);
+							dataArrRight[i] = convert(data_right[offset + i]);
+							++i;
+						}
+					}
+					else if (mono_right) {
+						while(i < end) {
+							dataArrLeft[i] = convert(
 								(data_left[offset + i] + mono_right[offset + i]) * 0.5
 							);
 							++i;
@@ -1021,7 +1038,28 @@
 					}
 					else {
 						while(i < end) {
-							dataAsInt16ArrayLeft[i] = convert(data_left[offset + i]);
+							dataArrLeft[i] = convert(data_left[offset + i]);
+							++i;
+						}
+					}
+				}
+				else {
+					if (data_right) {
+						while(i < end) {
+							dataArrLeft[i] = data_left[offset + i];
+							dataArrRight[i] = data_right[offset + i];
+							++i;
+						}
+					}
+					else if (mono_right) {
+						while(i < end) {
+							dataArrLeft[i] = (data_left[offset + i] + mono_right[offset + i]) * 0.5;
+							++i;
+						}
+					}
+					else {
+						while(i < end) {
+							dataArrLeft[i] = data_left[offset + i];
 							++i;
 						}
 					}
@@ -1038,11 +1076,12 @@
 					kbps:!kbps ? 128 : kbps,
 					flac_compression: kbps,
 					channels: channels,
+					bit_depth: wav_bits,
 					samples: len
 				});
-				worker.postMessage ( dataAsInt16ArrayLeft.buffer, [dataAsInt16ArrayLeft.buffer] );
+				worker.postMessage ( dataArrLeft.buffer, [dataArrLeft.buffer] );
 				if (data_right)
-					worker.postMessage ( dataAsInt16ArrayRight.buffer, [dataAsInt16ArrayRight.buffer] );
+					worker.postMessage ( dataArrRight.buffer, [dataArrRight.buffer] );
 				else
 					worker.postMessage (null);
 			}
@@ -2061,6 +2100,34 @@
 							}
 						}
 						// ----
+					}
+				};
+			},
+
+			HumNotch : function ( val ) {
+				return {
+					filter : function ( audio_ctx, destination, source, duration ) {
+						var freq = val.freq;
+						var harmonics = val.harmonics || 4;
+						var q_val = val.q || 30;
+						var prev = source;
+						var last = null;
+						var chain = [];
+						for (var h = 1; h <= harmonics; ++h) {
+							var f = freq * h;
+							if (f >= audio_ctx.sampleRate * 0.5) break;
+							var n = audio_ctx.createBiquadFilter ();
+							n.type = 'notch';
+							n.frequency.value = f;
+							n.Q.value = q_val;
+							prev.connect (n);
+							prev = n;
+							last = n;
+							chain.push (n);
+						}
+						if (last) last.connect (destination);
+						else source.connect (destination);
+						return (chain);
 					}
 				};
 			},
