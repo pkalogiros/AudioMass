@@ -160,6 +160,17 @@
 			mu[4] = sig[0] / 1 || 4;
 			mu[5] = sig[1] / 1 || 4;
 			parts.push ( meta );
+			if (st.markers && st.markers.length) {
+				var mb = enc.encode (JSON.stringify (st.markers));
+				meta = new ArrayBuffer (8);
+				mu = new Uint8Array ( meta );
+				md = new DataView ( meta );
+				mu[0] = 77; mu[1] = 82; mu[2] = 75;
+				md.setUint32 (4, mb.length, true);
+				parts.push ( meta );
+				parts.push ( mb );
+				if (mb.length & 3) parts.push (new Uint8Array (4 - (mb.length & 3)));
+			}
 
 			var blob = new Blob (parts, {type:'application/x-audiomass-session'});
 			var url = (w.URL || w.webkitURL).createObjectURL ( blob );
@@ -211,6 +222,7 @@
 				master_vol: f32 (),
 				beat_bpm: 120,
 				beat_sig: '4/4',
+				markers: [],
 				xfades: {},
 				tracks: [],
 				clips: []
@@ -279,6 +291,20 @@
 					st.beat_bpm = dv.getFloat32 (o + 4, true) || 120;
 				else if (mu[0] === 83 && mu[1] === 73 && mu[2] === 71 && mu[3] === 0)
 					st.beat_sig = (dv.getUint8 (o + 4) || 4) + '/' + (dv.getUint8 (o + 5) || 4);
+				else if (mu[0] === 77 && mu[1] === 82 && mu[2] === 75 && mu[3] === 0) {
+					var ml = dv.getUint32 (o + 4, true);
+					if (ml > 65536 || o + 8 + ml > buf.byteLength) break;
+					try {
+						var parsed_markers = JSON.parse (dec.decode (new Uint8Array (buf, o + 8, ml)));
+						st.markers = parsed_markers && parsed_markers.length ? parsed_markers : [];
+					}
+					catch (e) {
+						st.markers = [];
+					}
+					o += 8 + ml;
+					o = (o + 3) & ~3;
+					continue;
+				}
 				o += 8;
 			}
 			for (i = 0; i < raw_clips.length; ++i) {

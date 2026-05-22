@@ -271,7 +271,7 @@
 
 		function pushState ( prev, desc ) {
 			app.fireEvent ('StateRequestPush', {
-				type: 'multitrack',
+				type: 'mult',
 				desc: desc,
 				mt: prev,
 				data: app.engine.wavesurfer.backend.buffer
@@ -352,8 +352,10 @@
 				OneUp ('Nothing to save', 1200);
 				return false;
 			}
+			var st = cloneState ();
+			if (app.mrk) st.markers = app.mrk.serMt ();
 			if (!app.amss || !app.amss.ExportMultitrack ||
-				!app.amss.ExportMultitrack ( name, cloneState () ))
+				!app.amss.ExportMultitrack ( name, st ))
 			{
 				OneUp ('Could not save session', 1400);
 				return false;
@@ -374,6 +376,7 @@
 				app.fireEvent ('StateRequestClearAll');
 				Toggle ( true );
 				restoreState ( st );
+				if (app.mrk) app.mrk.loadMt (st.markers, false);
 				app.fireEvent ('DidUpdateMultitrack');
 				OneUp ('Loaded session' + (name ? ': ' + name : ''), 1200);
 			}
@@ -598,6 +601,7 @@
 			region_el = el.getElementsByClassName ('pk_mt_region')[0];
 			playhead = el.getElementsByClassName ('pk_mt_playhead')[0];
 			marker_el = el.getElementsByClassName ('pk_mt_marker')[0];
+			if (app.mrk) app.mrk.mt (main, ruler, function () { return px_per_sec; }, function () { return on; });
 			buildHeader ();
 			addRegionHandles ();
 			empty_el.getElementsByTagName ('a')[0].onclick = function ( e ) {
@@ -1006,6 +1010,7 @@
 				var ctx = ruler_canvas.getContext ('2d', {alpha:false});
 				ctx.setTransform (ratio, 0, 0, ratio, 0, 0);
 				app.ui.drawTimelineRuler ( ctx, dur, width, left, visible );
+				if (app.mrk) app.mrk.drawMt ();
 				return ;
 			}
 
@@ -1021,6 +1026,7 @@
 					ruler.appendChild ( old_tick );
 				}
 			}
+			if (app.mrk) app.mrk.drawMt ();
 		}
 
 		function redrawRuler () {
@@ -5403,7 +5409,7 @@
 			if (IsOn ()) Toggle ( false );
 		});
 		app.listenFor ('StateDidPop', function ( state, undo ) {
-			if (state.type !== 'multitrack') return ;
+			if (state.type !== 'mult') return ;
 			restoreState ( state.mt, true );
 			if (undo) OneUp ('Undo ' + state.desc);
 			else OneUp ('Redo ' + state.desc);

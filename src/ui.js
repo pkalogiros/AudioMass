@@ -53,6 +53,49 @@
 			!!(app.engine && app.engine.is_ready);
 	}
 
+	function seekMarkerEdgeFor ( app, dir ) {
+		return !!(app.mrk && app.mrk.edge && app.mrk.edge (dir));
+	}
+
+	function seekRegionMarkerEdgeFor ( app, dir ) {
+		var mt = activeMultitrackFor ( app );
+		var r = activeRegionFor ( app );
+		var total = activeDurationFor ( app );
+		var pos, start, end;
+
+		if (r && total > 0) {
+			pos = mt ? (mt.GetMarker ? mt.GetMarker () : mt.GetCursor ()) :
+				app.engine.wavesurfer.ActiveMarker;
+			start = mt ? r.start : r.start / total;
+			end = mt ? r.end : r.end / total;
+
+			if (dir < 0) {
+				if (pos > end + 0.004) {
+					app.fireEvent ('RequestSeekTo', (r.end / total) - 0.0001);
+					return true;
+				}
+				if (pos > start + 0.004) {
+					app.fireEvent ('RequestSeekTo', r.start / total);
+					return true;
+				}
+			}
+			else {
+				if (pos < start - 0.004) {
+					app.fireEvent ('RequestSeekTo', r.start / total);
+					return true;
+				}
+				if (pos < end - 0.004) {
+					app.fireEvent ('RequestSeekTo', r.end / total);
+					return true;
+				}
+			}
+		}
+
+		if (seekMarkerEdgeFor (app, dir)) return true;
+		app.fireEvent ('RequestSeekTo', dir < 0 ? 0 : 1);
+		return true;
+	}
+
 	var PKUI = function( app ) {
 		var q = this;
 
@@ -2588,6 +2631,7 @@
 		UI.KeyHandler.addCallback ('KeyArrowBack', function ( key, c, ev ) {
 			var mt_on = activeMultitrackFor ( app );
 			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (c[16] || (ev && ev.shiftKey)) return ;
 			if (mt_on && ev) ev.preventDefault ();
 
 			var time = ev ? ev.timeStamp : w.performance.now ();
@@ -2621,6 +2665,7 @@
 		UI.KeyHandler.addCallback ('KeyArrowFront', function ( key, c, ev ) {
 			var mt_on = activeMultitrackFor ( app );
 			if (UI.InteractionHandler.on || (!PKAudioEditor.engine.is_ready && !mt_on)) return ;
+			if (c[16] || (ev && ev.shiftKey)) return ;
 			if (mt_on && ev) ev.preventDefault ();
 
 			var time = ev ? ev.timeStamp : w.performance.now ();
@@ -2670,107 +2715,16 @@
 			if (UI.InteractionHandler.on ||
 				(ev && (ev.ctrlKey || ev.metaKey)) ||
 				(!PKAudioEditor.engine.is_ready && !mt_on)) return ;
-			if (mt_on) {
-				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
-				if (mt_region)
-				{
-					var mt_pos = mt_on.GetMarker ? mt_on.GetMarker () : mt_on.GetCursor ();
-					var mt_total = mt_on.GetDuration ();
-					var mt_durr = mt_region.end / mt_total;
-					if (mt_pos > (mt_region.end + 0.004))
-					{
-						UI.fireEvent( 'RequestSeekTo', mt_durr - 0.0001 );
-						return ;
-					}
-					mt_durr = mt_region.start / mt_total;
-					if (mt_pos > (mt_region.start + 0.004))
-					{
-						UI.fireEvent( 'RequestSeekTo', mt_durr );
-						return ;
-					}
-				}
-				UI.fireEvent( 'RequestSeekTo', 0 );
-				return ;
-			}
-
-			var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
-			if (region)
-			{
-				var pos = PKAudioEditor.engine.wavesurfer.ActiveMarker;
-				var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();
-
-				var durr = region.end / total_dur;
-
-				if (pos > (durr + 0.004))
-				{
-					UI.fireEvent( 'RequestSeekTo', durr - 0.0001 );
-					return ;
-				}
-
-				durr = region.start / total_dur;
-				
-				if (pos > (durr + 0.004))
-				{
-					UI.fireEvent( 'RequestSeekTo', durr );
-					return ;
-				}
-			}
-			
-			UI.fireEvent( 'RequestSeekTo', 0 );
+			ev && ev.preventDefault ();
+			seekRegionMarkerEdgeFor (PKAE, -1);
 		}, [16, 37]);
 		UI.KeyHandler.addCallback ('KeyShiftArrowFront', function ( key, c, ev ) {
 			var mt_on = activeMultitrackFor ( app );
 			if (UI.InteractionHandler.on ||
 				(ev && (ev.ctrlKey || ev.metaKey)) ||
 				(!PKAudioEditor.engine.is_ready && !mt_on)) return ;
-			if (mt_on) {
-				var mt_region = mt_on.GetRegion && mt_on.GetRegion ();
-				if (mt_region)
-				{
-					var mt_pos = mt_on.GetMarker ? mt_on.GetMarker () : mt_on.GetCursor ();
-					var mt_total = mt_on.GetDuration ();
-						var mt_durr = mt_region.start / mt_total;
-						if (mt_pos < (mt_region.start - 0.004))
-						{
-							UI.fireEvent( 'RequestSeekTo', mt_durr );
-							return ;
-						}
-						mt_durr = mt_region.end / mt_total;
-						if (mt_pos < (mt_region.end - 0.004))
-						{
-							UI.fireEvent( 'RequestSeekTo', mt_durr );
-							return ;
-						}
-				}
-				UI.fireEvent( 'RequestSeekTo', 1 );
-				return ;
-			}
-
-			// if region skip to the region
-			var region = PKAudioEditor.engine.wavesurfer.regions.list[0];
-			if (region)
-			{
-				var pos = PKAudioEditor.engine.wavesurfer.ActiveMarker;
-				var total_dur = PKAudioEditor.engine.wavesurfer.getDuration ();
-
-				var durr = region.start / total_dur;
-				
-				if (pos < (durr - 0.004))
-				{
-					UI.fireEvent( 'RequestSeekTo', durr );
-					return ;
-				}
-
-				durr = region.end / total_dur;
-
-				if (pos < (durr - 0.004))
-				{
-					UI.fireEvent( 'RequestSeekTo', durr );
-					return ;
-				}
-			}
-
-			UI.fireEvent( 'RequestSeekTo', 1 );
+			ev && ev.preventDefault ();
+			seekRegionMarkerEdgeFor (PKAE, 1);
 		}, [16, 39]);
 		UI.KeyHandler.addCallback ('killctx', function ( e ) {
 			var event = new Event ('killCTX', {bubbles: true});
@@ -2783,8 +2737,7 @@
 		btn_back_total.innerHTML = '<span>Seek Start (Shift + left arrow)</span>';
 		transport.appendChild ( btn_back_total );
 		btn_back_total.onclick = function() {
-			UI.fireEvent( 'RequestRegionClear');
-			UI.fireEvent( 'RequestSeekTo', 0 );
+			seekRegionMarkerEdgeFor (PKAE, -1);
 			this.blur();
 		};
 
@@ -2793,8 +2746,7 @@
 		btn_front_total.className = 'pk_btn icon-next2';
 		btn_front_total.innerHTML = '<span>Seek End (Shift + right arrow)</span>';
 		btn_front_total.onclick = function() {
-			UI.fireEvent( 'RequestRegionClear');
-			UI.fireEvent( 'RequestSeekTo', 1);
+			seekRegionMarkerEdgeFor (PKAE, 1);
 			this.blur();
 		};
 		transport.appendChild ( btn_front_total );

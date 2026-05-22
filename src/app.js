@@ -123,6 +123,7 @@
 			q.el = el;
 
 			// init libraries
+			q.mrk    = q._deps.mrk ? new q._deps.mrk ( q ) : null;
 			q.ui     = new q._deps.ui ( q ); q._deps.uifx ( q );
 			q.engine = new q._deps.engine ( q );
 			q.state  = new q._deps.state ( 96, q );

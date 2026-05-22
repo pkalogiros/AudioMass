@@ -183,6 +183,10 @@
 			_compute_channels ();
 			var new_durr = wavesurfer.getDuration ();
 			app.fireEvent ('DidUpdateLen', new_durr);
+			if (app.mrk) {
+				if (!append) app.mrk.loadEd (e.markers, false);
+				else app.mrk.clearEd (false);
+			}
 
 			if (!append) app.fireEvent ('RequestSeekTo', 0);
 			else {
@@ -816,6 +820,24 @@
 			e.stopPropagation();
 			app.fireEvent ('RequestSetLoop');
 		}, 108);
+		function markerKey ( e, fn ) {
+			if (app.ui.InteractionHandler.on ||
+				app.ui.KeyHandler.isEditTarget ( e ) ||
+				accelHeld ( e ) ||
+				e.altKey) return ;
+			e.preventDefault ();
+			e.stopPropagation ();
+			fn ();
+		}
+		app.ui.KeyHandler.addCallback ('KeyMrkrAdd' + app.id, function ( key, map, e ) {
+			markerKey (e, function () { app.fireEvent ('MrkrAdd'); });
+		}, [77]);
+		app.ui.KeyHandler.addCallback ('KeyMrkrPrv' + app.id, function ( key, map, e ) {
+			markerKey (e, function () { app.fireEvent ('MrkrPrv', map[16] || (e && e.shiftKey) ? 1 : 0); });
+		}, [219]);
+		app.ui.KeyHandler.addCallback ('KeyMrkrNxt' + app.id, function ( key, map, e ) {
+			markerKey (e, function () { app.fireEvent ('MrkrNxt', map[16] || (e && e.shiftKey) ? 1 : 0); });
+		}, [221]);
 		app.ui.KeyHandler.addCallback ('KeyShiftSave' + app.id, function ( key, map, e ) {
 			if (app.ui.InteractionHandler.on || accelHeld ( e )) return ;
 
@@ -2852,7 +2874,8 @@
 
 			var start = q.TrimTo (region.start, 3);
 			var end = q.TrimTo ((region.end - region.start), 3);
-			var duration = (region.end - region.start) / val;
+			if (end > 8) end = 8;
+			var duration = end / val;
 
 			var originalBuffer = wavesurfer.backend.buffer;
 			var new_offset = ((start/1)   * originalBuffer.sampleRate) >> 0;
@@ -2975,7 +2998,8 @@
 		});
 
 		app.listenFor ('StateDidPop', function ( state, undo ) {
-			if (state.type === 'multitrack') return ;
+			if (state.type === 'mult') return ;
+			if (state.type === 'mrk') return ;
 			if (!q.is_ready) return ;
 			app.fireEvent ('RequestPause');
 
@@ -3071,6 +3095,7 @@
 		});
 
 			var wave = wavesurfer.drawer.wrapper || wavesurfer.drawer.canvases[0].wave.parentNode;
+			if (app.mrk) app.mrk.wave (wavesurfer, wave);
 
 			var drag_x = 0;
 			var wheel_axis = 0;

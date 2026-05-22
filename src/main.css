@@ -445,6 +445,37 @@ a{
 	pointer-events:none;display:none;
 }
 
+.pk_mrkrl{
+	position:absolute;left:0;right:0;top:0;bottom:0;
+	z-index:7;overflow:visible;pointer-events:none;
+}
+.pk_mrkr{
+	position:absolute;left:0;top:0;width:9px;height:24px;
+	color:#ffd15c;transform:translate3d(0,0,0);
+	pointer-events:auto;cursor:pointer;
+}
+.pk_mrkr:before,.pk_mrkr:after{
+	content:"";position:absolute;pointer-events:none;
+}
+.pk_mrkr:before{
+	left:-4px;top:16px;
+	width:0;height:0;border-left:4px solid transparent;
+	border-right:4px solid transparent;border-top:7px solid currentColor;
+}
+.pk_mrkr:after{
+	left:0;top:24px;width:1px;height:var(--m);
+	background:currentColor;opacity:.7;
+}
+.pk_mrkr b{
+	display:none;position:absolute;left:7px;top:2px;
+	max-width:116px;height:15px;padding:0 4px;box-sizing:border-box;
+	overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+	background:var(--bg-0);color:var(--fg-0);
+	border:1px solid #3f4b4b;border-radius:2px;font:10px/13px var(--ff);
+	font-weight:400;pointer-events:none;
+}
+.pk_mrkr:hover b,.pk_mrkr.pk_act b{display:block}
+
 /* ---------- Multitrack ---------- */
 .pk_mt{
 	display:none;position:relative;z-index:0;

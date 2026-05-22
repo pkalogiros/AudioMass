@@ -138,7 +138,8 @@
 				chans: chans,
 				comp: compression,
 				thumb: PKAudioEditor.engine.GetWave (buffer),
-				samplerate: sample_rate
+				samplerate: sample_rate,
+				markers: app.mrk ? app.mrk.serEd () : []
 			};
 
 			var trans = db.transaction(['sessions'], 'readwrite');

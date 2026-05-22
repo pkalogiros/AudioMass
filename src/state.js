@@ -17,14 +17,17 @@
 			var current = {
 				data: app.engine.wavesurfer.backend.buffer
 			};
-			if (state.type === 'multitrack' && app.multitrack)
+			if (state.type === 'mult' && app.multitrack)
 				current.mt = app.multitrack.getState ();
+			if (state.type === 'mrk' && app.mrk)
+				current.markers = app.mrk.ser (state.ctx);
 			return current;
 		}
 
 		function updateStateData ( state, current ) {
 			state.data = current.data;
 			if (current.mt) state.mt = current.mt;
+			if (current.markers) state.markers = current.markers;
 		}
 
 		q.getLastUndoState = function () {
