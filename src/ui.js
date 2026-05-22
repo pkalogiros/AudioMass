@@ -486,7 +486,7 @@
 						name: 'Load Sample File',
 						action: function ( e ) {
 							if (app.fireEvent ('RequestLoadSampleFile') !== true)
-								app.engine.LoadSample ();
+								app.engine.LoadSample ('test.mp3');
 						}
 					},
 					

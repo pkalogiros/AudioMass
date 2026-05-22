@@ -3,7 +3,7 @@
 
 	function PKMrk ( app ) {
 		var q = this, max = 11, raf = 0;
-		var cols = ['#ffd15c', '#5af2ff', '#f557d2', '#9dff6a', '#ff8c35', '#b9c6ff'];
+		var cols = ['#9dff6a', '#5af2ff', '#f557d2', '#ffd15c', '#ff8c35', '#b9c6ff'];
 		var ed = mk (), mt = mk ();
 
 		function mk () { return {l:[], u:1, a:null, v:null, off:null, s:1}; }
@@ -44,6 +44,10 @@
 		function seek ( c, t ) {
 			var durr = dur ( c );
 			app.fireEvent ('RequestSeekTo', durr > 0 ? at (c, t) / durr : 0);
+		}
+		function playing ( c ) {
+			var m = app.multitrack, ws = app.engine && app.engine.wavesurfer;
+			return c === mt ? !!(m && m.IsPlaying && m.IsPlaying ()) : !!(ws && ws.isPlaying && ws.isPlaying ());
 		}
 		function sort ( c ) {
 			c.l.sort (function ( a, b ) { return a.time === b.time ? (a.id > b.id ? 1 : -1) : a.time - b.time; });
@@ -231,7 +235,7 @@
 					menu.addOption ('Delete Marker', function () { rem (menu.c, menu.id); }, false);
 					menu.addOption ('Play From Here', function () {
 						var i = ix (menu.c, menu.id);
-						if (i >= 0) { seek (menu.c, menu.c.l[i].time); app.fireEvent ('RequestPlay'); }
+						if (i >= 0) { seek (menu.c, menu.c.l[i].time); if (!playing (menu.c)) app.fireEvent ('RequestPlay'); }
 					}, false);
 				}
 				menu.c = c; menu.id = id; menu.open ( e );

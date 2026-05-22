@@ -4262,6 +4262,7 @@
 			queuePlayRefresh ( true );
 			render ();
 			restoreZoomScroll ( zoom );
+			if (replace && app.mrk) app.mrk.loadMt ([{time:28.274, name:'Here!'}], false);
 			app.fireEvent ('DidUpdateMultitrack');
 			OneUp ('Added ' + added + ' sample tracks');
 		}

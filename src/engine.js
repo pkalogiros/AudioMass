@@ -338,7 +338,7 @@
 				}, mt_buffer);
 			}
 		}
-		this.LoadSample = function () {
+		this.LoadSample = function ( file ) {
 			app.fireEvent ('WillDownloadFile');
 
 			setTimeout(function () {
@@ -358,7 +358,7 @@
 
 				app.fireEvent ('RequestZoomUI', 0);
 				q.is_ready = false;
-				wavesurfer.load ('test.mp3');
+				wavesurfer.load (file || 'piano-sample.mp3');
 			}, 180);
 		}
 		this.LoadURL = function ( url ) {

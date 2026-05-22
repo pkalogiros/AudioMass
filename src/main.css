@@ -451,7 +451,7 @@ a{
 }
 .pk_mrkr{
 	position:absolute;left:0;top:0;width:9px;height:24px;
-	color:#ffd15c;transform:translate3d(0,0,0);
+	color:#9dff6a;transform:translate3d(0,0,0);
 	pointer-events:auto;cursor:pointer;
 }
 .pk_mrkr:before,.pk_mrkr:after{
