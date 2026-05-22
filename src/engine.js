@@ -3386,6 +3386,7 @@
 			snap_sel = !snap_sel;
 			wavesurfer.SnapTime = snap_sel ? snapTime : null;
 			if (w.localStorage) w.localStorage.pk_snapzc = snap_sel ? '1' : '0';
+			OneUp ('Zero Cross Selection ' + (snap_sel ? 'On' : 'Off'), 900);
 			app.fireEvent ( 'DidSnapSelDrag', snap_sel );
 		});
 
