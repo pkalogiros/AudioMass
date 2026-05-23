@@ -202,7 +202,7 @@
 				return nodes[id] = n;
 			}
 			function paint () {
-				var p = o.p (), mtr, h, stamp, i, m, n, cls, x, tr, id;
+				var p = o.p (), mtr, h, stamp, i, m, n, cls, x, tr, id, lim;
 				if (!p) return ;
 				ensure ( p );
 				if (o.v && !o.v ()) {
@@ -211,11 +211,13 @@
 				}
 				if (layer._d) { layer.style.display = ''; layer._d = ''; }
 				mtr = o.m ();
+				lim = p.scrollWidth || p.clientWidth || 0;
 				h = (Math.max (1, o.lh () - 24) >> 0) + 'px';
 				if (layer._h !== h) { layer.style.setProperty ('--m', h); layer._h = h; }
 				stamp = ++c.s;
 				for (i = 0; i < c.l.length; ++i) {
 					m = c.l[i]; n = nodes[m.id] || mkNode (m.id); x = mtr.x (m.time) >> 0;
+					if (lim && x >= lim) x = lim - 1;
 					tr = 'translate3d(' + x + 'px,0,0)';
 					cls = 'pk_mrkr' + (m.id === c.a ? ' pk_act' : '');
 					n._s = stamp;

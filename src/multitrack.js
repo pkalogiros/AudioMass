@@ -118,14 +118,15 @@
 			['#0d0f13', '#879db1', '#4d6277']
 		];
 		var multi_sample_files = [
-			{f:'guitar-lead.mp3', p:0.25, c:[[0,0,7.09],[14.01,14.01]]},
+			{f:'guitar-lead.mp3', v:0.966667, p:0.25, c:[[0,0,7.09],[14.01,14.01]]},
 			{f:'guitar-rhythm.mp3', p:-0.10, c:[[7.077,7.077]]},
-			'drums.mp3',
-			'bass.mp3',
-			{f:'piano.mp3', v:0.92, c:[[28.275,0]]},
-			{f:'harp-2.mp3', v:0.93, p:0.12, c:[[28.275,0]]},
-			{f:'picolo-1.mp3', v:0.78, c:[[28.275,0]]},
-			{f:'flute-1.mp3', p:-0.20, c:[[28.275,0]]}
+			{f:'drums.mp3', c:[[0,0,38.317688],[52.58218,28.191393,34.927124,0.06652],[76.963829,52.596916]]},
+			{f:'bass.mp3', c:[[0,0,28.274],[28.274,28.274,77.015877],[77.015877,28.274,52.877399,0,0.897889]]},
+			{f:'piano.mp3', v:0.92, c:[[34.283047,6.008046,48.787418,0.113838],[77.015877,0,24.399876,0,0,1]]},
+			{f:'harp-2.mp3', v:0.93, p:0.12, c:[[46.600136,18.325136,50.253502,0.08255],[77.015877,0,24.399876,0,0,1]]},
+			{f:'picolo-1.mp3', v:0.78, c:[[49.592648,21.317646,48.777374,0.051594],[77.015877,0,24.399876,0,0,1]]},
+			{f:'flute-1.mp3', p:-0.20, c:[[37.748508,9.473508,48.740875,3.826093],[77.015877,0,24.399876]]},
+			{f:'choirs.mp3', v:0.89, c:[[76.957,0]]}
 		];
 
 		function setActiveDrag ( fn ) {
@@ -4242,6 +4243,7 @@
 				if (items[i].vol !== undefined) track.vol = items[i].vol;
 				if (items[i].pan !== undefined) track.pan = items[i].pan;
 				var parts = items[i].clips || [[0,0]];
+				var last = null;
 
 				tracks.push ( track );
 				for (var j = 0; j < parts.length; ++j) {
@@ -4249,7 +4251,14 @@
 					var clip = makeClip ( track.id, p[0], items[i].buffer, items[i].name );
 					clip.in = Math.min (clip.buffer.duration, p[1] || 0);
 					if (p[2] !== undefined) clip.out = Math.min (clip.buffer.duration, p[2]);
-					if (clip.out > clip.in) clips.push ( clip );
+					if (p[3]) clip.fi = p[3];
+					if (p[4]) clip.fo = p[4];
+					clampClipFades ( clip );
+					if (clip.out > clip.in) {
+						clips.push ( clip );
+						if (p[5] && last) xfades[pairKey (last, clip)] = 1;
+						last = clip;
+					}
 				}
 				if (!first) first = track.id;
 				++added;
@@ -4270,7 +4279,9 @@
 			queuePlayRefresh ( true );
 			render ();
 			restoreZoomScroll ( zoom );
-			if (replace && app.mrk) app.mrk.loadMt ([{time:28.274, name:'Here!'}], false);
+			if (replace && app.mrk) app.mrk.loadMt ([
+				{id:'m1', time:28.274, name:'Here!', color:'#9dff6a'}
+			], false);
 			app.fireEvent ('DidUpdateMultitrack');
 			OneUp ('Added ' + added + ' sample tracks');
 		}
