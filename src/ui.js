@@ -1270,7 +1270,7 @@
 					},
 
 					{
-						name : 'Playback Rate',
+						name : 'Speed / Playback Rate',
 						action:function () {
 							app.fireEvent ('RequestActionFXUI_Rate');
 						}
