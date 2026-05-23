@@ -4499,7 +4499,7 @@
 			app.fireEvent ('RequestResize');
 			wv.drawBuffer ();
 
-			var dirty = d.getElementsByClassName ('pk_tmpMsg');
+			var dirty = d.getElementsByClassName ('pk_ed_empty');
 			if (dirty.length) dirty[0].parentNode.removeChild (dirty[0]);
 			OneUp ('Loaded clip in editor', 1000);
 		}

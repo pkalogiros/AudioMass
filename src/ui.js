@@ -2332,7 +2332,7 @@
 
 		// change temp message, it's pretty ugly #### TODO
 		var ttmp = d.createElement('div');
-		ttmp.className = 'pk_tmpMsg';
+		ttmp.className = 'pk_tmpMsg pk_ed_empty';
 		ttmp.innerHTML = 'Drag n drop an Audio File in this window, or click ' +
 		'<a style="white-space:nowrap;border:1px solid;border-radius:23px;padding:5px 18px;font-size:0.94em;margin-left:5px" '+
 		'onclick="PKAudioEditor.engine.LoadSample()">here to use a sample</a>';

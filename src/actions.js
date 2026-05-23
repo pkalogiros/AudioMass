@@ -415,7 +415,7 @@
 				{
 					if (this.PreviewFilter.length > 0)
 					{
-						!this.PreviewFilter[ 0 ].buffer && this.PreviewSource.connect (this.PreviewFilter[ 0 ]);
+						!this.PreviewFilter[ 0 ]._pk_own && !this.PreviewFilter[ 0 ].buffer && this.PreviewSource.connect (this.PreviewFilter[ 0 ]);
 //						var ii = 0;
 //						for (; ii < this.PreviewFilter.length - 1; ++ii)
 //						{
@@ -542,6 +542,7 @@
 				}
 			};
 
+			source._pkStart = audio_ctx.currentTime;
 			source.start (0, seek);
 
 			this.PreviewSource = source;
@@ -1385,8 +1386,8 @@
 						}
 						// ----
 					}
-				};
-			},
+						};
+					},
 
 			FadeIn : function( val ) {
 				return {
@@ -1399,8 +1400,8 @@
 
 						return (gain);
 					}
-				};
-			},
+						};
+					},
 
 			FadeOut : function( val ) {
 				return {
@@ -1771,10 +1772,39 @@
 			},
 
 			Rate : function ( val ) {
-				var prev_val = 1.0;
+				var prev_val = val;
 				var temp_source = [];
+				var on = true;
+				var ctx = null;
+				var chain = null;
+				var api = null;
+				var off = 0;
+				var stamp = 0;
+				var tm = 0;
 
-				return {
+				function clr () {
+					clearTimeout (tm);
+					for (var i = 0; i < temp_source.length; ++i) {
+						try { temp_source[i].stop (); } catch (e) {}
+						try { temp_source[i].disconnect (); } catch (e) {}
+					}
+					temp_source = [];
+				}
+				function arm ( audio_ctx, source, delay ) {
+					clearTimeout (tm);
+					tm = setTimeout (function () {
+						on && api.update (chain, audio_ctx, 1 / prev_val, source);
+					}, Math.max (120, (delay - 0.08) * 1000));
+				}
+				function cur ( audio_ctx, source ) {
+					var now = audio_ctx.currentTime;
+					var dur = source.buffer.duration || 1;
+					if (stamp) off = (off + (now - stamp) / (prev_val || 1)) % dur;
+					stamp = now;
+					return (off);
+				}
+
+				api = {
 					filter : function ( audio_ctx, destination, source, duration ) {
 						var fx_buffer = source.buffer;
 
@@ -1788,8 +1818,10 @@
 							grainDuration = synthesisHop / (1 - desiredOverlap); // 0.15 sec (150 ms
 						}
 
-						var offlineCtx = audio_ctx;
-						const now = audio_ctx.currentTime;
+							var offlineCtx = audio_ctx;
+							const now = audio_ctx.currentTime;
+							off = source._pkSeek || 0;
+							stamp = now;
 
 						// var filter = fx.filter ( offlineCtx, offlineCtx.destination, null, duration );
 						var applyHannWindowFast = function (gainNode, outputTime, grainDuration) {
@@ -1803,14 +1835,16 @@
 							}
 						};
 
-						// Schedule grains
-						var grainIndex = 0;
-						var filter_chain = [];
+							// Schedule grains
+							var grainIndex = 0;
+							var filter_chain = [];
+							ctx = audio_ctx;
+							chain = filter_chain;
 
-						for (let t = 0; t < fx_buffer.duration; t += analysisHop) {
-								const offset = t;
-								const outputTime = grainIndex * synthesisHop;
-								if (offset + grainDuration > fx_buffer.duration) break;  // stop if beyond source
+							for (let t = off, end = off + fx_buffer.duration; t < end; t += analysisHop) {
+									let offset = t % fx_buffer.duration;
+									const outputTime = grainIndex * synthesisHop;
+									if (offset + grainDuration > fx_buffer.duration) offset = 0;
 
 								const grainSource = offlineCtx.createBufferSource();
 								grainSource.buffer = fx_buffer;
@@ -1825,19 +1859,34 @@
 								filter_chain.push (grainGain);
 								temp_source[grainIndex] = grainSource;
 
-								++grainIndex;
-						}
+									++grainIndex;
+							}
 
-						return (filter_chain);
-					},
+								if (filter_chain[0]) filter_chain[0]._pk_own = 1;
+								arm (audio_ctx, source, grainIndex * synthesisHop);
+								return (filter_chain);
+							},
 
-					destroy : function () {
-						temp_source = [];
-					},
+						destroy : function () {
+							clr ();
+						},
 
-					update : function ( filter_chain, audio_ctx, val, source ) {
-						prev_val = 1 / val;
-						var fx_buffer = source.buffer;
+						preview : function ( state, source ) {
+							on = !!state;
+							if (!on) return clr ();
+							if (ctx && source.buffer) {
+								off = ((source._pkSeek || 0) + ctx.currentTime - (source._pkStart || ctx.currentTime)) % (source.buffer.duration || 1);
+								stamp = ctx.currentTime;
+							}
+							api.update (chain, ctx || source.context, 1 / prev_val, source);
+						},
+
+						update : function ( filter_chain, audio_ctx, val, source ) {
+							clr ();
+							if (!on || !filter_chain) { prev_val = 1 / val; return ; }
+							var t = cur (audio_ctx, source);
+							prev_val = 1 / val;
+							var fx_buffer = source.buffer;
 
 						let grainDuration = 0.05;  // 50 ms grain
 						const analysisHop = 0.025;   // 25 ms step (50% overlap)
@@ -1863,17 +1912,14 @@
 						};
 
 						// Schedule grains
-						var l = filter_chain.length;
-						var t = 0;
-						for (var i = 0; i < l; ++i) {
-								const offset = t;
-								const outputTime = i * synthesisHop;
-								//if (offset + grainDuration > fx_buffer.duration) break;
-								const grainGain = filter_chain[i];
-								let grainSource = temp_source[i];
-								grainSource.stop();
-
-								grainSource = audio_ctx.createBufferSource();
+							var l = filter_chain.length;
+							for (var i = 0; i < l; ++i) {
+									if (t + grainDuration > fx_buffer.duration) t = 0;
+									const offset = t;
+									const outputTime = i * synthesisHop;
+									//if (offset + grainDuration > fx_buffer.duration) break;
+									const grainGain = filter_chain[i];
+									let grainSource = audio_ctx.createBufferSource();
 								grainGain.gain.setValueAtTime(grainGain.gain.value, now);
 								grainGain.gain.cancelScheduledValues(now);
 
@@ -1883,17 +1929,20 @@
 
 								applyHannWindowFast (grainGain, outputTime + now, grainDuration);
 
-								grainSource.start(now + outputTime, offset, grainDuration);
-								t += analysisHop;
+									grainSource.start(now + outputTime, offset, grainDuration);
+									t += analysisHop;
+							}
+							arm (audio_ctx, source, l * synthesisHop);
+							// --
 						}
-						// --
-					}
-				};
-			},
+					};
+					return (api);
+				},
 
-			Speed : function ( val ) {
+				Speed : function ( val ) {
 				var ctx = null;
 				var curr_val = val;
+				var on = true;
 
 				return {
 					duration: function ( duration ) {
@@ -1917,6 +1966,7 @@
 					},
 
 					preview: function (state, source) {
+						on = !!state;
 						setRate (
 							source.playbackRate,
 							ctx || source.context || audio_ctx,
@@ -1931,7 +1981,7 @@
 						setRate (
 							source.playbackRate,
 							audio_ctx,
-							curr_val,
+							on ? curr_val : 1.0,
 							source.buffer ? source.buffer.duration : 1,
 							source._pkSeek
 						);

@@ -360,6 +360,7 @@
 		app.listenFor ('MrkrPrv', function ( sel ) { jump (cx (), -1, sel); });
 		app.listenFor ('MrkrNxt', function ( sel ) { jump (cx (), 1, sel); });
 		app.listenFor ('DidZoom', redraw);
+		app.listenFor ('DidCursorCenter', redraw);
 		app.listenFor ('DidUpdateLen', redraw);
 		app.listenFor ('RequestResize', redraw);
 		app.listenFor ('DidUnloadFile', function () { clear (ed, false); });

@@ -488,7 +488,7 @@
 			q.is_ready = true;
 
 			// dirty hack for default message
-			var dirtymsg = document.getElementsByClassName('pk_tmpMsg');
+			var dirtymsg = document.getElementsByClassName('pk_ed_empty');
 			if (dirtymsg.length > 0)
 			{
 				dirtymsg = dirtymsg[0];

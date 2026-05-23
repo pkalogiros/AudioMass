@@ -2,6 +2,7 @@
 'use strict';
 
 setTimeout(function () {
+	if (/(^|[?&])skipintro=1(&|$)/.test (w.location.search)) return ;
 
 	PKAudioEditor._deps.Wlc = function () {
 			var body_str = '';
