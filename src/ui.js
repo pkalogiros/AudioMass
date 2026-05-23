@@ -2442,6 +2442,7 @@
 		btn_stop.className = 'pk_btn pk_stop icon-stop2';
 		btn_stop.onclick = function() {
 			UI.fireEvent('RequestStop');
+			this.blur();
 		};
 		transport.appendChild ( btn_stop );
 
@@ -3327,7 +3328,7 @@
 		});
 
 		var paste_btn = d.createElement ('button');
-		paste_btn.setAttribute('focusable', 'false');
+		paste_btn.setAttribute('tabIndex', -1);
 		paste_btn.className = 'pk_btn icon-file-text2 pk_inact';
 		paste_btn.innerHTML = '<span>Paste Selection (Shift + V)</span>';
 		actions.appendChild ( paste_btn );

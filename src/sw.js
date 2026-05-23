@@ -1,4 +1,4 @@
-const CACHE_NAME = 'audiomass-production-v53';
+const CACHE_NAME = 'audiomass-production-v55';
 const assets = [
 	'./',
 	'./manifest.json',
