@@ -107,8 +107,8 @@
 <img class="top" src="/about/audiomass_top.jpg" />
 
 
-<p>AudioMass lets you record, or use your existing audio tracks, and modify them by trimming, cutting, pasting or applying a plethora of effects, from compression and paragraphic equalizers to reverb, delay and distortion fx. AudioMass also supports more than 20 hotkeys combinations and a dynamic responsive interface to ensure ease of use and that your producivity remains high.
-it is written solely in plain old-school javascript, weights approximately 90kb and has no backend or framework dependencies.</p>
+<p>AudioMass lets you record, or use your existing audio tracks, and modify them by trimming, cutting, pasting or applying effects, from compression and paragraphic equalizers to reverb, delay, repair tools, pitch/speed profiles and multitrack mixdown. AudioMass also supports hotkeys, offline use and a responsive interface so quick edits stay quick.
+it is written solely in plain old-school javascript, weighs under 100kb compressed and has no backend or framework dependencies.</p>
 
 <img class="mid" src="/about/audiomass_support.jpg" />
 <p>It also has very good browser and device support.</p>
@@ -122,7 +122,9 @@ it is written solely in plain old-school javascript, weights approximately 90kb 
 <li><a href="#waveform-tools">Peak and distortion signaling</a></li>
 <li><a href="#waveform-tools">Cutting/Pasting/Trimming parts of the audio</a></li>
 <li><a href="#waveform-tools">Inverting and Reversing Audio</a></li>
+<li><a href="#waveform-tools">Zero-crossing selection tools</a></li>
 <li><a href="#markers">Markers / trackers for cue points and quick jumps</a></li>
+<li><a href="#beat-tools">Automatic beat detection, beat bars and snap-to-beat</a></li>
 <li><a href="#recording-audio">Recording Audio</a></li>
 <li><a href="#export-mp3">Exporting to mp3</a></li>
 <li><a href="#effects">Modifying volume levels</a></li>
@@ -133,13 +135,16 @@ it is written solely in plain old-school javascript, weights approximately 90kb 
 <li><a href="#effects">Delay</a></li>
 <li><a href="#effects">Distortion</a></li>
 <li><a href="#effects">Pitch Shift</a></li>
+<li><a href="#effects">Graph-based pitch / speed profiles</a></li>
+<li><a href="#effects">Click, hum and edit repair</a></li>
 <li><a href="#seamless-loops">Creating seamless loops with crossfade preview</a></li>
 <li><a href="#undo-offline">Keeps track of states so you can undo mistakes</a></li>
 <li><a href="#undo-offline">Offline support!</a></li>
 <li><a href="#multitrack">Multitrack editing and mixdown</a></li>
+<li><a href="#changelog">Recent changelog</a></li>
 </ul>
 
-<p>And all this, in only 90kb of JS!</p>
+<p>And all this, still under 100kb of JS!</p>
 </div>
 
 
@@ -154,19 +159,23 @@ Once the file is loaded and you can view the waveform, zoom in, pan around, or s
 
 <h3 id="waveform-tools">Waveform Tools</h3>
 
-<p>The main editor is built around fast region editing. Select part of the waveform to cut, copy, paste, trim, silence, reverse, invert, or process only that section. The display also includes frequency visualization and peak/distortion signaling so you can spot obvious problems while editing.</p>
+<p>The main editor is built around fast region editing. Select part of the waveform to cut, copy, paste, trim, silence, reverse, invert, or process only that section. The display also includes frequency visualization, peak/distortion signaling and zero-crossing selection, so you can spot obvious problems and avoid rough edit points while editing.</p>
 
 <h3 id="markers">Markers / Trackers</h3>
 
 <p>Markers are little named trackers you can drop on the waveform when a spot matters. Press <i>[M]</i>, double-click the top ruler, or right-click and choose <i>Add Marker Here</i>. You can drag them around, rename or delete them, jump between them with <i>[</i> and <i>]</i>, or hold <i>[Shift]</i> while jumping to quickly turn the space between markers into a selection. Simple, tiny, and very useful when you are editing something longer than a ringtone.</p>
 
+<h3 id="beat-tools">Beat Tools</h3>
+
+<p>AudioMass can detect a rough tempo, draw metronome beat bars and snap edits to those beats. It is a small helper for loops, repeats and timing fixes, without turning the editor into a full DAW screen when you do not need one.</p>
+
 <h3 id="effects">Effects And Processing</h3>
 
-<p>AudioMass includes the usual quick processing tools: gain, fade in/out, compressor, normalization, reverb, delay, distortion and pitch shifting. Effects can be previewed before applying, and most of them work on either the current selection or the whole file.</p>
+<p>AudioMass includes the usual quick processing tools: gain, fade in/out, compressor, normalization, reverb, delay, distortion and pitch shifting. There is also a graph-based pitch/speed profile for ramps and Doppler-style moves, plus repair tools for clicks, hum and hard edit points. Effects can be previewed before applying, and most of them work on either the current selection or the whole file.</p>
 
 <h3 id="seamless-loops">Creating Seamless Loops</h3>
 
-<p>Select a region and use <i>Edit &gt; Seamless Loop</i>, or right-click the waveform and choose <i>Seamless Loop</i>. AudioMass opens a small loop preview where you can adjust the crossfade, trim silence from the edges, snap to smoother zero crossings, repeat the loop, then apply it back to the file or open it in a new editor tab.</p>
+<p>Select a region and use <i>Edit &gt; Seamless Loop</i>, or right-click the waveform and choose <i>Seamless Loop</i>. AudioMass opens a small loop preview where you can adjust the crossfade, trim silence from the edges, snap to smoother zero crossings, click around the preview to test the loop, repeat it, then apply it back to the file or open it in a new editor tab.</p>
 
 <h3 id="undo-offline">Undo And Offline</h3>
 
@@ -358,6 +367,23 @@ It might be a bit too verbose, but it worked very well for structuring AudioMass
 </ul>
 
 <p>The <i>Shift + key</i> variants of the above (eg. <i>Shift + C</i> for copy) work too. They were the originals from before the <i>Ctrl/Cmd</i> bindings were added, kept around so old muscle memory doesn't break.</p>
+
+</div>
+
+<hr />
+
+<div>
+<h3 id="changelog">Recent Changelog</h3>
+
+<ul>
+<li><b>July 2022</b>: Multitrack mode with clips, fades, mixer controls, recording and mixdown.</li>
+<li><b>January 2026</b>: <i>.amss</i> session files, so multitrack projects can be saved and opened again later.</li>
+<li><b>February 2026</b>: Pitch / Speed Profile with graph editing, finer controls, Doppler-style presets and live preview seeking.</li>
+<li><b>March 2026</b>: Automatic beat detection, metronome bars and snap-to-beat editing.</li>
+<li><b>April 2026</b>: New repair tools for clicks, hum and hard edit points.</li>
+<li><b>May 2026</b>: Seamless Loop with crossfade preview, silence trim, zero-crossing snap, repeat and open-in-new-editor.</li>
+<li><b>May 2026</b>: Small UI polish passes, including precise time boxes, zero-cross selection mode and update-ready reload notices.</li>
+</ul>
 
 </div>
 

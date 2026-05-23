@@ -2123,10 +2123,12 @@
 						return ({ fade:inputs[0].value/1, repeat:repeat (), trim:inputs[2].checked, snap:inputs[3].checked });
 					};
 					q._sloopStart = function ( seek ) {
+						q.els.toolbar[0].classList.add ('pk_act');
 						playing = now () - (seek || 0);
 						tick ();
 					};
 					q._sloopStop = function () {
+						q.els.toolbar[0].classList.remove ('pk_act');
 						playing = 0;
 						if (q._sloopRAF) cancelAnimationFrame (q._sloopRAF);
 						q._sloopRAF = 0;
