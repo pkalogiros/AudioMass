@@ -105,6 +105,8 @@
 		var rec_canvas = null;
 		var fx_preview = null;
 		var fx_preview_on = true;
+		var wake_id = 0;
+		var ctx_watch = null;
 		var wave_peak_step = 128;
 		var wave_peaks = w.WeakMap ? new w.WeakMap () : null;
 		var sample_loading = false;
@@ -161,10 +163,33 @@
 
 		function audioCtx () {
 			var wv = app.engine && app.engine.wavesurfer;
-			if (wv && wv.backend && wv.backend.ac) return wv.backend.ac;
-			if (!w.WaveSurferAudioContext)
-				w.WaveSurferAudioContext = new (w.AudioContext || w.webkitAudioContext)();
-			return w.WaveSurferAudioContext;
+			var ctx = wv && wv.backend && wv.backend.ac;
+			if (!ctx) {
+				if (!w.WaveSurferAudioContext)
+					w.WaveSurferAudioContext = new (w.AudioContext || w.webkitAudioContext)();
+				ctx = w.WaveSurferAudioContext;
+			}
+			watchAudio ( ctx );
+			return ctx;
+		}
+
+		function watchAudio ( ctx ) {
+			if (!ctx || ctx === ctx_watch || !ctx.addEventListener) return ;
+			ctx_watch = ctx;
+			ctx.addEventListener ('statechange', function () {
+				if (play && ctx.state !== 'running') Pause ();
+			});
+		}
+
+		function withAudio ( fn ) {
+			var ctx = audioCtx ();
+			var id = ++wake_id;
+			if (!ctx) return ;
+			if (!ctx.state || ctx.state === 'running') return fn ( ctx );
+			if (!ctx.resume || ctx.state === 'closed') return ;
+			ctx.resume ().then (function () {
+				if (id === wake_id && ctx.state === 'running') fn ( ctx );
+			}, function () {});
 		}
 
 		function logFrequencies () {
@@ -4536,7 +4561,9 @@
 				RecordStop (function ( clip ) {
 					if (clip) {
 						setCursorTime ( clip.start );
-						schedulePlayback ( false );
+						withAudio (function ( ctx ) {
+							schedulePlayback ( false, ctx );
+						});
 					}
 				});
 				return ;
@@ -4554,11 +4581,13 @@
 			if (region && cursor >= region.end)
 				setCursorTime ( region.start );
 
-			schedulePlayback ( false );
+			withAudio (function ( ctx ) {
+				schedulePlayback ( false, ctx );
+			});
 		}
 
-		function schedulePlayback ( silent ) {
-			var ctx = audioCtx ();
+		function schedulePlayback ( silent, ctx ) {
+			ctx = ctx || audioCtx ();
 			var start_ctx = ctx.currentTime;
 			var solo = hasSolo ();
 			var nodes = [];
@@ -4744,6 +4773,7 @@
 		}
 
 		function Pause () {
+			++wake_id;
 			if (rec) {
 				RecordStop ();
 				return ;
@@ -4760,6 +4790,7 @@
 		}
 
 		function Stop () {
+			++wake_id;
 			if (rec) {
 				RecordStop ();
 				return ;

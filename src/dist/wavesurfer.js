@@ -3745,6 +3745,13 @@ var WebAudio = function (_util$Observer) {
         // ---
 
         _this.FreqArr = new Uint8Array(512); // 256
+        if (_this.ac.addEventListener) {
+            _this.ac.addEventListener('statechange', function () {
+                if (_this.state === PLAYING && _this.ac.state !== 'running') {
+                    _this.pause();
+                }
+            });
+        }
         return _this;
     }
 
@@ -4902,7 +4909,17 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'play',
         value: function play(start, end) {
+            var _this5 = this;
+
             if (!this.buffer) {
+                return;
+            }
+            if (this.ac.state && this.ac.state !== 'running') {
+                if (this.ac.resume && this.ac.state !== 'closed') {
+                    this.ac.resume().then(function () {
+                        return _this5.play(start, end);
+                    }, function () {});
+                }
                 return;
             }
 
@@ -4918,10 +4935,6 @@ var WebAudio = function (_util$Observer) {
 
             this.source.start(0, start, end - start);
 
-            if (this.ac.state == 'suspended') {
-                this.ac.resume && this.ac.resume();
-            }
-
             this.setState(PLAYING);
 
             this.fireEvent('play');
@@ -4930,12 +4943,22 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'playLoop',
         value: function playLoop(start, end, at) {
+            var _this6 = this;
+
             if (!this.buffer) {
                 return;
             }
 
             if (end <= start) {
                 return this.play(start, end);
+            }
+            if (this.ac.state && this.ac.state !== 'running') {
+                if (this.ac.resume && this.ac.state !== 'closed') {
+                    this.ac.resume().then(function () {
+                        return _this6.playLoop(start, end, at);
+                    }, function () {});
+                }
+                return;
             }
 
             this.createSource();
@@ -4951,10 +4974,6 @@ var WebAudio = function (_util$Observer) {
             this.source.loopStart = start;
             this.source.loopEnd = end;
             this.source.start(0, at);
-
-            if (this.ac.state == 'suspended') {
-                this.ac.resume && this.ac.resume();
-            }
 
             this.setState(PLAYING);
 
