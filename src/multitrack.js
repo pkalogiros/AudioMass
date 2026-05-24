@@ -701,6 +701,7 @@
 			selected_track = tr.id;
 			pushState ( prev, 'Add Channel' );
 			render ();
+			scrollTrackIntoView ( tr.id );
 			app.fireEvent ('DidUpdateMultitrack');
 		}
 
