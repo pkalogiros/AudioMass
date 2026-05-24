@@ -48,11 +48,12 @@ setTimeout(function () {
 			body:'<div style="overflow:auto;-webkit-overflow-scrolling:touch;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
 				mobile_note+
 				'AudioMass is a free, open source, web-based Audio and Waveform Editor.<br />It runs entirely in the browser with no backend and no plugins required!'+
-				'<br/><br/><br/>'+
+				'<br/><br/>'+
 				body_str+
 				'You can load any type of audio your browser supports and perform operations such as fade in, cut, trim, change the volume, '+
 				'and apply a plethora of audio effects.<br/><br/>'+
 				body_str2+
+				'I hope you enjoy the little music pieces. I wrote them a long time ago :)'+
 				'</div>',
 			setup:function( q ) {
 					PKAE.ui.InteractionHandler.checkAndSet ('modal');

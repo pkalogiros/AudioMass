@@ -2748,6 +2748,9 @@
 
 			if (!cur_win || !cur_win.el) return ;
 
+			var dock = app.ui.BarBtm.el;
+			dock.classList.add ('pk_drag');
+
 			cur_win.el.style.pointerEvents = 'none';
 			cur_win.el.style.zIndex = '15';
 
@@ -2860,6 +2863,7 @@
 					cur_win.el.style.pointerEvents = '';
 					cur_win.el.style.zIndex = '';
 				}
+				dock.classList.remove ('pk_drag');
 
 				app.ui.InteractionHandler.on = false;
 
@@ -2873,10 +2877,9 @@
 
 				if (e.type === 'mouseup')
 				{
+					cur_win.el.style.top = '0px';
 					if (moved > 0)
 					{
-						cur_win.el.style.top  = '0px';
-
 						var ch = app.ui.BarBtm.el.childNodes;
 
 						var lw = 0;
