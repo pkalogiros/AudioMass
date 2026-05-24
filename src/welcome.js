@@ -3,6 +3,23 @@
 
 setTimeout(function () {
 	if (/(^|[?&])skipintro=1(&|$)/.test (w.location.search)) return ;
+	var scroll_hint = 0;
+	var showScrollHint = function () {
+		var tbc, el, r;
+		if (!PKAE.isMobile || scroll_hint) return ;
+		scroll_hint = 1;
+		tbc = PKAE.ui.el.getElementsByClassName ('pk_tbc')[0];
+		if (!tbc || tbc.scrollWidth <= tbc.clientWidth + 2) return ;
+		el = d.createElement ('i');
+		r = tbc.getBoundingClientRect ();
+		el.className = 'pk_tbhint';
+		el.innerHTML = '&#8250;';
+		el.style.top = ((r.top + r.height / 2 - 12) >> 0) + 'px';
+		PKAE.ui.el.appendChild ( el );
+		setTimeout (function () {
+			el.parentNode && el.parentNode.removeChild ( el );
+		}, 3000);
+	};
 
 	PKAudioEditor._deps.Wlc = function () {
 			var body_str = '';
@@ -26,6 +43,7 @@ setTimeout(function () {
 				ondestroy: function( q ) {
 					PKAE.ui.InteractionHandler.on = false;
 					PKAE.ui.KeyHandler.removeCallback ('modalTemp');
+					showScrollHint ();
 			},
 			body:'<div style="overflow:auto;-webkit-overflow-scrolling:touch;max-width:580px;width:calc(100vw - 40px);max-height:calc(100vh - 340px);min-height:110px;font-size:13px; color:#95c6c6;padding-top:7px;">'+
 				mobile_note+

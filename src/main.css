@@ -184,6 +184,17 @@ a{
 	scrollbar-width:none;
 }
 .pk_tbc::-webkit-scrollbar{width:0;height:0}
+.pk_tbhint{
+	position:fixed;right:8px;z-index:8;width:24px;height:24px;
+	border-radius:20px;background:rgba(0,0,0,.55);color:var(--ac);
+	font:28px/22px var(--ff);text-align:center;pointer-events:none;
+	animation:pk_tbh 3s ease forwards;
+}
+@keyframes pk_tbh{
+	0%,100%{opacity:0;transform:translateX(0)}
+	15%,65%{opacity:1}
+	35%{transform:translateX(-8px)}
+}
 .pk_tb{
 	position:relative;z-index:6;
 	min-width:560px;height:48px;
