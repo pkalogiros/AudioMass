@@ -3645,10 +3645,12 @@
 
 		function stopFxPreview ( silent ) {
 			if (!fx_preview) return true;
+			if (fx_preview.raf) w.cancelAnimationFrame ( fx_preview.raf );
 			try { fx_preview.source.stop (0); } catch (e) {}
 			try { fx_preview.source.disconnect (); } catch (e2) {}
 			try { fx_preview.dry.disconnect (); } catch (e3) {}
 			try { fx_preview.wet.disconnect (); } catch (e4) {}
+			try { fx_preview.analyser.disconnect (); } catch (e5) {}
 			disconnectFx ( fx_preview.filter );
 			fx_preview.fx && fx_preview.fx.destroy && fx_preview.fx.destroy ();
 			setFxPreviewMeter ( null, false );
@@ -3666,6 +3668,15 @@
 					fx_preview.fx.preview ( fx_preview_on, fx_preview.source );
 			}
 			return fx_preview_on;
+		}
+
+		function tickFxPreview () {
+			if (!fx_preview) return ;
+			if (!fx_preview.freq)
+				fx_preview.freq = new Uint8Array ( fx_preview.analyser.frequencyBinCount );
+			fx_preview.analyser.getByteFrequencyData ( fx_preview.freq );
+			app.fireEvent ('DidAudioProcess', [-1, null, w.performance.now ()], fx_preview.freq);
+			fx_preview.raf = w.requestAnimationFrame ( tickFxPreview );
 		}
 
 		function toggleFxPreview ( val ) {
@@ -3710,13 +3721,16 @@
 			);
 			var wet = ctx.createGain ();
 			var dry = ctx.createGain ();
+			var analyser = ctx.createAnalyser ();
 			var filter = null;
 
 			source.buffer = buffer;
 			source.loop = true;
 			source._pkSeek = seek;
-			wet.connect ( ctx.destination );
-			dry.connect ( ctx.destination );
+			analyser.fftSize = 1024;
+			wet.connect ( analyser );
+			dry.connect ( analyser );
+			analyser.connect ( ctx.destination );
 			source.connect ( dry );
 			filter = fx.filter ( ctx, wet, source, buffer.duration, true, seek );
 			fx_preview = {
@@ -3725,7 +3739,8 @@
 				fx: fx,
 				ctx: ctx,
 				wet: wet,
-				dry: dry
+				dry: dry,
+				analyser: analyser
 			};
 			setFxPreviewMeter ( filter, true );
 			setFxPreviewOn ( fx_preview_on );
@@ -3734,6 +3749,7 @@
 					stopFxPreview ();
 			};
 			source.start (0, Math.max (0, Math.min (seek, buffer.duration - 1 / buffer.sampleRate)));
+			tickFxPreview ();
 			app.fireEvent ('DidStartPreview', seek);
 			return true;
 		}
