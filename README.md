@@ -6,6 +6,14 @@ Live: [https://audiomass.co](https://audiomass.co)
 
 ---
 
+## License
+
+AudioMass itself is MIT licensed. I want it to stay free and useful: use it, modify it, learn from it, ship it, whatever helps.
+
+Some bundled third-party libraries keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+---
+
 ### Now with multitrack support!
 
 AudioMass now ships with a full multitrack mode -- layer multiple tracks, drag clips around, crossfade overlaps, record onto armed channels, and bounce the whole thing back down to a single file. More details on the [about page](https://audiomass.co/about.html).
