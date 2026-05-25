@@ -1,6 +1,6 @@
 # Third-party notices
 
-AudioMass itself is MIT licensed. The bundled third-party files keep their own licenses:
+The bundled third-party files keep their own licenses:
 
 | Project | Files | License |
 | --- | --- | --- |
