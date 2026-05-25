@@ -1153,7 +1153,7 @@
 						setup: function ( obj ) {
 							var txt = 'Zero Cross Selection';
 							function set ( val ) { obj.innerHTML = txt + (val ? ' &#10004;' : ''); }
-							set (w.localStorage && w.localStorage.pk_snapzc === '1');
+							set (!w.localStorage || w.localStorage.pk_snapzc !== '0');
 							app.listenFor ('DidSnapSelDrag', set);
 						}
 					}

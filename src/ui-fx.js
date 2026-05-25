@@ -1858,6 +1858,9 @@
 
 
 		app.listenFor ('RequestActionFXUI_Repair', function () {
+			var mt = app.multitrack;
+			if (mt && mt.IsOn && mt.IsOn ())
+				return OneUp ('Audio Repair is not available in multitrack', 1400);
 			if (!app.engine.is_ready) return ;
 			app.fireEvent ('RequestSelect', 1);
 

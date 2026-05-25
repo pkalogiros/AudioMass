@@ -34,7 +34,7 @@
 		var AudioUtils = new app._deps.audioutils ( app, wavesurfer );
 		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
-		var snap_sel = w.localStorage && w.localStorage.pk_snapzc === '1';
+		var snap_sel = !w.localStorage || w.localStorage.pk_snapzc !== '0';
 		var loadableAudioExtensions = /\.(aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav|wave|webm)$/i;
 		function isLoadableAudioFile ( file ) {
 			var type = (file.type || '').toLowerCase ();
