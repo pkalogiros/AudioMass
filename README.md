@@ -29,10 +29,3 @@ If you want to build the all.build.js minified file for delivery/publishing this
 
 Thanks!
 
----
-
-## License
-
-AudioMass itself is MIT licensed. I want it to stay free and useful: use it, modify it, learn from it, ship it, whatever helps.
-
-Some bundled third-party libraries keep their own licenses. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
