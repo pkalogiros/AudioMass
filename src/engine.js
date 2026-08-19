@@ -48,13 +48,10 @@
 			return ((val *dec) >> 0) / dec;
 		}
 
-		function snapTime ( t ) {
-			var b = wavesurfer.backend && wavesurfer.backend.buffer;
+		this.ZeroCrossTime = function ( b, t, c ) {
 			if (!b) return t;
 			if (t <= 0 || t >= b.duration) return Math.max (0, Math.min (b.duration, t));
-
-			var c = 0;
-			while (c < b.numberOfChannels - 1 && wavesurfer.ActiveChannels && !wavesurfer.ActiveChannels[c]) ++c;
+			c = c || 0;
 			var r = b.sampleRate;
 			var d = b.getChannelData ( c );
 			var i = Math.max (1, Math.min (d.length - 1, (t * r) >> 0));
@@ -66,6 +63,13 @@
 				if (d[k] === 0 || d[k - 1] < 0 && d[k] > 0 || d[k - 1] > 0 && d[k] < 0) return k / r;
 			}
 			return t;
+		};
+
+		function snapTime ( t ) {
+			var b = wavesurfer.backend && wavesurfer.backend.buffer;
+			var c = 0;
+			while (b && c < b.numberOfChannels - 1 && wavesurfer.ActiveChannels && !wavesurfer.ActiveChannels[c]) ++c;
+			return q.ZeroCrossTime ( b, t, c );
 		}
 		wavesurfer.SnapTime = snap_sel ? snapTime : null;
 
@@ -3223,6 +3227,10 @@
 
 		app.listenFor ('RequestActionFX_SPEED', function ( val ) {
 			if (!q.is_ready) return ;
+			if (AudioUtils.previewing) {
+				AudioUtils.FXPreviewStop ();
+				app.fireEvent ('DidStopPreview');
+			}
 
 			app.fireEvent('RequestPause');
 
@@ -3254,13 +3262,14 @@
 			var duration = fx.duration ? fx.duration (selected_duration) : selected_duration / val;
 			duration = q.TrimTo (duration, 3);
 
-			handleStateInline ( start, end );
-
-			var fx_buffer = AudioUtils.Copy ( start, end );
 			var originalBuffer = wavesurfer.backend.buffer;
 			var new_offset = ((start/1)   * originalBuffer.sampleRate) >> 0;
 			var new_len    = ((duration/1) * originalBuffer.sampleRate) >> 0;
 			var old_len    = ((end/1) * originalBuffer.sampleRate) >> 0;
+			if (!(new_len > 0) || !(old_len > 0)) return OneUp ('Could not apply Speed', 1200);
+
+			handleStateInline ( start, end );
+			var fx_buffer = AudioUtils.Copy ( start, end );
 
 			/*
 			var emptySegment = wavesurfer.backend.ac.createBuffer (
@@ -3321,6 +3330,8 @@
 			if (offline_renderer)
 				offline_renderer.then( offline_callback ).catch(function(err) {
 					console.log('Rendering failed: ' + err);
+					q.in_fx = false;
+					app.ui.InteractionHandler.on = false;
 				});
 			else
 				audio_ctx.oncomplete = function ( e ) {

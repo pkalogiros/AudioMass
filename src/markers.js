@@ -2,7 +2,7 @@
 	'use strict';
 
 	function PKMrk ( app ) {
-		var q = this, max = 11, raf = 0;
+		var q = this, max = 11, raf = 0, le = {id:0, dir:0, t:0};
 		var cols = ['#9dff6a', '#5af2ff', '#f557d2', '#ffd15c', '#ff8c35', '#b9c6ff'];
 		var ed = mk (), mt = mk ();
 
@@ -312,11 +312,19 @@
 			paint ();
 		}
 		q.edge = function ( dir ) {
-			var c = cx (), t = now ( c ), m = null, i;
+			var c = cx (), t = now ( c ), m = null, i, p = playing (c), n;
 			if (!c.l.length) return false;
 			for (i = dir < 0 ? c.l.length - 1 : 0; dir < 0 ? i >= 0 : i < c.l.length; i += dir)
 				if (dir < 0 ? c.l[i].time < t - 0.004 : c.l[i].time > t + 0.004) { m = c.l[i]; break; }
+			n = p ? Date.now () : 0;
+			if (m && p && le.id === m.id && le.dir === dir && n - le.t < 150) {
+				m = null;
+				for (i += dir; dir < 0 ? i >= 0 : i < c.l.length; i += dir)
+					if (dir < 0 ? c.l[i].time < t - 0.004 : c.l[i].time > t + 0.004) { m = c.l[i]; break; }
+			}
 			if (!m) return false;
+			if (p) { le.id = m.id; le.dir = dir; le.t = n; }
+			else le.id = 0;
 			emit (c, m.id);
 			seek (c, m.time);
 			return true;
