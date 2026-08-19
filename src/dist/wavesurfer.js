@@ -3269,8 +3269,9 @@ var WaveSurfer = function (_util$Observer) {
 
             this.decodeArrayBuffer(arraybuffer, function (data) {
                 if (!_this9.isDestroyed) {
-                    _this9.loadDecodedBuffer(data);
+                    return _this9.loadDecodedBuffer(data);
                 }
+                return false;
             });
         }
 
@@ -3286,14 +3287,22 @@ var WaveSurfer = function (_util$Observer) {
         key: 'loadDecodedBuffer',
         value: function loadDecodedBuffer(buffer) {
 
-            // #### be smarter check if song changed....            
+            if (!this.backend.load(buffer)) {
+                this.backend._add = 0;
+                this.fireEvent('error', 'Not enough memory to load this audio - ' +
+                    'the resulting file would be too long for this browser.' +
+                    (this.backend.buffer ? '<br />Your existing audio was left untouched.' : ''));
+                return false;
+            }
+
+            // #### be smarter check if song changed....
             this.backend.splitPeaks = [];
             this.backend.mergedPeaks = [];
 
-            this.backend.load(buffer);
             this.drawBuffer(1);
             this.fireEvent('ready');
             this.isReady = true;
+            return true;
         }
 
         /**
@@ -3407,15 +3416,18 @@ var WaveSurfer = function (_util$Observer) {
                             go = true;
                         }
 
-                        callback(data);
+                        if (callback(data) === false) return;
                         _this13.arraybuffer = arraybuffer;
 
                         if (go) // add the main area // todo - put it somewhere else?
                         {
                             setTimeout(function () {
+                                // duration unchanged means the append failed
+                                var end = _this13.getDuration () - 0.01;
+                                if (end <= old_duration) return;
                                 _this13.regions.add({
                                     start:old_duration,
-                                    end:_this13.getDuration () - 0.01,
+                                    end:end,
                                     id:'t'
                                 });
                             },48);
@@ -3424,6 +3436,8 @@ var WaveSurfer = function (_util$Observer) {
                     }
                 }
             }, function () {
+                // a canceled decode must not fire a stale error into a later flow
+                if (!_this13.bid[_id]) return;
                 return _this13.fireEvent('error', 'Error decoding audiobuffer. Did you make sure to supply a valid audio file? ');
             });
         }
@@ -4711,35 +4725,20 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'load',
         value: function load ( buffer ) {
+            var nextBuffer = buffer;
+            var probeSource = null;
+            var nextSource = null;
 
-            if (!this.buffer || !this._add)
-            {
-                // this.startPosition = 0;
-                this.lastPlay = this.ac.currentTime;
-                this.buffer = buffer;
-
-                this.peaks = null;
-                this.createSource();
-
-                // --hack
-                this.source.start (0,0,0);
-
-                this.source.stop (0);
-                this.createSource();
-            }
-            else
-            {
+            try {
+                if (this.buffer && this._add)
+                {
                     // old buffer duratino + new buffer duration
                     // new_offset = old buffer length
 
                     var originalBuffer   = this.buffer;
                     var originalDuration = this.buffer.duration;
-                    var originalOffset   = originalDuration;
 
-                    var newDuration = buffer.duration;
-                    var newLen      = (originalDuration + newDuration) * this.buffer.sampleRate;
-
-                    var uberSegment = this.ac.createBuffer (
+                    nextBuffer = this.ac.createBuffer (
                         this.buffer.numberOfChannels,
                         this.buffer.length + buffer.length,
                         this.buffer.sampleRate
@@ -4750,7 +4749,7 @@ var WebAudio = function (_util$Observer) {
                     for (var i = 0; i < originalBuffer.numberOfChannels; ++i)
                     {
                         var chan_data     = originalBuffer.getChannelData ( i );
-                        var uberChanData  = uberSegment.getChannelData ( i );
+                        var uberChanData  = nextBuffer.getChannelData ( i );
                         var segment_chan_data = null;
 
                         if (buffer.numberOfChannels === 1)
@@ -4781,22 +4780,55 @@ var WebAudio = function (_util$Observer) {
                     }
                     // ----
 
-                    // this.startPosition = 0;
-                    this.lastPlay = this.ac.currentTime;
-                    this.buffer = uberSegment;
+                }
 
-                    this.peaks = null;
-                    this.createSource();
-
-                    // --hack
-                    this.source.start (0,0,0);
-
-                    this.source.stop (0);
-                    this.createSource();
-                    // this.buffer = uberSegment;
+                // Prepare both source nodes before changing any live backend
+                // state. The first one preserves the existing initialization
+                // hack; the second is ready for the next playback.
+                probeSource = this.createSourceFor(nextBuffer);
+                probeSource.start (0,0,0);
+                probeSource.stop (0);
+                probeSource.disconnect();
+                probeSource = null;
+                nextSource = this.createSourceFor(nextBuffer);
+            }
+            catch (e) {
+                try { if (probeSource) probeSource.disconnect(); } catch (ignore) {}
+                try { if (nextSource) nextSource.disconnect(); } catch (ignore) {}
+                return false;
             }
 
+            this.disconnectSource();
+            this.lastPlay = this.ac.currentTime;
+            this.buffer = nextBuffer;
+            this.peaks = null;
+            this.source = nextSource;
+
             this.schedulePeakPyramid();
+            return true;
+        }
+
+        /** @private */
+
+    }, {
+        key: 'createSourceFor',
+        value: function createSourceFor(buffer) {
+            var source = this.ac.createBufferSource();
+
+            try {
+                // adjust for old browsers
+                source.start = source.start || source.noteGrainOn;
+                source.stop = source.stop || source.noteOff;
+
+                source.playbackRate.setValueAtTime(this.playbackRate, this.ac.currentTime);
+                source.buffer = buffer;
+                source.connect(this.analyser);
+                return source;
+            }
+            catch (e) {
+                try { source.disconnect(); } catch (ignore) {}
+                throw e;
+            }
         }
 
         /** @private */
@@ -4804,16 +4836,9 @@ var WebAudio = function (_util$Observer) {
     }, {
         key: 'createSource',
         value: function createSource() {
+            var source = this.createSourceFor(this.buffer);
             this.disconnectSource();
-            this.source = this.ac.createBufferSource();
-
-            // adjust for old browsers
-            this.source.start = this.source.start || this.source.noteGrainOn;
-            this.source.stop = this.source.stop || this.source.noteOff;
-
-            this.source.playbackRate.setValueAtTime(this.playbackRate, this.ac.currentTime);
-            this.source.buffer = this.buffer;
-            this.source.connect(this.analyser);
+            this.source = source;
         }
 
         /**

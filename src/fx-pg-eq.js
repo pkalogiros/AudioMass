@@ -3066,17 +3066,20 @@
 							app.fireEvent ('RequestDetachClipEditor');
 						};
 
-						app.engine.PreserveCurrentForUndo &&
-							app.engine.PreserveCurrentForUndo ('Open Recording', detach);
+						var pushed_undo = !!(app.engine.PreserveCurrentForUndo &&
+							app.engine.PreserveCurrentForUndo ('Open Recording', detach));
 						detach ();
 						showEditor ();
 						app.engine.wavesurfer.backend._add = 0;
-						app.engine.LoadDB ({
+						if (!app.engine.LoadDB ({
 							samplerate: sample_rate,
 							data: [
 								newbuff.buffer
 							]
-						});
+						}) && pushed_undo) {
+							// failed open: drop the stale 'Open Recording' undo entry
+							app.fireEvent ('StateRequestClearAll');
+						}
 
 						// ----
 						q.Destroy ();

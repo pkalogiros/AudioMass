@@ -10,8 +10,9 @@
 		var fadeGain = master.fadeGain;
 
 		function loadDecoded ( new_buffer ) {
-			wavesurfer.loadDecodedBuffer ( new_buffer );
+			if (!wavesurfer.loadDecodedBuffer ( new_buffer )) return (false);
 			master.fireEvent ('DidUpdateLen', wavesurfer.getDuration ());
+			return (true);
 		};
 
 		function OverwriteBufferWithSegment (_offset, _duration, withBuffer ) {

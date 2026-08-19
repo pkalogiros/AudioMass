@@ -4532,16 +4532,24 @@
 			var wv = app.engine.wavesurfer;
 			var clip_id = clip.id;
 
+			var pushed_undo = false;
 			if (wv.backend.buffer !== buffer && app.engine.PreserveCurrentForUndo)
-				app.engine.PreserveCurrentForUndo ('Open Clip', function ( undo ) {
+				pushed_undo = !!app.engine.PreserveCurrentForUndo ('Open Clip', function ( undo ) {
 					editing_clip = undo ? null : clip_id;
 				});
 
 			Stop ();
 			Toggle ( false );
-			editing_clip = clip_id;
 			app.engine.is_ready = true;
-			wv.loadDecodedBuffer ( buffer );
+			if (!wv.loadDecodedBuffer ( buffer )) {
+				// clip failed to open: drop the stale 'Open Clip' undo entry
+				// and return to the multitrack view (prior editor history was
+				// already cleared by the undo push above)
+				if (pushed_undo) app.fireEvent ('StateRequestClearAll');
+				Toggle ( true );
+				return false;
+			}
+			editing_clip = clip_id;
 
 			if (buffer.numberOfChannels === 1) {
 				wv.backend.SetNumberOfChannels (1);
@@ -4567,6 +4575,7 @@
 			var dirty = d.getElementsByClassName ('pk_ed_empty');
 			if (dirty.length) dirty[0].parentNode.removeChild (dirty[0]);
 			OneUp ('Loaded clip in editor', 1000);
+			return true;
 		}
 
 		function syncEditingClip () {

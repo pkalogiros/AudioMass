@@ -159,11 +159,18 @@
 		};
 
 		this.LoadDB = function ( e ) {
-			var new_buffer = wavesurfer.backend.ac.createBuffer (
-					e.data.length,
-					e.data[0].byteLength / 4,
-					e.samplerate
-			);
+			var new_buffer;
+			try {
+				new_buffer = wavesurfer.backend.ac.createBuffer (
+						e.data.length,
+						e.data[0].byteLength / 4,
+						e.samplerate
+				);
+			} catch ( err ) {
+				wavesurfer.backend._add = 0;
+				app.fireEvent ('ShowError', 'Could not load this draft - it may be corrupted or too long for this browser.');
+				return false;
+			}
 
 			for (var i = 0; i < e.data.length; ++i) {
 
@@ -183,9 +190,10 @@
 			var append = wavesurfer.backend._add;
 			var old_durr = wavesurfer.getDuration ();
 
-			PKAudioEditor.engine.wavesurfer.loadDecodedBuffer (new_buffer);
+			if (!PKAudioEditor.engine.wavesurfer.loadDecodedBuffer (new_buffer)) return false;
 			_compute_channels ();
 			var new_durr = wavesurfer.getDuration ();
+
 			app.fireEvent ('DidUpdateLen', new_durr);
 			if (app.mrk) {
 				if (!append) app.mrk.loadEd (e.markers, false);
@@ -201,6 +209,7 @@
 						id:'t'
 					});
 			}
+			return true;
 			// --------
 		};
 
@@ -979,10 +988,34 @@
 
 		wavesurfer.on('error', function (error_msg) {
 
+			// load flows set is_ready to false before loading; errors from
+			// other sources (a failed edit) must not touch their cancel hooks
+			var was_load_flow = !q.is_ready;
+
 			// if loading - cancel loading
 			setTimeout(function() {
 				app.fireEvent ('DidDownloadFile'); // just hides the interface
-				q.is_ready = false;
+
+				// a failed load must not leave append mode armed - the next
+				// buffer swap (undo, fx) would concatenate instead of replace
+				if (wavesurfer.backend) wavesurfer.backend._add = 0;
+
+				// a failed load must not lock the editor: if a valid buffer
+				// survived (e.g. a failed append), keep the session usable.
+				// was_load_flow (not a re-read) so an unrelated load that
+				// started inside this timeout window is left alone
+				if (wavesurfer.backend && wavesurfer.backend.buffer) {
+					if (was_load_flow && !q.is_ready) {
+						q.is_ready = true;
+						wavesurfer.drawBuffer (1); // the display was blanked when loading began
+						app.fireEvent ('DidLoadFile');
+					}
+				}
+				else {
+					q.is_ready = false;
+				}
+
+				if (was_load_flow) app.stopListeningForName ('RequestCancelModal');
 			}, 20);
 
 			app.fireEvent ('ShowError', error_msg);
@@ -3342,11 +3375,15 @@
 		app.listenFor ('StateDidPop', function ( state, undo ) {
 			if (state.type === 'mult') return ;
 			if (state.type === 'mrk') return ;
-			if (!q.is_ready) return ;
+			if (!q.is_ready) { state._restore_failed = true; return ; }
 			app.fireEvent ('RequestPause');
 
+			// only touch the session once the snapshot actually loaded
+			if (!wavesurfer.loadDecodedBuffer (state.data)) {
+				state._restore_failed = true;
+				return ;
+			}
 			wavesurfer.regions.clear();
-			wavesurfer.loadDecodedBuffer (state.data);
 
 			if (state.cb) state.cb (undo);
 
