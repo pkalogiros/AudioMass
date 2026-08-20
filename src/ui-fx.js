@@ -498,6 +498,16 @@
 							var r = auto.wv.regions.list[0], d = r ? r.end - r.start : auto.wv.getDuration ();
 							app.fireEvent ('RequestActionFX_PREVIEW_SPEED', {val:getvalue (q), seek:p * d});
 					  });
+					  // live-update a running preview while the curve is edited;
+					  // throttled - multitrack applies these synchronously
+					  var upd_t = 0;
+					  auto.onChange = function () {
+							if (upd_t) return ;
+							upd_t = setTimeout (function () {
+								upd_t = 0;
+								app.fireEvent ('RequestActionFX_UPDATE_PREVIEW', getvalue (q));
+							}, 33);
+					  };
 						  var pc = d.createElement ('canvas'), px = pc.getContext ('2d'), pp = 0, pt = 0, po = 0;
 						  q.el_body.style.position || (q.el_body.style.position = 'relative');
 						  pc.width = auto.cw; pc.height = auto.ch; pc.style.cssText = 'position:absolute;pointer-events:none;z-index:3';
@@ -559,6 +569,9 @@
 			  }
 			}, app);
 			x.Show();
+			// the modal is in the DOM only now - re-render so the playhead
+			// overlay and delete button pick up real layout offsets
+			if (auto) auto.Render ();
 		});
 
 

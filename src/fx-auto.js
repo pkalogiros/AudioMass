@@ -23,7 +23,8 @@
 		q.act = null;
 		q.act_point = null;
 		q.in_auto = false;
-		q.rbuff = null;
+		q._bg = null;
+		q._bg_src = null;
 		q.waveDarken = filter_modal.waveDarken || 0;
 
 		q.btn_auto = _make_btn_auto ( q );
@@ -86,12 +87,9 @@
 				var cw = q.cw;
 				var ch = q.ch;
 
-				if (q.rbuff) {
-					q.app.engine.GetWave (q.rbuff, 500, 200, null, null, q.canvas, q.ctx);
-					if (q.waveDarken) {
-						ctx.fillStyle = 'rgba(0,0,0,' + q.waveDarken + ')';
-						ctx.fillRect (0, 0, cw, ch);
-					}
+				if (q._bg) {
+					// pre-rendered waveform background - a cheap blit per frame
+					ctx.drawImage (q._bg, 0, 0);
 				}
 
 				// ctx.clearRect (0, 0, q.cw, q.ch);
@@ -168,6 +166,8 @@
 
 
 		_make_controls ( q );
+		_renderBG ( q );
+		q.Render ();
 
 		// -------
 		function _make_controls ( q ) {
@@ -213,9 +213,8 @@
 						q.points[q.act.id].sort( _compare );
 						q.act_point = q.points[q.act.id][q.points[q.act.id].length - 1];
 
-						//_process ( q, q.wv.backend.buffer );
-
 						q.Render ();
+						q.onChange && q.onChange ();
 						// ----
 				}
 				else if (!no_seek && preview_cb && h && (h.previewing || h.MTPreviewing))
@@ -230,35 +229,54 @@
 			}, false);
 
 			var is_dragging = false;
-			var skip = 3;
-			q.canvas.addEventListener ('mousemove', function ( e ) {
-				if (!is_dragging || !q.act_point) return ;
+			var drag_pid;
+			var last_cursor = '';
 
-				var ex = 0;
-				var ey = 0;
+			function setCursor ( v ) {
+				if (v === last_cursor) return ;
+				last_cursor = v;
+				q.canvas.style.cursor = v;
+			}
 
-				if (e.touches) {
-					if (e.touches.length > 1) { return ; }
+			function pointAt ( e ) {
+				if (!q.act) return null;
+				var bounds = q.canvas.getBoundingClientRect ();
+				var posx = e.clientX - bounds.left;
+				var posy = e.clientY - bounds.top;
+				var slop_x = e.pointerType === 'touch' ? 20 : 10;
+				var slop_y = e.pointerType === 'touch' ? 20 : 9;
+				var p = q.points[q.act.id] || [];
+				for (var o = 0; o < p.length; ++o)
+					if (Math.abs (p[o].ax - posx) < slop_x && Math.abs (p[o].ay - posy) < slop_y)
+						return p[o];
+				return null;
+			}
 
-					ex = e.touches[0].clientX;
-					ey = e.touches[0].clientY;
-				} else {
-					ex = e.clientX;
-					ey = e.clientY;
-				}
+			function dragMove ( e ) {
+				if (!q.act_point) return ;
+				// only the pointer that started the drag may steer it
+				if (e.pointerId !== drag_pid) return ;
 
 				var bounds = q.canvas.getBoundingClientRect ();
 				var cw = q.cw;
 				var ch = q.ch;
 
-				var posx = ex - bounds.left;
-				var posy = ey - bounds.top;
+				var rel_x = (e.clientX - bounds.left) / cw;
+				var rel_y = (e.clientY - bounds.top) / ch;
 
-				var rel_x = posx / cw;
-				var rel_y = posy / ch;
+				// keep the dragged point inside the canvas and between its
+				// neighbors - crossing them would break the curve ordering
+				var pts = q.points[q.act.id];
+				var pi = pts ? pts.indexOf (q.act_point) : -1;
+				var lo = pi > 0 ? pts[pi - 1].x : 0;
+				var hi = pi !== -1 && pi < pts.length - 1 ? pts[pi + 1].x : 1;
+				rel_x = Math.max (pi > 0 ? lo + 0.002 : 0, Math.min (pi !== -1 && pi < pts.length - 1 ? hi - 0.002 : 1, rel_x));
+				// neighbors closer than the gap above must still never be crossed
+				rel_x = Math.max (lo, Math.min (hi, rel_x));
+				rel_y = Math.max (0, Math.min (1, rel_y));
 
-				q.act_point.ax = posx;
-				q.act_point.ay = posy;
+				q.act_point.ax = rel_x * cw;
+				q.act_point.ay = rel_y * ch;
 
 				q.act_point.x = rel_x;
 				q.act_point.y = rel_y;
@@ -276,53 +294,63 @@
 				no_seek = 1;
 
 				q.Render ();
+				q.onChange && q.onChange ();
+			}
 
-				if (--skip === 0) {
-					skip = 4;
-					_process ( q, q.wv.backend.buffer );
-				}
+			function dragEnd ( e ) {
+				if (!is_dragging) return ;
+				if (e && e.pointerId !== drag_pid) return ;
+				is_dragging = false;
+				drag_pid = undefined;
+				// touch drags and pointercancel never produce the click that
+				// resets no_seek - re-arm seeking after any compat click ran
+				setTimeout (function () { no_seek = 0; }, 0);
+				setCursor (pointAt (e) ? 'grab' : '');
+			}
+
+			// pointer events unify mouse + touch and, with capture, keep the
+			// drag alive when the cursor leaves the small canvas
+			var p_down = w.PointerEvent ? 'pointerdown' : 'mousedown';
+			var p_move = w.PointerEvent ? 'pointermove' : 'mousemove';
+			var p_up   = w.PointerEvent ? 'pointerup'   : 'mouseup';
+			q.canvas.style.touchAction = 'none';
+
+			q.canvas.addEventListener (p_move, function ( e ) {
+				if (is_dragging) return dragMove ( e );
+				// hover affordance over a draggable point
+				if (q.act) setCursor (pointAt (e) ? 'grab' : '');
 			});
 
-			q.canvas.addEventListener ('mousedown', function ( e ) {
+			q.canvas.addEventListener (p_down, function ( e ) {
+				// primary button and primary pointer only - a second finger
+				// or a right-click must not hijack or abort a drag
+				if (e.button > 0 || e.isPrimary === false) return ;
 				is_dragging = false;
 				if (!q.act) return ;
 
-				var bounds = q.canvas.getBoundingClientRect ();
-				var cw = q.cw;
-				var ch = q.ch;
-
-				var posx = e.clientX - bounds.left;
-				var posy = e.clientY - bounds.top;
-
-				var dist_x = e.is_touch ? 20 : 10;
-				var dist_y = e.is_touch ? 20 : 9;
-
 				if (!q.points[q.act.id]) q.points[q.act.id] = [];
 
-				for (var o = 0; o < q.points[q.act.id].length; ++o)
+				var hit = pointAt ( e );
+				if (hit)
 				{
-					var curr = q.points[q.act.id][ o ];
-					if ( Math.abs (curr.ax - posx) < dist_x && Math.abs (curr.ay - posy) < dist_y)
-					{
-						is_dragging = true;
-						no_seek = 1;
-						q.act_point = curr;
-						q.Render ();
-
-						break;
-					}
+					is_dragging = true;
+					drag_pid = e.pointerId;
+					no_seek = 1;
+					q.act_point = hit;
+					setCursor ('grabbing');
+					if (e.pointerId !== undefined && q.canvas.setPointerCapture)
+						try { q.canvas.setPointerCapture (e.pointerId); } catch ( err ) {}
+					q.Render ();
 				}
-
-				if (!is_dragging)
+				else
 				{
 					q.act_point = null;
 					q.Render ();
 				}
 			});
 
-			q.canvas.addEventListener ('mouseup', function ( e ) {
-				is_dragging = false;
-			});
+			q.canvas.addEventListener (p_up, dragEnd);
+			if (w.PointerEvent) q.canvas.addEventListener ('pointercancel', dragEnd);
 
 
 			var act_el = null;
@@ -400,30 +428,6 @@
 
 			q.modal.el_body.appendChild( cc );
 
-			var buff = q.wv.backend.buffer;
-			if (!buff) return ([cc, ctx]);
-
-			var img = new Image();
-			img.onload = function () {
-				ctx.drawImage (img, 0, 0);
-				if (q.waveDarken) {
-					ctx.fillStyle = 'rgba(0,0,0,' + q.waveDarken + ')';
-					ctx.fillRect (0, 0, q.cw, q.ch);
-				}
-				if (q.act) q.Render ();
-			};
-
-			var offset; var length;
-			var region = q.wv.regions.list[0];
-			if (region) {
-				offset = (region.start * buff.sampleRate) >> 0;
-				length = (region.end * buff.sampleRate) >> 0;
-			}
-
-			_process ( q, buff );
-
-			img.src = q.app.engine.GetWave (buff, 500, 200, offset, length);
-
 			return ([cc, ctx]);
   		};
 
@@ -432,66 +436,36 @@
 				return -1;
 		};
 
-		function _process ( q, buffer ) {
+		function _renderBG ( q ) {
+			var buffer = q.wv.backend.buffer;
 			if (!buffer) return ;
 
-			var getOfflineAudioContext = function (channels, sampleRate, duration) {
-					return new (window.OfflineAudioContext ||
-					window.webkitOfflineAudioContext)(channels, duration, sampleRate);
-			};
-
+			var rate = buffer.sampleRate;
+			var from = 0;
+			var to = buffer.length;
 			var region = q.wv.regions.list[0];
-			var offs = 0;
-			var durr = buffer.duration;
 			if (region) {
-				offs = region.start;
-				durr = region.end - region.start;
+				from = Math.min (buffer.length, Math.max (0, (region.start * rate) >> 0));
+				to = Math.min (buffer.length, Math.max (from + 1, (region.end * rate) >> 0));
 			}
 
-			var rate = buffer.sampleRate;
-			var from = Math.min (buffer.length, Math.max (0, (offs * rate) >> 0));
-			var to = Math.min (buffer.length, ((offs + durr) * rate) >> 0);
-			var len = Math.max (1, to - from);
-			durr = len / rate;
+			// the background only depends on the source segment: render its
+			// peaks once into an offscreen canvas, Render () just blits it
+			if (q._bg_src &&
+				q._bg_src.b === buffer && q._bg_src.f === from && q._bg_src.t === to) return ;
+			q._bg_src = {b:buffer, f:from, t:to};
 
-			var audio_ctx = getOfflineAudioContext (
-					1, // orig_buffer.numberOfChannels,
-					8000,
-					Math.max (1, (durr * 8000) >> 0)
-			);
+			var bg = q._bg || d.createElement ('canvas');
+			bg.width = q.cw;
+			bg.height = q.ch;
+			var bctx = bg.getContext ('2d');
 
-			var newbuffer = audio_ctx.createBuffer (1, len, rate);
-			newbuffer.getChannelData ( 0 ).set (
-				buffer.getChannelData ( 0 ).subarray ( from, to )
-			);
-
-			var source = audio_ctx.createBufferSource ();
-			source.buffer = newbuffer;
-
-			//var fx = q.app.engine.GetFX ('Gain', q.GetValue ());
-			//console.log ( fx.filter ( audio_ctx, audio_ctx.destination, source ) );
-
-			source.connect (audio_ctx.destination);
-			source.start (0); //, offs, durr);
-
-			var offline_callback = function( rendered_buffer ) {
-						q.rbuff = rendered_buffer;
-
-						// var img = new Image();
-						// img.src = q.app.engine.GetWave (rendered_buffer, 500, 200);
-
-						q.Render ();
-
-			};
-			var offline_renderer = audio_ctx.startRendering(); 
-			if (offline_renderer)
-				offline_renderer.then( offline_callback ).catch(function() {});
-			else
-				audio_ctx.oncomplete = function ( e ) {
-					offline_callback ( e.renderedBuffer );
-				};
-
-			// ---------
+			q.app.engine.GetWave (buffer, q.cw, q.ch, from, to, bg, bctx);
+			if (q.waveDarken) {
+				bctx.fillStyle = 'rgba(0,0,0,' + q.waveDarken + ')';
+				bctx.fillRect (0, 0, q.cw, q.ch);
+			}
+			q._bg = bg;
 		};
 	};
 

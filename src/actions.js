@@ -1308,10 +1308,13 @@
 				var total = 0;
 				if (!points) return duration / clampRate (val);
 
+				// exact wall-clock total: each segment takes its own
+				// (buffer span / average rate), not a global average
 				for (var i = 1; i < points.length; ++i)
-					total += (points[i].x - points[i - 1].x) * ((points[i].val + points[i - 1].val) / 2);
+					total += (points[i].x - points[i - 1].x) /
+						Math.max (0.001, (points[i].val + points[i - 1].val) / 2);
 
-				return duration / (total > 0.001 ? total : 1);
+				return duration * (total > 0.0001 ? total : 1);
 			}
 
 			function rateAt ( points, x ) {
@@ -1325,22 +1328,73 @@
 				return points[points.length - 1].val;
 			}
 
-			function setRate ( param, audio_ctx, val, duration, seek ) {
+			function setRate ( param, audio_ctx, val, duration, from_pos ) {
 				var now = audio_ctx ? audio_ctx.currentTime : 0;
 				var points = ratePoints (val, duration);
 				param.cancelScheduledValues && param.cancelScheduledValues (now);
 
 				if (!points) {
-					val = clampRate (val);
-					param.setValueAtTime (val, now);
-					return ;
+					var r = clampRate (val);
+					param.setValueAtTime (r, now);
+					return ({t0:now, p0:from_pos / 1 || 0, D:duration, ev:[{t:now, r:r}]});
 				}
 
-				var x = Math.max (0, Math.min (1, (seek || 0) / duration));
-				duration = rateDuration (val, duration);
-				param.setValueAtTime (rateAt (points, x), now);
-				for (var i = 1; i < points.length; ++i)
-					if (points[i].x > x) param.linearRampToValueAtTime (points[i].val, now + (points[i].x - x) * duration);
+				var D = duration;
+				var x = Math.max (0, Math.min (1, (from_pos / 1 || 0) / D));
+				if (x > 1 - 1e-9) x = 0;
+				var t = now;
+				var cx = x;
+				var cr = rateAt (points, x);
+				var ev = [{t:t, r:cr}];
+
+				param.setValueAtTime (cr, t);
+
+				// exact per-segment ramp times (buffer span / average rate),
+				// repeated across loop wraps up to a horizon; Speed re-arms
+				// the schedule via a watchdog before long previews outlive it
+				while (ev.length < 400 && t - now < 600) {
+					var advanced = false;
+					for (var i = 0; i < points.length && ev.length < 400; ++i) {
+						var p = points[i];
+						if (p.x <= cx + 1e-9) continue;
+						t += Math.max (1e-6, ((p.x - cx) * D) / Math.max (0.001, (cr + p.val) / 2));
+						param.linearRampToValueAtTime (p.val, t);
+						ev.push ({t:t, r:p.val});
+						cx = p.x;
+						cr = p.val;
+						advanced = true;
+					}
+					if (!advanced) break;
+					// the loop wraps - step back to the curve start
+					cx = 0;
+					cr = rateAt (points, 0);
+					param.setValueAtTime (cr, t);
+					ev.push ({t:t, r:cr});
+				}
+				return ({t0:now, p0:x * D, D:D, ev:ev});
+			}
+
+			function ratePos ( sched, at ) {
+				if (!sched || !sched.ev.length) return (0);
+				var ev = sched.ev;
+				var p = sched.p0;
+
+				// integrate the exact schedule the param is following - linear
+				// ramps advance the buffer by their trapezoid area
+				for (var i = 1; i < ev.length; ++i) {
+					var a = ev[i - 1];
+					var b = ev[i];
+					if (at <= b.t) {
+						var dt = Math.max (0, at - a.t);
+						var f = b.t > a.t ? dt / (b.t - a.t) : 0;
+						p += dt * (a.r + (a.r + (b.r - a.r) * f)) / 2;
+						return (p % sched.D);
+					}
+					p += (b.t - a.t) * (a.r + b.r) / 2;
+				}
+				var last = ev[ev.length - 1];
+				p += Math.max (0, at - last.t) * last.r;
+				return (p % sched.D);
 			}
 
 		// EFFECTS LOGIC
@@ -1944,6 +1998,32 @@
 				var ctx = null;
 				var curr_val = val;
 				var on = true;
+				var sched = null;
+				var sparam = null;
+				var sdur = 1;
+				var watch_t = 0;
+
+				function armWatch () {
+					if (watch_t) { clearTimeout (watch_t); watch_t = 0; }
+					if (!ctx || !sched || sched.ev.length < 2) return ;
+					// Long schedules keep a two-second reserve. Short schedules
+					// re-anchor halfway through so the event cap cannot expire first.
+					var remaining = sched.ev[sched.ev.length - 1].t - ctx.currentTime;
+					if (!(remaining > 0)) return ;
+					var delay = remaining > 4 ? remaining - 2 : remaining / 2;
+					watch_t = setTimeout (reanchor, Math.max (1, delay * 1000));
+				}
+
+				function reanchor () {
+					if (watch_t) { clearTimeout (watch_t); watch_t = 0; }
+					if (!sparam || !ctx) return ;
+
+					// updates land where playback actually is right now, not
+					// where the preview started
+					var pos = ratePos (sched, ctx.currentTime);
+					sched = setRate (sparam, ctx, on ? curr_val : 1.0, sdur, pos);
+					armWatch ();
+				}
 
 				return {
 					duration: function ( duration ) {
@@ -1952,10 +2032,19 @@
 
 					filter : function ( audio_ctx, destination, source, duration, preview, seek ) {
 						ctx = audio_ctx;
+						sparam = source.playbackRate;
+						sdur = duration / 1 || (source.buffer ? source.buffer.duration : 1);
 
 						var inputNode = audio_ctx.createGain();
 
-						setRate (source.playbackRate, audio_ctx, curr_val, duration, seek || source._pkSeek);
+						sched = setRate (sparam, ctx, curr_val, sdur, seek || source._pkSeek || 0);
+						if (preview) {
+							// stop the watchdog once the preview source dies
+							source.addEventListener && source.addEventListener ('ended', function () {
+								if (watch_t) { clearTimeout (watch_t); watch_t = 0; }
+							});
+							armWatch ();
+						}
 						source.connect (inputNode);
 
 						// line in to dry mix
@@ -1968,24 +2057,16 @@
 
 					preview: function (state, source) {
 						on = !!state;
-						setRate (
-							source.playbackRate,
-							ctx || source.context || audio_ctx,
-							state ? curr_val : 1.0,
-							source.buffer ? source.buffer.duration : 1,
-							source._pkSeek
-						);
+						if (source && source.playbackRate) sparam = source.playbackRate;
+						if (!ctx) ctx = (source && source.context) || audio_ctx;
+						reanchor ();
 					},
 
-					update : function ( filter_chain, audio_ctx, val, source ) {
+					update : function ( filter_chain, next_ctx, val, source ) {
 						curr_val = val;
-						setRate (
-							source.playbackRate,
-							audio_ctx,
-							on ? curr_val : 1.0,
-							source.buffer ? source.buffer.duration : 1,
-							source._pkSeek
-						);
+						if (next_ctx) ctx = next_ctx;
+						if (source && source.playbackRate) sparam = source.playbackRate;
+						reanchor ();
 					}
 				};
 			},
