@@ -825,6 +825,7 @@ a{
 .pk_zoombtn .pk_zoom_in_v{position:absolute;left:0;top:-50px}
 .pk_zoombtn .pk_zoom_in_v span,
 .pk_zoombtn .pk_zoom_out_v span{margin-left:40px}
+.pk_zoombtn .pk_zoom_in_v:hover{z-index:13}
 .pk_zoombtn .pk_zoom_out_v{top:-26px}
 .pk_mob .pk_zoom_in_v,
 .pk_mob .pk_zoom_out_v{display:none}
