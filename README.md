@@ -15,7 +15,7 @@ AudioMass now ships with a full multitrack mode -- layer multiple tracks, drag c
 ## Getting it to Run!
 1. please checkout this repo (or download it as zip)
 2. navigate to it through your favorite CLI, then access the ```src``` dir
-3. Run ```go run audiomass-server.go```  -  or if you do not have golang installed, you can use a simple python webserver by running ```python audiomass-server.py```
+3. Run ```go run audiomass-server.go```  -  or if you do not have golang installed, you can use a simple python webserver by running ```python audiomass-server.py``` - or, if you have Docker Compose installed, just run ```docker compose up --build``` from the repo root
 4. Navigate to [http://localhost:5055/](http://localhost:5055/) and have fun!
 
 ...
