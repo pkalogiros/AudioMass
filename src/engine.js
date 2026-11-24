@@ -35,11 +35,15 @@
 		this.FXPreviewHost = AudioUtils;
 		q.is_ready = false;
 		var snap_sel = !w.localStorage || w.localStorage.pk_snapzc !== '0';
-		var loadableAudioExtensions = /\.(aac|aif|aiff|flac|m4a|mp3|oga|ogg|opus|wav|wave|webm)$/i;
+		var loadableAudioExtensions = ['.aac', '.aif', '.aiff', '.flac', '.m4a', '.mp3', '.oga', '.ogg', '.opus', '.wav', '.wave', '.webm'];
+		var navigator = w.navigator;
+		var isAppleMobile = /iPhone|iPad|iPod/.test (navigator.userAgent) ||
+			(navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 		function isLoadableAudioFile ( file ) {
 			var type = (file.type || '').toLowerCase ();
 			if (type.indexOf ('audio/') === 0) return true;
-			return loadableAudioExtensions.test (file.name || '');
+			var name = (file.name || '').toLowerCase ();
+			return loadableAudioExtensions.indexOf (name.slice (name.lastIndexOf ('.'))) !== -1;
 		}
 
 		this.TrimTo = function( val, num ) {
@@ -922,7 +926,9 @@
 
 				input = d.createElement( 'input' );
 				input.setAttribute ('type', 'file');
-				input.setAttribute ('accept', 'audio/*,.amss');
+				// WebKit bug 242110: audio/* can select movies instead of audio on iOS.
+				var extensions = loadableAudioExtensions.join (',') + ',.amss';
+				input.setAttribute ('accept', (isAppleMobile ? '' : 'audio/*,') + extensions);
 				input.className = 'pk_inpfile';
 				input.onchange = function () {
 					if (app.multitrack &&

@@ -61,12 +61,6 @@
 	*	@param	String,	class name to be added to the overlay (default is '__fadingIn')
 	**/
 	parent.dragNDrop = function( body, overlay_id, callback, method, _clss ) {
-		var win = window;
-		// check to see if we are using a mobile device - no need for dragNdrop in devices
-		// that do not support it somehow yet
-		if( ( 'ontouchstart' in window ) )
-			return "mobile";
-		
 			/** JS Object, used to define the file-reading method **/
 		var method_lut = {
 				'text'		 :	'readAsText',
